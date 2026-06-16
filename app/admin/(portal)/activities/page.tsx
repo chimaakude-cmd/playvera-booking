@@ -1,5 +1,12 @@
 import { AdminActivitiesSection } from "@/components/admin/AdminActivitiesSection";
+import { fetchAdminActivitiesList } from "@/lib/admin/activities-data";
 
-export default function AdminActivitiesPage() {
-  return <AdminActivitiesSection />;
+export const dynamic = "force-dynamic";
+
+export default async function AdminActivitiesPage() {
+  const { activities, dataSource } = await fetchAdminActivitiesList();
+
+  return (
+    <AdminActivitiesSection activities={activities} dataSource={dataSource} />
+  );
 }

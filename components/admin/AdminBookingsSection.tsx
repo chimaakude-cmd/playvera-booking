@@ -6,9 +6,13 @@ import { PaginationControls } from "@/components/ui/PaginationControls";
 import { paginateItems } from "@/lib/pagination";
 import {
   BOOKING_PAYMENT_STATUS_LABELS,
-  MOCK_BOOKINGS,
   type AdminBooking,
 } from "@/lib/admin";
+
+type Props = {
+  bookings: AdminBooking[];
+  dataSource: "supabase" | "unavailable";
+};
 
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat("en-GB", {
@@ -26,7 +30,19 @@ function formatDate(iso: string): string {
   });
 }
 
-export function AdminBookingsSection() {
+function formatSessionDate(value: string): string {
+  if (!value) {
+    return "—";
+  }
+
+  return new Date(`${value}T12:00:00`).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+export function AdminBookingsSection({ bookings, dataSource }: Props) {
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -35,9 +51,9 @@ export function AdminBookingsSection() {
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) {
-      return MOCK_BOOKINGS;
+      return bookings;
     }
-    return MOCK_BOOKINGS.filter(
+    return bookings.filter(
       (b) =>
         b.parentName.toLowerCase().includes(q) ||
         b.childName.toLowerCase().includes(q) ||
@@ -46,7 +62,7 @@ export function AdminBookingsSection() {
         b.reference.toLowerCase().includes(q) ||
         b.email.toLowerCase().includes(q),
     );
-  }, [query]);
+  }, [bookings, query]);
 
   const pagination = useMemo(
     () => paginateItems(filtered, page, 8),
@@ -69,6 +85,13 @@ export function AdminBookingsSection() {
       <PageHeader
         title="Bookings"
         description="All bookings across the platform — search by parent, child, activity, or provider."
+        action={
+          dataSource === "unavailable" ? (
+            <span className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs font-medium text-amber-800">
+              Supabase not connected
+            </span>
+          ) : undefined
+        }
       />
 
       <div className="rounded-2xl border border-zinc-200/80 bg-white p-4 shadow-sm">
@@ -86,7 +109,7 @@ export function AdminBookingsSection() {
           />
         </label>
         <p className="mt-2 text-xs text-zinc-400">
-          {filtered.length} of {MOCK_BOOKINGS.length} bookings
+          {filtered.length} of {bookings.length} bookings
         </p>
       </div>
 
@@ -117,29 +140,42 @@ export function AdminBookingsSection() {
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100">
-              {pagination.items.map((booking) => (
-                <BookingRows
-                  key={booking.id}
-                  booking={booking}
-                  expandedId={expandedId}
-                  notes={notes}
-                  onToggle={toggleExpand}
-                  onNotesChange={(id, value) =>
-                    setNotes((current) => ({ ...current, [id]: value }))
-                  }
-                  onStub={handleStub}
-                />
-              ))}
+              {pagination.items.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={9}
+                    className="px-4 py-12 text-center text-sm text-zinc-500"
+                  >
+                    {bookings.length === 0 ? "No bookings yet." : "No bookings match your search."}
+                  </td>
+                </tr>
+              ) : (
+                pagination.items.map((booking) => (
+                  <BookingRows
+                    key={booking.id}
+                    booking={booking}
+                    expandedId={expandedId}
+                    notes={notes}
+                    onToggle={toggleExpand}
+                    onNotesChange={(id, value) =>
+                      setNotes((current) => ({ ...current, [id]: value }))
+                    }
+                    onStub={handleStub}
+                  />
+                ))
+              )}
             </tbody>
           </table>
-          <PaginationControls
-            page={pagination.page}
-            totalPages={pagination.totalPages}
-            totalItems={pagination.totalItems}
-            startIndex={pagination.startIndex}
-            endIndex={pagination.endIndex}
-            onPageChange={setPage}
-          />
+          {pagination.totalItems > 0 ? (
+            <PaginationControls
+              page={pagination.page}
+              totalPages={pagination.totalPages}
+              totalItems={pagination.totalItems}
+              startIndex={pagination.startIndex}
+              endIndex={pagination.endIndex}
+              onPageChange={setPage}
+            />
+          ) : null}
         </div>
       </div>
     </div>
@@ -175,7 +211,9 @@ function BookingRows({
         </td>
         <td className="px-4 py-4 text-sm text-zinc-700">{booking.activityTitle}</td>
         <td className="px-4 py-4 text-sm text-zinc-700">{booking.providerName}</td>
-        <td className="px-4 py-4 text-sm text-zinc-700">{booking.sessionDate}</td>
+        <td className="px-4 py-4 text-sm text-zinc-700">
+          {formatSessionDate(booking.sessionDate)}
+        </td>
         <td className="px-4 py-4 text-sm capitalize text-zinc-700">
           {booking.status.replace("_", " ")}
         </td>

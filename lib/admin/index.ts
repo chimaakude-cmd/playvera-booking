@@ -5,6 +5,8 @@ export * from "./settings";
 export * from "./platform-revenue-data";
 export * from "./dashboard-data";
 export * from "./providers-data";
+export * from "./bookings-data";
+export * from "./activities-data";
 export * from "./payment-providers-data";
 export * from "./provider-plans";
 export * from "./organisation-types";

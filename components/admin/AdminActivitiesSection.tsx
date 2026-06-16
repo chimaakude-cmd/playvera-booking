@@ -5,11 +5,12 @@ import { useMemo, useState } from "react";
 import { PageHeader } from "@/components/club/PageHeader";
 import { PaginationControls } from "@/components/ui/PaginationControls";
 import { paginateItems } from "@/lib/pagination";
-import {
-  ACTIVITY_STATUS_LABELS,
-  MOCK_ACTIVITIES,
-  type AdminActivity,
-} from "@/lib/admin";
+import { ACTIVITY_STATUS_LABELS, type AdminActivity } from "@/lib/admin";
+
+type Props = {
+  activities: AdminActivity[];
+  dataSource: "supabase" | "unavailable";
+};
 
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat("en-GB", {
@@ -36,11 +37,11 @@ function StatusBadge({ status }: { status: AdminActivity["status"] }) {
   );
 }
 
-export function AdminActivitiesSection() {
+export function AdminActivitiesSection({ activities, dataSource }: Props) {
   const [page, setPage] = useState(1);
   const pagination = useMemo(
-    () => paginateItems(MOCK_ACTIVITIES, page, 10),
-    [page],
+    () => paginateItems(activities, page, 10),
+    [activities, page],
   );
 
   return (
@@ -48,6 +49,13 @@ export function AdminActivitiesSection() {
       <PageHeader
         title="Activities"
         description="All sessions and activities across providers on the Activora marketplace."
+        action={
+          dataSource === "unavailable" ? (
+            <span className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs font-medium text-amber-800">
+              Supabase not connected
+            </span>
+          ) : undefined
+        }
       />
 
       <div className="overflow-hidden rounded-2xl border border-zinc-200/80 bg-white shadow-sm">
@@ -76,60 +84,75 @@ export function AdminActivitiesSection() {
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100">
-              {pagination.items.map((activity) => (
-                <tr key={activity.id} className="hover:bg-zinc-50/50">
-                  <td className="px-4 py-4">
-                    <Link
-                      href={`/admin/activities/${activity.id}`}
-                      className="text-sm font-medium text-violet-700 hover:text-violet-900"
-                    >
-                      {activity.title}
-                    </Link>
-                    <p className="text-xs text-zinc-500">
-                      {activity.visibility === "public" ? "Public" : "Hidden"}
-                    </p>
-                  </td>
-                  <td className="px-4 py-4 text-sm text-zinc-700">
-                    {activity.providerName}
-                  </td>
-                  <td className="px-4 py-4 text-sm text-zinc-700">
-                    {activity.day}
-                    <span className="block text-xs text-zinc-500">
-                      {activity.startTime}–{activity.endTime}
-                    </span>
-                  </td>
-                  <td className="px-4 py-4 text-sm text-zinc-700">
-                    {activity.venue}
-                  </td>
-                  <td className="px-4 py-4 text-sm text-zinc-700">
-                    {activity.bookingsCount}/{activity.capacity}
-                  </td>
-                  <td className="px-4 py-4 text-sm text-zinc-700">
-                    {activity.price === 0 ? "Free" : formatCurrency(activity.price)}
-                  </td>
-                  <td className="px-4 py-4">
-                    <StatusBadge status={activity.status} />
-                  </td>
-                  <td className="px-4 py-4">
-                    <Link
-                      href={`/admin/activities/${activity.id}`}
-                      className="rounded-lg border border-zinc-200 px-2.5 py-1 text-xs font-medium text-zinc-600 hover:bg-zinc-50"
-                    >
-                      View
-                    </Link>
+              {pagination.items.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={8}
+                    className="px-4 py-12 text-center text-sm text-zinc-500"
+                  >
+                    No activities yet.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                pagination.items.map((activity) => (
+                  <tr key={activity.id} className="hover:bg-zinc-50/50">
+                    <td className="px-4 py-4">
+                      <Link
+                        href={`/admin/activities/${activity.id}`}
+                        className="text-sm font-medium text-violet-700 hover:text-violet-900"
+                      >
+                        {activity.title}
+                      </Link>
+                      <p className="text-xs text-zinc-500">
+                        {activity.visibility === "public" ? "Public" : "Hidden"}
+                      </p>
+                    </td>
+                    <td className="px-4 py-4 text-sm text-zinc-700">
+                      {activity.providerName}
+                    </td>
+                    <td className="px-4 py-4 text-sm text-zinc-700">
+                      {activity.day}
+                      <span className="block text-xs text-zinc-500">
+                        {activity.startTime}–{activity.endTime}
+                      </span>
+                    </td>
+                    <td className="px-4 py-4 text-sm text-zinc-700">
+                      {activity.venue}
+                    </td>
+                    <td className="px-4 py-4 text-sm text-zinc-700">
+                      {activity.bookingsCount}/{activity.capacity}
+                    </td>
+                    <td className="px-4 py-4 text-sm text-zinc-700">
+                      {activity.price === 0
+                        ? "Free"
+                        : formatCurrency(activity.price)}
+                    </td>
+                    <td className="px-4 py-4">
+                      <StatusBadge status={activity.status} />
+                    </td>
+                    <td className="px-4 py-4">
+                      <Link
+                        href={`/admin/activities/${activity.id}`}
+                        className="rounded-lg border border-zinc-200 px-2.5 py-1 text-xs font-medium text-zinc-600 hover:bg-zinc-50"
+                      >
+                        View
+                      </Link>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
-          <PaginationControls
-            page={pagination.page}
-            totalPages={pagination.totalPages}
-            totalItems={pagination.totalItems}
-            startIndex={pagination.startIndex}
-            endIndex={pagination.endIndex}
-            onPageChange={setPage}
-          />
+          {pagination.totalItems > 0 ? (
+            <PaginationControls
+              page={pagination.page}
+              totalPages={pagination.totalPages}
+              totalItems={pagination.totalItems}
+              startIndex={pagination.startIndex}
+              endIndex={pagination.endIndex}
+              onPageChange={setPage}
+            />
+          ) : null}
         </div>
       </div>
     </div>

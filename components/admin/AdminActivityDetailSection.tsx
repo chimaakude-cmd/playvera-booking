@@ -3,18 +3,13 @@
 import Link from "next/link";
 import { useState } from "react";
 import { PageHeader } from "@/components/club/PageHeader";
-import {
-  ACTIVITY_STATUS_LABELS,
-  getActivityById,
-  type AdminActivity,
-} from "@/lib/admin";
+import { ACTIVITY_STATUS_LABELS, type AdminActivity } from "@/lib/admin";
 
 type Props = {
-  activityId: string;
+  activity: AdminActivity | null;
 };
 
-export function AdminActivityDetailSection({ activityId }: Props) {
-  const activity = getActivityById(activityId);
+export function AdminActivityDetailSection({ activity }: Props) {
   const [saved, setSaved] = useState(false);
 
   if (!activity) {
