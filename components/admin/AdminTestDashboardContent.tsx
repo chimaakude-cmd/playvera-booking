@@ -1,7 +1,9 @@
 import { DashboardStatCard } from "@/components/club/dashboard/DashboardCards";
+import { EstimatedPlatformRevenueSection } from "@/components/admin/EstimatedPlatformRevenueSection";
 import { PageHeader } from "@/components/club/PageHeader";
 import type { AdminDashboardData } from "@/lib/admin/dashboard-data";
 import { formatAdminDataStatusLabel } from "@/lib/admin/dashboard-data";
+import { formatMoney } from "@/lib/payments";
 
 type Props = {
   data: AdminDashboardData;
@@ -52,7 +54,9 @@ function SectionHeader({
 }
 
 export function AdminTestDashboardContent({ data }: Props) {
-  const { metrics } = data;
+  const { metrics, platformRevenue } = data;
+  const showPaymentVolume =
+    platformRevenue.status === "live" && platformRevenue.hasLivePaymentData;
 
   return (
     <div className="space-y-8">
@@ -141,15 +145,19 @@ export function AdminTestDashboardContent({ data }: Props) {
             </div>
             <div className="rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-3">
               <dt className="text-xs font-medium uppercase tracking-wide text-zinc-500">
-                Platform fees
+                Platform fees (30d est.)
               </dt>
               <dd className="mt-1 text-2xl font-semibold text-zinc-900">
-                No data yet
+                {showPaymentVolume
+                  ? formatMoney(platformRevenue.totalEstimatedRevenue)
+                  : "No data yet"}
               </dd>
             </div>
           </dl>
         </article>
       </section>
+
+      <EstimatedPlatformRevenueSection summary={platformRevenue} />
 
       <article className="rounded-2xl border border-zinc-200/80 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-semibold text-zinc-900">Admin controls</h2>

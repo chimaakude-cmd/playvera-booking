@@ -1,3 +1,8 @@
+import {
+  emptyPlatformRevenueSummary,
+  fetchPlatformRevenueSummary,
+  type PlatformRevenueSummary,
+} from "@/lib/admin/platform-revenue-data";
 import { isSecretKeyConfigured } from "@/lib/stripe/env";
 import {
   createSupabaseServerClient,
@@ -25,6 +30,7 @@ export type AdminDashboardData = {
   recentSignups: AdminDashboardSignup[];
   recentSignupsStatus: AdminDataSourceStatus;
   paymentsStatus: AdminDataSourceStatus;
+  platformRevenue: PlatformRevenueSummary;
   stripeConfigured: boolean;
 };
 
@@ -132,6 +138,7 @@ function emptyDashboardData(): AdminDashboardData {
     recentSignups: [],
     recentSignupsStatus: "unavailable",
     paymentsStatus: "unavailable",
+    platformRevenue: emptyPlatformRevenueSummary(),
     stripeConfigured: isSecretKeyConfigured(),
   };
 }
@@ -152,6 +159,7 @@ export async function fetchAdminDashboardData(): Promise<AdminDashboardData> {
     clubProfiles,
     bookingsLast30Days,
     recentSignups,
+    platformRevenue,
   ] = await Promise.all([
     countRows("providers"),
     countRows("parent_profiles"),
@@ -161,6 +169,7 @@ export async function fetchAdminDashboardData(): Promise<AdminDashboardData> {
       value: thirtyDaysAgo.toISOString(),
     }),
     fetchRecentSignups(),
+    fetchPlatformRevenueSummary(),
   ]);
 
   const platformMetricsAvailable =
@@ -179,7 +188,11 @@ export async function fetchAdminDashboardData(): Promise<AdminDashboardData> {
     platformMetricsStatus: platformMetricsAvailable ? "live" : "unavailable",
     recentSignups: recentSignups ?? [],
     recentSignupsStatus: recentSignups !== null ? "live" : "unavailable",
-    paymentsStatus: "unavailable",
+    paymentsStatus:
+      platformRevenue.status === "live" && platformRevenue.hasLivePaymentData
+        ? "live"
+        : "unavailable",
+    platformRevenue,
     stripeConfigured,
   };
 }
