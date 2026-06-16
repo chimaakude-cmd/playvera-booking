@@ -162,9 +162,10 @@ export function normalizeRelease(release: Release): Release {
     release.details.length > 0
       ? release.details
       : combineReleaseDetails(release);
+  const { internalOnly: _legacyInternalOnly, ...rest } = release;
 
   return {
-    ...release,
+    ...rest,
     type:
       (release.type as string) === "improvement" ? "ui" : release.type,
     features: release.features ?? [],

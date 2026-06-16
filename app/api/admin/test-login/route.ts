@@ -11,10 +11,9 @@ import {
   validateTestAdminCredentials,
 } from "@/lib/auth/test-admin-session";
 
-// TODO: Replace with production auth before launch.
+// TODO: Replace with production auth (password, MFA, etc.) before launch.
 type TestLoginBody = {
   email?: string;
-  password?: string;
 };
 
 export async function POST(request: Request) {
@@ -27,9 +26,8 @@ export async function POST(request: Request) {
   }
 
   const email = body.email ?? "";
-  const password = body.password ?? "";
 
-  if (!validateTestAdminCredentials(email, password)) {
+  if (!validateTestAdminCredentials(email)) {
     return NextResponse.json({ ok: false, error: "Access denied" }, { status: 401 });
   }
 

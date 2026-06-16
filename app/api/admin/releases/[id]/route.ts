@@ -9,6 +9,10 @@ import type { UpdateReleaseInput } from "@/lib/releases/types";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
+type ReleaseActionBody = {
+  action: "publish" | "unpublish" | "internal" | "merge";
+};
+
 export async function GET(_request: Request, context: RouteContext) {
   const { id } = await context.params;
   const release = await getServerReleaseById(id);
@@ -39,7 +43,7 @@ export async function DELETE(_request: Request, context: RouteContext) {
 
 export async function POST(request: Request, context: RouteContext) {
   const { id } = await context.params;
-  const body = (await request.json()) as { action?: string; internalOnly?: boolean };
+  const body = (await request.json()) as ReleaseActionBody;
 
   if (body.action === "publish") {
     const release = await updateServerRelease(id, {

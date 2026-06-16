@@ -80,6 +80,7 @@ export type CreateReleaseInput = {
   scheduledAt?: string | null;
 };
 
+/** Patch payload for admin release updates — use `status: "internal"`, not `internalOnly`. */
 export type UpdateReleaseInput = Partial<CreateReleaseInput> & {
   status?: ReleaseStatus;
   publishedAt?: string | null;

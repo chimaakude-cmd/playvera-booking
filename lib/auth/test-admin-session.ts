@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import type { NextRequest } from "next/server";
-import { validateTestAdminCredentials as validateCredentials } from "./admin-test-credentials";
+import { DEFAULT_ADMIN_TEST_EMAIL } from "./admin-test-credentials";
 import type { AuthUser } from "./types";
 
 export const TEST_ADMIN_SESSION_COOKIE = "activora-test-admin-session";
@@ -9,12 +9,13 @@ export const TEST_ADMIN_SESSION_MAX_AGE_SECONDS = 60 * 60 * 8;
 
 const TEST_ADMIN_SESSION_VALUE = "authenticated";
 
-// TODO: Replace with production auth (OAuth, MFA, etc.) before launch.
-export function validateTestAdminCredentials(
-  email: string,
-  password: string,
-): boolean {
-  return validateCredentials(email, password);
+// TODO: Replace with production auth (OAuth, MFA, password, 2FA) before launch.
+export function validateTestAdminCredentials(email: string): boolean {
+  const allowed =
+    process.env.ADMIN_TEST_EMAIL?.trim().toLowerCase() ||
+    DEFAULT_ADMIN_TEST_EMAIL.toLowerCase();
+
+  return email.trim().toLowerCase() === allowed;
 }
 
 export function buildTestAdminUser(email: string): AuthUser {
