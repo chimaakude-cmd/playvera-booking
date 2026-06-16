@@ -2,10 +2,13 @@ export type { FeeHandling } from "./fee-settings";
 import type { FeeHandling } from "./fee-settings";
 import { DEFAULT_PLAN_ID, getPlanByIdOrDefault } from "@/src/config/pricing";
 import { getProviderPlatformFeePercent } from "@/lib/provider-subscription";
+import {
+  DEFAULT_PLATFORM_FEE_MATRIX,
+  getPlatformFeeForPlan,
+} from "@/lib/fee-settings";
 
 /** Default platform fee for Starter plan (server-side fallback). */
-export const PLATFORM_FEE_PERCENT =
-  getPlanByIdOrDefault(DEFAULT_PLAN_ID).platformFeePercent;
+export const PLATFORM_FEE_PERCENT = DEFAULT_PLATFORM_FEE_MATRIX[DEFAULT_PLAN_ID];
 
 export function resolvePlatformFeePercent(override?: number | null): number {
   if (override != null && Number.isFinite(override)) {

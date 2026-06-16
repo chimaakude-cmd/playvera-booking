@@ -19,7 +19,6 @@ export const DEFAULT_PLATFORM_SETTINGS: PlatformSettings = {
   country: "UK",
   vatThreshold: 90_000,
   marketplaceFooterText: "Powered by Activora",
-  defaultPlatformFeePercent: 2,
   marketplaceEnabled: true,
   aiAssistantEnabled: false,
 };

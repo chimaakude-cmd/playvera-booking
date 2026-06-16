@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { BookingQuestionsSettings } from "@/components/admin/settings/BookingQuestionsSettings";
+import { PlatformFeeStructureSection } from "@/components/admin/settings/PlatformFeeStructureSection";
 import { PageHeader } from "@/components/club/PageHeader";
 import {
   DEFAULT_PLATFORM_SETTINGS,
@@ -11,7 +12,7 @@ import {
   type PlatformSettings,
 } from "@/lib/admin";
 
-type SettingsTab = "general" | "booking-questions";
+type SettingsTab = "general" | "fees" | "booking-questions";
 
 type RegenerateCredentialsResponse = {
   ok: true;
@@ -90,14 +91,15 @@ export function AdminSettingsSection() {
   return (
     <div className="space-y-8">
       <PageHeader
-        title="Admin Settings"
+        title="Platform Settings"
         description="Platform-wide configuration for Activora marketplace operations."
       />
 
-      <div className="flex gap-1 rounded-xl bg-zinc-100 p-1 max-w-md">
+      <div className="flex gap-1 rounded-xl bg-zinc-100 p-1 max-w-lg">
         {(
           [
             { id: "general", label: "General" },
+            { id: "fees", label: "Fees" },
             { id: "booking-questions", label: "Booking questions" },
           ] as const
         ).map((item) => (
@@ -121,6 +123,8 @@ export function AdminSettingsSection() {
           <BookingQuestionsSettings />
         </div>
       ) : null}
+
+      {tab === "fees" ? <PlatformFeeStructureSection /> : null}
 
       {tab === "general" ? (
       <form
@@ -207,26 +211,6 @@ export function AdminSettingsSection() {
               value={settings.vatThreshold}
               onChange={(e) =>
                 handleChange("vatThreshold", Number(e.target.value))
-              }
-              className="mt-1.5 w-full rounded-xl border border-zinc-200 px-4 py-2.5 text-sm text-zinc-900 outline-none transition focus:border-violet-300 focus:ring-2 focus:ring-violet-500/20"
-            />
-          </label>
-
-          <label className="block">
-            <span className="text-sm font-medium text-zinc-700">
-              Default platform fee (%)
-            </span>
-            <input
-              type="number"
-              step="0.1"
-              min="0"
-              max="100"
-              value={settings.defaultPlatformFeePercent}
-              onChange={(e) =>
-                handleChange(
-                  "defaultPlatformFeePercent",
-                  Number(e.target.value),
-                )
               }
               className="mt-1.5 w-full rounded-xl border border-zinc-200 px-4 py-2.5 text-sm text-zinc-900 outline-none transition focus:border-violet-300 focus:ring-2 focus:ring-violet-500/20"
             />

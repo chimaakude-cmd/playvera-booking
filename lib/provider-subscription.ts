@@ -4,6 +4,7 @@ import {
   normalizePlanId,
   type PlanId,
 } from "@/src/config/pricing";
+import { getPlatformFeeForPlan } from "@/lib/fee-settings";
 
 export const PROVIDER_SUBSCRIPTION_STORAGE_KEY = "activora-provider-subscription";
 
@@ -52,19 +53,19 @@ function syncLegacyStores(planId: PlanId): void {
 
   try {
     const feeRaw = localStorage.getItem("activora-fee-settings");
-    const plan = getPlanByIdOrDefault(planId);
+    const planFee = getPlatformFeeForPlan(planId);
     const feeSettings = feeRaw
-      ? ({ ...JSON.parse(feeRaw), platformFeePercent: plan.platformFeePercent } as {
+      ? ({ ...JSON.parse(feeRaw), platformFeePercent: planFee } as {
           platformFeePercent: number;
         })
-      : { platformFeePercent: plan.platformFeePercent };
+      : { platformFeePercent: planFee };
 
     localStorage.setItem(
       "activora-fee-settings",
       JSON.stringify({
         feeHandling: "provider_absorbs",
         ...feeSettings,
-        platformFeePercent: plan.platformFeePercent,
+        platformFeePercent: planFee,
       }),
     );
   } catch {
@@ -153,7 +154,7 @@ export function setProviderSubscriptionPlan(planId: PlanId): ProviderSubscriptio
 
 export function getProviderPlatformFeePercent(): number {
   const { planId } = getProviderSubscription();
-  return getPlanByIdOrDefault(planId).platformFeePercent;
+  return getPlatformFeeForPlan(planId);
 }
 
 export function getProviderPlanId(): PlanId {
