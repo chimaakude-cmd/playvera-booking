@@ -7,13 +7,15 @@
     "dev:clean": "node -e \"require('fs').rmSync('.next',{recursive:true,force:true})\" && next dev -p 3000",
     "build": "next build",
     "generate:brand": "node scripts/generate-brand-assets.mjs",
+    "generate:release-draft": "node scripts/generate-release-draft.mjs",
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test:stripe-fees": "npx tsx scripts/test-stripe-fees.ts",
     "test:stripe-connect": "npx tsx scripts/test-stripe-connect-status.ts",
     "check:stripe-env": "npx tsx --env-file=.env.local scripts/check-stripe-env.ts",
-    "sync:stripe-publishable": "npx tsx scripts/sync-stripe-publishable.ts"
+    "sync:stripe-publishable": "npx tsx scripts/sync-stripe-publishable.ts",
+    "admin:regenerate-credentials": "node scripts/generate-admin-test-credentials.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.108.1",

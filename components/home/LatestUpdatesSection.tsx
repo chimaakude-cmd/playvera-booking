@@ -40,7 +40,10 @@ function formatDate(iso: string): string {
 export function LatestUpdatesSection() {
   const { t } = useTranslation("homepage");
   const [releases, setReleases] = useState<Release[]>(
-    SEED_RELEASES.filter((r) => r.status === "published").slice(0, 2),
+    SEED_RELEASES.filter((r) => r.status === "published" && !r.internalOnly).slice(
+      0,
+      2,
+    ),
   );
 
   useEffect(() => {

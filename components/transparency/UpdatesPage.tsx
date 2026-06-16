@@ -32,9 +32,66 @@ function formatDate(iso: string): string {
   });
 }
 
+function SectionList({
+  title,
+  items,
+}: {
+  title: string;
+  items: string[];
+}) {
+  if (items.length === 0) {
+    return null;
+  }
+  return (
+    <div className="mt-4">
+      <h4 className="text-xs font-bold uppercase tracking-wider text-zinc-500">
+        {title}
+      </h4>
+      <ul className="mt-2 space-y-2">
+        {items.map((item) => (
+          <li key={item} className="flex gap-2 text-sm text-zinc-700">
+            <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-teal-500" />
+            {item}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function ReleaseSections({ release }: { release: Release }) {
+  const hasStructured =
+    release.features.length > 0 ||
+    release.improvements.length > 0 ||
+    release.fixes.length > 0 ||
+    release.breakingChanges.length > 0;
+
+  if (hasStructured) {
+    return (
+      <>
+        <SectionList title="Features added" items={release.features} />
+        <SectionList title="Improvements" items={release.improvements} />
+        <SectionList title="Fixes" items={release.fixes} />
+        <SectionList title="Breaking changes" items={release.breakingChanges} />
+      </>
+    );
+  }
+
+  return (
+    <ul className="mt-4 space-y-2">
+      {release.details.map((detail) => (
+        <li key={detail} className="flex gap-2 text-sm text-zinc-700">
+          <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-teal-500" />
+          {detail}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export function UpdatesPage() {
   const [releases, setReleases] = useState<Release[]>(
-    SEED_RELEASES.filter((r) => r.status === "published"),
+    SEED_RELEASES.filter((r) => r.status === "published" && !r.internalOnly),
   );
 
   useEffect(() => {
@@ -112,17 +169,7 @@ export function UpdatesPage() {
                     </span>
                   </div>
                   <p className="mt-3 text-sm text-zinc-600">{release.summary}</p>
-                  <ul className="mt-4 space-y-2">
-                    {release.details.map((detail) => (
-                      <li
-                        key={detail}
-                        className="flex gap-2 text-sm text-zinc-700"
-                      >
-                        <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-teal-500" />
-                        {detail}
-                      </li>
-                    ))}
-                  </ul>
+                  <ReleaseSections release={release} />
                 </article>
               ))}
             </div>

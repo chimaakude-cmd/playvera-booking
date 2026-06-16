@@ -45,5 +45,6 @@ next-env.d.ts
 # cursor
 .cursor/
 
-typecheck-output.txt
+# local release draft persistence (server stub)
+/.data/
 
