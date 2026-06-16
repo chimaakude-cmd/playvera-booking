@@ -34,7 +34,6 @@ export function StaffAccessPage({
       : "",
   );
   const [password, setPassword] = useState("");
-  const [twoFactorCode, setTwoFactorCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [locked, setLocked] = useState(isStaffAccessLocked());
   const [submitting, setSubmitting] = useState(false);
@@ -43,14 +42,15 @@ export function StaffAccessPage({
     setSubmitting(true);
 
     try {
+      // TODO: Restore password and 2FA in request body before launch.
       const response = await fetch("/api/admin/test-login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password, twoFactorCode }),
+        body: JSON.stringify({ email }),
       });
 
       if (!response.ok) {
-        setError("Invalid admin credentials");
+        setError("Access denied");
         return;
       }
 
@@ -58,7 +58,7 @@ export function StaffAccessPage({
       writeAuthSession(payload.user);
       router.push("/admin/dashboard");
     } catch {
-      setError("Invalid admin credentials");
+      setError("Access denied");
     } finally {
       setSubmitting(false);
     }
@@ -96,7 +96,15 @@ export function StaffAccessPage({
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-violet-950 via-zinc-950 to-zinc-950 px-4 py-12">
-      <div className="w-full max-w-md">
+      {useServerTestLogin ? (
+        <div className="fixed inset-x-0 top-0 z-50 bg-amber-500 px-4 py-2 text-center text-sm font-medium text-amber-950">
+          DEVELOPMENT MODE - Admin access is temporarily simplified and must be
+          secured before launch.
+        </div>
+      ) : null}
+      <div
+        className={`w-full max-w-md${useServerTestLogin ? " pt-10" : ""}`}
+      >
         <div className="mb-8 flex flex-col items-center text-center">
           <div className="rounded-2xl bg-white/5 p-4 ring-1 ring-white/10">
             <Logo size="desktop" />
@@ -106,7 +114,7 @@ export function StaffAccessPage({
           </h1>
           <p className="mt-2 text-sm text-violet-200/70">
             {useServerTestLogin
-              ? "Temporary test access — credentials validated server-side"
+              ? "Enter your admin email to continue"
               : "Authorised personnel only"}
           </p>
         </div>
@@ -128,40 +136,41 @@ export function StaffAccessPage({
             />
           </label>
 
-          <label className="mt-4 block">
-            <span className="text-sm font-medium text-violet-100">Password</span>
-            <input
-              type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              autoComplete="current-password"
-              disabled={formDisabled}
-              className="mt-1.5 w-full rounded-xl border border-violet-500/20 bg-zinc-950/60 px-4 py-2.5 text-sm text-white outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-500/30 disabled:opacity-50"
-              required
-            />
-          </label>
+          {!useServerTestLogin ? (
+            <>
+              <label className="mt-4 block">
+                <span className="text-sm font-medium text-violet-100">
+                  Password
+                </span>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  autoComplete="current-password"
+                  disabled={formDisabled}
+                  className="mt-1.5 w-full rounded-xl border border-violet-500/20 bg-zinc-950/60 px-4 py-2.5 text-sm text-white outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-500/30 disabled:opacity-50"
+                  required
+                />
+              </label>
 
-          <label className="mt-4 block">
-            <span className="text-sm font-medium text-violet-100">
-              2FA code
-            </span>
-            <input
-              type="text"
-              value={twoFactorCode}
-              onChange={(event) => setTwoFactorCode(event.target.value)}
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              placeholder={useServerTestLogin ? "Enter 2FA code" : "Coming soon"}
-              disabled={!useServerTestLogin || formDisabled}
-              required={useServerTestLogin}
-              className="mt-1.5 w-full rounded-xl border border-violet-500/20 bg-zinc-950/60 px-4 py-2.5 text-sm text-white outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-500/30 disabled:opacity-50"
-            />
-            {!useServerTestLogin ? (
-              <p className="mt-1 text-xs text-violet-300/50">
-                Two-factor authentication will be required in production.
-              </p>
-            ) : null}
-          </label>
+              <label className="mt-4 block">
+                <span className="text-sm font-medium text-violet-100">
+                  2FA code
+                </span>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  placeholder="Coming soon"
+                  disabled
+                  className="mt-1.5 w-full rounded-xl border border-violet-500/20 bg-zinc-950/60 px-4 py-2.5 text-sm text-white outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-500/30 disabled:opacity-50"
+                />
+                <p className="mt-1 text-xs text-violet-300/50">
+                  Two-factor authentication will be required in production.
+                </p>
+              </label>
+            </>
+          ) : null}
 
           {error ? (
             <p className="mt-4 rounded-xl bg-red-950/50 px-3 py-2 text-sm text-red-300 ring-1 ring-red-500/20">

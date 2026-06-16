@@ -8,24 +8,15 @@ export const TEST_ADMIN_SESSION_MAX_AGE_SECONDS = 60 * 60 * 8;
 
 const TEST_ADMIN_SESSION_VALUE = "authenticated";
 
-export function validateTestAdminCredentials(
-  email: string,
-  password: string,
-  twoFactorCode: string,
-): boolean {
+// TODO: Restore password and 2FA validation (ADMIN_TEST_PASSWORD, ADMIN_TEST_2FA_CODE) before launch.
+export function validateTestAdminCredentials(email: string): boolean {
   const expectedEmail = process.env.ADMIN_TEST_EMAIL?.trim();
-  const expectedPassword = process.env.ADMIN_TEST_PASSWORD;
-  const expectedTwoFactorCode = process.env.ADMIN_TEST_2FA_CODE?.trim();
 
-  if (!expectedEmail || !expectedPassword || !expectedTwoFactorCode) {
+  if (!expectedEmail) {
     return false;
   }
 
-  return (
-    email.trim().toLowerCase() === expectedEmail.toLowerCase() &&
-    password === expectedPassword &&
-    twoFactorCode.trim() === expectedTwoFactorCode
-  );
+  return email.trim().toLowerCase() === expectedEmail.toLowerCase();
 }
 
 export function buildTestAdminUser(email: string): AuthUser {

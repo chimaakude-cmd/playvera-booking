@@ -11,10 +11,9 @@ import {
   validateTestAdminCredentials,
 } from "@/lib/auth/test-admin-session";
 
+// TODO: Restore password and 2FA fields in request body before launch.
 type TestLoginBody = {
   email?: string;
-  password?: string;
-  twoFactorCode?: string;
 };
 
 export async function POST(request: Request) {
@@ -27,11 +26,9 @@ export async function POST(request: Request) {
   }
 
   const email = body.email ?? "";
-  const password = body.password ?? "";
-  const twoFactorCode = body.twoFactorCode ?? "";
 
-  if (!validateTestAdminCredentials(email, password, twoFactorCode)) {
-    return NextResponse.json({ ok: false }, { status: 401 });
+  if (!validateTestAdminCredentials(email)) {
+    return NextResponse.json({ ok: false, error: "Access denied" }, { status: 401 });
   }
 
   const user = buildTestAdminUser(email);

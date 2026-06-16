@@ -28,6 +28,7 @@ function isExempt(pathname: string, role: UserRole): boolean {
 }
 
 function hasAdminPortalAccess(request: NextRequest): boolean {
+  // TODO: Replace test-admin session gate with production auth before launch.
   if (getRoleFromCookie(request) === "admin") {
     return true;
   }
