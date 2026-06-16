@@ -34,6 +34,18 @@ export type ProviderStripeStatus =
 
 export type ProviderAccountStatus = "active" | "paused" | "suspended";
 
+import type { ProviderOrganisationType } from "./organisation-types";
+import type { AdminProviderPlanId } from "./provider-plans";
+
+export type { ProviderOrganisationType } from "./organisation-types";
+export type { AdminProviderPlanId } from "./provider-plans";
+
+export type AdminPaymentProviderMode =
+  | "stripe_only"
+  | "gocardless_only"
+  | "both"
+  | "not_connected";
+
 export type PlatformSettings = {
   platformName: string;
   supportEmail: string;
@@ -43,7 +55,6 @@ export type PlatformSettings = {
   country: string;
   vatThreshold: number;
   marketplaceFooterText: string;
-  defaultPlatformFeePercent: number;
   marketplaceEnabled: boolean;
   aiAssistantEnabled: boolean;
 };
@@ -60,9 +71,19 @@ export type AdminProvider = {
   clubName: string;
   ownerName: string;
   email: string;
+  organisationType: ProviderOrganisationType;
+  clubsCount: number;
   stripeStatus: ProviderStripeStatus;
+  gocardlessStatus: string;
+  paymentProviderMode: AdminPaymentProviderMode;
+  paymentMethodsEnabled: string;
+  paymentMethodStripeCard: boolean;
+  paymentMethodGoCardlessDd: boolean;
+  paymentMethodManualInvoice: boolean;
   subscriptionPlan: string;
+  planId: AdminProviderPlanId;
   totalRevenue: number;
+  hasPaymentData: boolean;
   accountStatus: ProviderAccountStatus;
   verified: boolean;
   joinedAt: string;
@@ -144,6 +165,14 @@ export type AdminProviderDetail = AdminProvider & {
   totalBookings: number;
   pendingPayout: number;
   platformFeesPaid: number;
+  paymentMethodStripeCard: boolean;
+  paymentMethodGoCardlessDd: boolean;
+  paymentMethodManualInvoice: boolean;
+};
+
+export type AdminProvidersListResult = {
+  providers: AdminProvider[];
+  dataSource: "supabase" | "unavailable";
 };
 
 export type AdminSession = {

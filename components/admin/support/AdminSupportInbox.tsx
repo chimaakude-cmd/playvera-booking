@@ -2,23 +2,28 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { AdminDemoEnquiriesInbox } from "@/components/admin/support/AdminDemoEnquiriesInbox";
+import { SupportEndChatModal } from "@/components/support/SupportEndChatModal";
 import { PageHeader } from "@/components/club/PageHeader";
 import { getAdminSession } from "@/lib/admin";
 import {
   ADMIN_ASSIGNEES,
   assignThread,
+  endThread,
   getAssignmentForThread,
   getMessagesForThread,
   getThreads,
+  isThreadEnded,
+  reopenThread,
   sendMessage,
   updateThreadStatus,
   type SupportContext,
   type SupportThread,
   type ThreadStatus,
 } from "@/lib/support";
+import { THREAD_ENDED_MESSAGE } from "@/lib/support/defaults";
 
 type InboxView = "support" | "demo";
-type StatusFilter = "all" | ThreadStatus | "open";
+type StatusFilter = "all" | ThreadStatus;
 type ContextFilter = "all" | SupportContext;
 
 const CONTEXT_LABELS: Record<SupportContext, string> = {
@@ -35,6 +40,15 @@ const STATUS_FILTERS: { key: StatusFilter; label: string }[] = [
   { key: "waiting", label: "Waiting" },
   { key: "assigned", label: "Assigned" },
   { key: "resolved", label: "Resolved" },
+  { key: "closed", label: "Closed" },
+];
+
+const ALL_STATUSES: ThreadStatus[] = [
+  "open",
+  "waiting",
+  "assigned",
+  "resolved",
+  "closed",
 ];
 
 function formatDateTime(iso: string): string {
@@ -48,9 +62,11 @@ function formatDateTime(iso: string): string {
 
 function StatusBadge({ status }: { status: ThreadStatus }) {
   const styles: Record<ThreadStatus, string> = {
+    open: "bg-sky-50 text-sky-700",
     waiting: "bg-amber-50 text-amber-800",
     assigned: "bg-teal-50 text-teal-800",
     resolved: "bg-emerald-50 text-emerald-700",
+    closed: "bg-zinc-100 text-zinc-600",
   };
   return (
     <span
@@ -69,6 +85,7 @@ export function AdminSupportInbox() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [reply, setReply] = useState("");
   const [refreshKey, setRefreshKey] = useState(0);
+  const [endChatOpen, setEndChatOpen] = useState(false);
 
   useEffect(() => {
     setThreads(getThreads(true));
@@ -82,9 +99,6 @@ export function AdminSupportInbox() {
       if (statusFilter === "all") {
         return true;
       }
-      if (statusFilter === "open") {
-        return t.status === "waiting" || t.status === "assigned";
-      }
       return t.status === statusFilter;
     });
   }, [threads, statusFilter, contextFilter]);
@@ -92,6 +106,7 @@ export function AdminSupportInbox() {
   const selected = threads.find((t) => t.id === selectedId) ?? null;
   const messages = selected ? getMessagesForThread(selected.id) : [];
   const assignment = selected ? getAssignmentForThread(selected.id) : undefined;
+  const chatEnded = selected ? isThreadEnded(selected.status) : false;
 
   function refresh() {
     setRefreshKey((k) => k + 1);
@@ -99,7 +114,7 @@ export function AdminSupportInbox() {
 
   function handleReply(event: React.FormEvent) {
     event.preventDefault();
-    if (!selected || !reply.trim()) {
+    if (!selected || !reply.trim() || chatEnded) {
       return;
     }
     const session = getAdminSession();
@@ -114,7 +129,7 @@ export function AdminSupportInbox() {
   }
 
   function handleAssign(assigneeId: string, assigneeName: string) {
-    if (!selected) {
+    if (!selected || chatEnded) {
       return;
     }
     assignThread(selected.id, assigneeId, assigneeName);
@@ -126,6 +141,24 @@ export function AdminSupportInbox() {
       return;
     }
     updateThreadStatus(selected.id, status);
+    refresh();
+  }
+
+  function handleConfirmEndChat() {
+    if (!selected) {
+      return;
+    }
+    const session = getAdminSession();
+    endThread(selected.id, session?.name ?? "Support");
+    setEndChatOpen(false);
+    refresh();
+  }
+
+  function handleReopenChat() {
+    if (!selected) {
+      return;
+    }
+    reopenThread(selected.id);
     refresh();
   }
 
@@ -260,39 +293,62 @@ export function AdminSupportInbox() {
           ) : (
             <div className="flex h-full flex-col">
               <div className="border-b border-zinc-100 px-4 py-4">
-                <h2 className="text-sm font-semibold text-zinc-900">
-                  {selected.subject}
-                </h2>
-                <p className="mt-1 text-xs text-zinc-500">
-                  {selected.contact_name} · {selected.contact_email} ·{" "}
-                  {CONTEXT_LABELS[selected.context]}
-                </p>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <h2 className="text-sm font-semibold text-zinc-900">
+                      {selected.subject}
+                    </h2>
+                    <p className="mt-1 text-xs text-zinc-500">
+                      {selected.contact_name} · {selected.contact_email} ·{" "}
+                      {CONTEXT_LABELS[selected.context]}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {chatEnded ? (
+                      <button
+                        type="button"
+                        onClick={handleReopenChat}
+                        className="rounded-lg border border-teal-200 bg-teal-50 px-3 py-1.5 text-xs font-semibold text-teal-800 hover:bg-teal-100"
+                      >
+                        Reopen chat
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setEndChatOpen(true)}
+                        className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-semibold text-zinc-700 hover:bg-zinc-50"
+                      >
+                        End chat
+                      </button>
+                    )}
+                  </div>
+                </div>
                 <div className="mt-3 flex flex-wrap gap-2">
                   <select
                     value={selected.status}
                     onChange={(e) =>
                       handleStatusChange(e.target.value as ThreadStatus)
                     }
-                    className="rounded-lg border border-zinc-200 px-2 py-1 text-xs"
+                    className="rounded-lg border border-zinc-200 px-2 py-1 text-xs capitalize"
                   >
-                    {(["waiting", "assigned", "resolved"] as const).map(
-                      (s) => (
-                        <option key={s} value={s}>
-                          {s}
-                        </option>
-                      ),
-                    )}
+                    {ALL_STATUSES.map((s) => (
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
+                    ))}
                   </select>
-                  {ADMIN_ASSIGNEES.map((a) => (
-                    <button
-                      key={a.id}
-                      type="button"
-                      onClick={() => handleAssign(a.id, a.name)}
-                      className="rounded-lg border border-zinc-200 px-2 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
-                    >
-                      Assign to {a.name}
-                    </button>
-                  ))}
+                  {!chatEnded
+                    ? ADMIN_ASSIGNEES.map((a) => (
+                        <button
+                          key={a.id}
+                          type="button"
+                          onClick={() => handleAssign(a.id, a.name)}
+                          className="rounded-lg border border-zinc-200 px-2 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
+                        >
+                          Assign to {a.name}
+                        </button>
+                      ))
+                    : null}
                 </div>
                 {assignment ? (
                   <p className="mt-2 text-xs text-teal-700">
@@ -326,28 +382,40 @@ export function AdminSupportInbox() {
                 ))}
               </div>
 
-              <form
-                onSubmit={handleReply}
-                className="border-t border-zinc-100 px-4 py-3"
-              >
-                <textarea
-                  value={reply}
-                  onChange={(e) => setReply(e.target.value)}
-                  placeholder="Reply as support agent…"
-                  rows={2}
-                  className="w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm"
-                />
-                <button
-                  type="submit"
-                  className="mt-2 rounded-xl bg-teal-600 px-4 py-2 text-xs font-semibold text-white hover:bg-teal-700"
+              {chatEnded ? (
+                <div className="border-t border-zinc-100 bg-zinc-50 px-4 py-4 text-center text-sm text-zinc-600">
+                  {THREAD_ENDED_MESSAGE}
+                </div>
+              ) : (
+                <form
+                  onSubmit={handleReply}
+                  className="border-t border-zinc-100 px-4 py-3"
                 >
-                  Send reply
-                </button>
-              </form>
+                  <textarea
+                    value={reply}
+                    onChange={(e) => setReply(e.target.value)}
+                    placeholder="Reply as support agent…"
+                    rows={2}
+                    className="w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm"
+                  />
+                  <button
+                    type="submit"
+                    className="mt-2 rounded-xl bg-teal-600 px-4 py-2 text-xs font-semibold text-white hover:bg-teal-700"
+                  >
+                    Send reply
+                  </button>
+                </form>
+              )}
             </div>
           )}
         </div>
       </div>
+
+      <SupportEndChatModal
+        open={endChatOpen}
+        onCancel={() => setEndChatOpen(false)}
+        onConfirm={handleConfirmEndChat}
+      />
       </>
       ) : null}
     </div>

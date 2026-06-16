@@ -4,6 +4,7 @@ import {
   SUPPORT_ASSIGNMENTS_KEY,
   SUPPORT_MESSAGES_KEY,
   SUPPORT_THREADS_KEY,
+  THREAD_ENDED_MESSAGE,
 } from "./defaults";
 import { canUseAi } from "./routing";
 import type {
@@ -19,6 +20,10 @@ import type {
 
 export const RECENTLY_DELETED_DAYS = 30;
 export const AUTO_DELETE_MONTHS = 6;
+
+export function isThreadEnded(status: ThreadStatus): boolean {
+  return status === "closed" || status === "resolved";
+}
 
 function isBrowser(): boolean {
   return typeof window !== "undefined";
@@ -179,7 +184,7 @@ export function createThread(input: CreateThreadInput): SupportThread {
     context: input.context,
     support_mode: input.support_mode,
     message_type: input.message_type ?? "general",
-    status: "waiting",
+    status: "open",
     subject: input.subject ?? "New conversation",
     icon: input.icon,
     contact_name: input.contact_name,
@@ -208,6 +213,11 @@ export function createThread(input: CreateThreadInput): SupportThread {
 }
 
 export function sendMessage(input: SendSupportMessageInput): SupportMessage {
+  const thread = getThreadById(input.thread_id);
+  if (thread && isThreadEnded(thread.status)) {
+    throw new Error("Cannot send messages to an ended chat");
+  }
+
   const state = getSupportState();
   const timestamp = nowIso();
   const message: SupportMessage = {
@@ -378,6 +388,71 @@ export function updateThreadStatus(
       t.id === threadId ? { ...t, status, updated_at: nowIso() } : t,
     ),
   );
+}
+
+export function endThread(
+  threadId: string,
+  endedByName = "User",
+): SupportThread | null {
+  const state = getSupportState();
+  const thread = state.threads.find((t) => t.id === threadId);
+  if (!thread || isThreadEnded(thread.status)) {
+    return thread ?? null;
+  }
+
+  sendMessage({
+    thread_id: threadId,
+    sender_type: "system",
+    sender_name: endedByName,
+    body: THREAD_ENDED_MESSAGE,
+    message_type: "support",
+  });
+
+  const timestamp = nowIso();
+  const updated: SupportThread = {
+    ...thread,
+    status: "closed",
+    updated_at: timestamp,
+    last_message_at: timestamp,
+  };
+
+  saveThreads(state.threads.map((t) => (t.id === threadId ? updated : t)));
+
+  return updated;
+}
+
+export function reopenThread(threadId: string): SupportThread | null {
+  const state = getSupportState();
+  const thread = state.threads.find((t) => t.id === threadId);
+  if (!thread || !isThreadEnded(thread.status)) {
+    return thread ?? null;
+  }
+
+  const assignment = state.assignments.find((a) => a.thread_id === threadId);
+  const nextStatus: ThreadStatus = assignment
+    ? "assigned"
+    : thread.support_mode === "human"
+      ? "waiting"
+      : "open";
+
+  const timestamp = nowIso();
+  const updated: SupportThread = {
+    ...thread,
+    status: nextStatus,
+    updated_at: timestamp,
+  };
+
+  saveThreads(state.threads.map((t) => (t.id === threadId ? updated : t)));
+
+  sendMessage({
+    thread_id: threadId,
+    sender_type: "system",
+    sender_name: "System",
+    body: "This chat has been reopened.",
+    message_type: "support",
+  });
+
+  return updated;
 }
 
 export function assignThread(

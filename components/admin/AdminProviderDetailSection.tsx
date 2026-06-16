@@ -1,31 +1,33 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
+import {
+  ChangePlanModal,
+  EditAccountModal,
+  PaymentSettingsModal,
+  patchProvider,
+} from "@/components/admin/AdminProviderActions";
 import { PageHeader } from "@/components/club/PageHeader";
 import {
-  getActivitiesForProvider,
-  getBookingsForProvider,
-  getProviderById,
+  formatGocardlessStatusLabel,
+  formatProviderRevenue,
+  formatStripeStatusLabel,
+  PAYMENT_PROVIDER_MODE_LABELS,
   PROVIDER_ACCOUNT_STATUS_LABELS,
-  PROVIDER_STRIPE_STATUS_LABELS,
 } from "@/lib/admin";
-
-function formatCurrency(value: number): string {
-  return new Intl.NumberFormat("en-GB", {
-    style: "currency",
-    currency: "GBP",
-    maximumFractionDigits: 0,
-  }).format(value);
-}
+import type { AdminProviderDetail } from "@/lib/admin/types";
 
 type Props = {
-  providerId: string;
+  provider: AdminProviderDetail | null;
 };
 
-export function AdminProviderDetailSection({ providerId }: Props) {
-  const provider = getProviderById(providerId);
+export function AdminProviderDetailSection({ provider }: Props) {
+  const router = useRouter();
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [modal, setModal] = useState<"edit" | "plan" | "payment" | null>(null);
 
   if (!provider) {
     return (
@@ -41,19 +43,91 @@ export function AdminProviderDetailSection({ providerId }: Props) {
     );
   }
 
-  const bookings = getBookingsForProvider(providerId);
-  const activities = getActivitiesForProvider(providerId);
+  const activeProvider = provider;
 
-  function handleStubAction(label: string) {
+  function refresh() {
+    router.refresh();
+  }
+
+  async function handleDetailsSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
     setSaved(false);
-    window.alert(`${label} — stub action for ${provider!.clubName}`);
+    setError(null);
+
+    const form = new FormData(event.currentTarget);
+    const result = await patchProvider(activeProvider.id, {
+      clubName: String(form.get("clubName") ?? ""),
+      ownerName: String(form.get("ownerName") ?? ""),
+      email: String(form.get("email") ?? ""),
+      phone: String(form.get("phone") ?? ""),
+    });
+
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
+
+    setSaved(true);
+    refresh();
+  }
+
+  async function handleProfileSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSaved(false);
+    setError(null);
+
+    const form = new FormData(event.currentTarget);
+    const result = await patchProvider(activeProvider.id, {
+      slug: String(form.get("slug") ?? ""),
+      location: String(form.get("location") ?? ""),
+      website: String(form.get("website") ?? ""),
+      description: String(form.get("description") ?? ""),
+    });
+
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
+
+    setSaved(true);
+    refresh();
+  }
+
+  async function toggleVerified() {
+    setError(null);
+    const result = await patchProvider(activeProvider.id, {
+      verified: !activeProvider.verified,
+    });
+
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
+
+    refresh();
+  }
+
+  async function toggleAccountStatus() {
+    setError(null);
+    const nextStatus =
+      activeProvider.accountStatus === "active" ? "suspended" : "active";
+    const result = await patchProvider(activeProvider.id, {
+      accountStatus: nextStatus,
+    });
+
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
+
+    refresh();
   }
 
   return (
     <div className="space-y-8">
       <PageHeader
-        title={provider.clubName}
-        description={`Provider ID: ${provider.id} · Joined ${provider.joinedAt}`}
+        title={activeProvider.clubName}
+        description={`Provider ID: ${activeProvider.id} · Joined ${activeProvider.joinedAt}`}
         action={
           <Link
             href="/admin/providers"
@@ -65,69 +139,88 @@ export function AdminProviderDetailSection({ providerId }: Props) {
       />
 
       <div className="flex flex-wrap gap-2">
-        {provider.verified ? (
-          <button
-            type="button"
-            onClick={() => handleStubAction("Unverify")}
-            className="rounded-xl border border-zinc-200 px-3 py-2 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
-          >
-            Unverify
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={() => handleStubAction("Verify")}
-            className="rounded-xl bg-violet-700 px-3 py-2 text-xs font-semibold text-white hover:bg-violet-800"
-          >
-            Verify provider
-          </button>
-        )}
-        {provider.accountStatus === "active" ? (
-          <button
-            type="button"
-            onClick={() => handleStubAction("Suspend")}
-            className="rounded-xl border border-rose-200 px-3 py-2 text-xs font-medium text-rose-700 hover:bg-rose-50"
-          >
-            Suspend
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={() => handleStubAction("Reactivate")}
-            className="rounded-xl border border-emerald-200 px-3 py-2 text-xs font-medium text-emerald-700 hover:bg-emerald-50"
-          >
-            Reactivate
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={() => setModal("edit")}
+          className="rounded-xl border border-zinc-200 px-3 py-2 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
+        >
+          Edit account
+        </button>
+        <button
+          type="button"
+          onClick={() => setModal("plan")}
+          className="rounded-xl border border-zinc-200 px-3 py-2 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
+        >
+          Change plan
+        </button>
+        <button
+          type="button"
+          onClick={toggleVerified}
+          className={
+            activeProvider.verified
+              ? "rounded-xl border border-zinc-200 px-3 py-2 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
+              : "rounded-xl bg-violet-700 px-3 py-2 text-xs font-semibold text-white hover:bg-violet-800"
+          }
+        >
+          {activeProvider.verified ? "Unverify" : "Verify provider"}
+        </button>
+        <button
+          type="button"
+          onClick={toggleAccountStatus}
+          className={
+            activeProvider.accountStatus === "active"
+              ? "rounded-xl border border-rose-200 px-3 py-2 text-xs font-medium text-rose-700 hover:bg-rose-50"
+              : "rounded-xl border border-emerald-200 px-3 py-2 text-xs font-medium text-emerald-700 hover:bg-emerald-50"
+          }
+        >
+          {activeProvider.accountStatus === "active" ? "Suspend" : "Reactivate"}
+        </button>
+        <button
+          type="button"
+          onClick={() => setModal("payment")}
+          className="rounded-xl border border-zinc-200 px-3 py-2 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
+        >
+          Payment settings
+        </button>
       </div>
+
+      {error ? (
+        <p className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+          {error}
+        </p>
+      ) : null}
 
       <div className="grid gap-6 lg:grid-cols-2">
         <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            setSaved(true);
-          }}
+          onSubmit={handleDetailsSubmit}
           className="space-y-4 rounded-2xl border border-zinc-200/80 bg-white p-6 shadow-sm"
         >
           <h2 className="text-sm font-semibold text-zinc-900">Provider details</h2>
           <label className="block">
             <span className="text-xs font-medium text-zinc-600">Club name</span>
             <input
-              defaultValue={provider.clubName}
+              name="clubName"
+              defaultValue={activeProvider.clubName}
               className="mt-1 w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm"
             />
           </label>
           <label className="block">
             <span className="text-xs font-medium text-zinc-600">Owner name</span>
             <input
-              defaultValue={provider.ownerName}
+              name="ownerName"
+              defaultValue={
+                activeProvider.ownerName === "—" ? "" : activeProvider.ownerName
+              }
               className="mt-1 w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm"
             />
           </label>
           <label className="block">
             <span className="text-xs font-medium text-zinc-600">Email</span>
             <input
-              defaultValue={provider.email}
+              name="email"
+              defaultValue={
+                activeProvider.email === "—" ? "" : activeProvider.email
+              }
               type="email"
               className="mt-1 w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm"
             />
@@ -135,7 +228,10 @@ export function AdminProviderDetailSection({ providerId }: Props) {
           <label className="block">
             <span className="text-xs font-medium text-zinc-600">Phone</span>
             <input
-              defaultValue={provider.phone}
+              name="phone"
+              defaultValue={
+                activeProvider.phone === "—" ? "" : activeProvider.phone
+              }
               className="mt-1 w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm"
             />
           </label>
@@ -146,43 +242,48 @@ export function AdminProviderDetailSection({ providerId }: Props) {
             Save details
           </button>
           {saved ? (
-            <p className="text-xs text-emerald-600">Details saved (stub).</p>
+            <p className="text-xs text-emerald-600">Details saved.</p>
           ) : null}
         </form>
 
         <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            setSaved(true);
-          }}
+          onSubmit={handleProfileSubmit}
           className="space-y-4 rounded-2xl border border-zinc-200/80 bg-white p-6 shadow-sm"
         >
           <h2 className="text-sm font-semibold text-zinc-900">Public profile</h2>
           <label className="block">
             <span className="text-xs font-medium text-zinc-600">Slug</span>
             <input
-              defaultValue={provider.slug}
+              name="slug"
+              defaultValue={
+                activeProvider.slug === "—" ? "" : activeProvider.slug
+              }
               className="mt-1 w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm"
             />
           </label>
           <label className="block">
             <span className="text-xs font-medium text-zinc-600">Location</span>
             <input
-              defaultValue={provider.location}
+              name="location"
+              defaultValue={
+                activeProvider.location === "—" ? "" : activeProvider.location
+              }
               className="mt-1 w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm"
             />
           </label>
           <label className="block">
             <span className="text-xs font-medium text-zinc-600">Website</span>
             <input
-              defaultValue={provider.website}
+              name="website"
+              defaultValue={activeProvider.website}
               className="mt-1 w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm"
             />
           </label>
           <label className="block">
             <span className="text-xs font-medium text-zinc-600">Description</span>
             <textarea
-              defaultValue={provider.description}
+              name="description"
+              defaultValue={activeProvider.description}
               rows={3}
               className="mt-1 w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm"
             />
@@ -198,34 +299,45 @@ export function AdminProviderDetailSection({ providerId }: Props) {
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="rounded-2xl border border-zinc-200/80 bg-white p-6 shadow-sm">
-          <h2 className="text-sm font-semibold text-zinc-900">Stripe status</h2>
+          <h2 className="text-sm font-semibold text-zinc-900">Payment providers</h2>
           <dl className="mt-4 space-y-3 text-sm">
-            <div className="flex justify-between">
-              <dt className="text-zinc-500">Connect status</dt>
+            <div className="flex justify-between gap-4">
+              <dt className="text-zinc-500">Mode</dt>
+              <dd className="text-right font-medium text-zinc-900">
+                {PAYMENT_PROVIDER_MODE_LABELS[activeProvider.paymentProviderMode]}
+              </dd>
+            </div>
+            <div className="flex justify-between gap-4">
+              <dt className="text-zinc-500">Stripe</dt>
               <dd className="font-medium text-zinc-900">
-                {PROVIDER_STRIPE_STATUS_LABELS[provider.stripeStatus]}
+                {formatStripeStatusLabel(activeProvider.stripeStatus)}
               </dd>
             </div>
-            <div className="flex justify-between">
-              <dt className="text-zinc-500">Account ID</dt>
+            <div className="flex justify-between gap-4">
+              <dt className="text-zinc-500">GoCardless</dt>
+              <dd className="font-medium text-zinc-900">
+                {formatGocardlessStatusLabel(activeProvider.gocardlessStatus)}
+              </dd>
+            </div>
+            <div className="flex justify-between gap-4">
+              <dt className="text-zinc-500">Stripe account</dt>
               <dd className="font-mono text-xs text-zinc-700">
-                {provider.stripeAccountId || "—"}
+                {activeProvider.stripeAccountId || "—"}
               </dd>
             </div>
-            <div className="flex justify-between">
+            <div className="flex justify-between gap-4">
+              <dt className="text-zinc-500">Methods enabled</dt>
+              <dd className="text-right font-medium text-zinc-900">
+                {activeProvider.paymentMethodsEnabled}
+              </dd>
+            </div>
+            <div className="flex justify-between gap-4">
               <dt className="text-zinc-500">Account status</dt>
               <dd className="font-medium text-zinc-900">
-                {PROVIDER_ACCOUNT_STATUS_LABELS[provider.accountStatus]}
+                {PROVIDER_ACCOUNT_STATUS_LABELS[activeProvider.accountStatus]}
               </dd>
             </div>
           </dl>
-          <button
-            type="button"
-            onClick={() => handleStubAction("Open Stripe dashboard")}
-            className="mt-4 rounded-xl border border-zinc-200 px-3 py-2 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
-          >
-            View in Stripe (stub)
-          </button>
         </div>
 
         <div className="rounded-2xl border border-zinc-200/80 bg-white p-6 shadow-sm lg:col-span-2">
@@ -234,82 +346,51 @@ export function AdminProviderDetailSection({ providerId }: Props) {
             <div>
               <p className="text-xs text-zinc-500">Total revenue</p>
               <p className="text-lg font-bold text-zinc-900">
-                {formatCurrency(provider.totalRevenue)}
+                {formatProviderRevenue(activeProvider)}
               </p>
             </div>
             <div>
               <p className="text-xs text-zinc-500">Platform fees paid</p>
               <p className="text-lg font-bold text-zinc-900">
-                {formatCurrency(provider.platformFeesPaid)}
+                {activeProvider.hasPaymentData ? "£0" : "No payment data yet"}
               </p>
             </div>
             <div>
               <p className="text-xs text-zinc-500">Pending payout</p>
               <p className="text-lg font-bold text-zinc-900">
-                {formatCurrency(provider.pendingPayout)}
+                {activeProvider.hasPaymentData ? "£0" : "No payment data yet"}
               </p>
             </div>
           </div>
           <p className="mt-3 text-xs text-zinc-400">
-            {provider.totalBookings} total bookings · Plan: {provider.subscriptionPlan}
+            {activeProvider.totalBookings} total bookings · Plan:{" "}
+            {activeProvider.subscriptionPlan}
           </p>
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-zinc-200/80 bg-white shadow-sm">
-        <div className="border-b border-zinc-100 px-4 py-3">
-          <h2 className="text-sm font-semibold text-zinc-900">
-            Bookings ({bookings.length})
-          </h2>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-zinc-100 text-sm">
-            <thead>
-              <tr className="bg-zinc-50/80 text-[11px] uppercase tracking-wider text-zinc-500">
-                <th className="px-4 py-2 text-left">Reference</th>
-                <th className="px-4 py-2 text-left">Parent / Child</th>
-                <th className="px-4 py-2 text-left">Activity</th>
-                <th className="px-4 py-2 text-left">Status</th>
-                <th className="px-4 py-2 text-left">Amount</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-100">
-              {bookings.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-4 py-6 text-center text-zinc-500">
-                    No bookings for this provider.
-                  </td>
-                </tr>
-              ) : (
-                bookings.map((booking) => (
-                  <tr key={booking.id}>
-                    <td className="px-4 py-3 font-mono text-xs">{booking.reference}</td>
-                    <td className="px-4 py-3">
-                      {booking.parentName}
-                      <span className="block text-xs text-zinc-500">
-                        {booking.childName}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">{booking.activityTitle}</td>
-                    <td className="px-4 py-3 capitalize">{booking.status.replace("_", " ")}</td>
-                    <td className="px-4 py-3">{formatCurrency(booking.amount)}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      {modal === "edit" ? (
+        <EditAccountModal
+          provider={activeProvider}
+          onClose={() => setModal(null)}
+          onSaved={refresh}
+        />
+      ) : null}
 
-      {activities.length > 0 ? (
-        <div className="rounded-2xl border border-zinc-200/80 bg-white p-4 shadow-sm">
-          <p className="text-sm text-zinc-600">
-            {activities.length} activit{activities.length === 1 ? "y" : "ies"} listed.{" "}
-            <Link href="/admin/activities" className="font-medium text-violet-700">
-              View all activities
-            </Link>
-          </p>
-        </div>
+      {modal === "plan" ? (
+        <ChangePlanModal
+          provider={activeProvider}
+          onClose={() => setModal(null)}
+          onSaved={refresh}
+        />
+      ) : null}
+
+      {modal === "payment" ? (
+        <PaymentSettingsModal
+          provider={activeProvider}
+          onClose={() => setModal(null)}
+          onSaved={refresh}
+        />
       ) : null}
     </div>
   );

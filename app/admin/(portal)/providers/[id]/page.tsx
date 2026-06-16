@@ -1,4 +1,7 @@
 import { AdminProviderDetailSection } from "@/components/admin/AdminProviderDetailSection";
+import { fetchAdminProviderById } from "@/lib/admin/providers-data";
+
+export const dynamic = "force-dynamic";
 
 export default async function AdminProviderDetailPage({
   params,
@@ -6,5 +9,7 @@ export default async function AdminProviderDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  return <AdminProviderDetailSection providerId={id} />;
+  const provider = await fetchAdminProviderById(id);
+
+  return <AdminProviderDetailSection provider={provider} />;
 }

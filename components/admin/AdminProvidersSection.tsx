@@ -2,41 +2,36 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { ProviderRowActions } from "@/components/admin/AdminProviderActions";
 import { PageHeader } from "@/components/club/PageHeader";
 import { PaginationControls } from "@/components/ui/PaginationControls";
-import { paginateItems } from "@/lib/pagination";
 import {
-  MOCK_PROVIDERS,
+  PAYMENT_PROVIDER_MODE_LABELS,
   PROVIDER_ACCOUNT_STATUS_LABELS,
-  PROVIDER_STRIPE_STATUS_LABELS,
-  type AdminProvider,
+  PROVIDER_ORGANISATION_EMPTY_MESSAGES,
+  PROVIDER_ORGANISATION_TAB_LABELS,
+  type ProviderOrganisationType,
 } from "@/lib/admin";
+import type { AdminPaymentProviderMode, AdminProvider } from "@/lib/admin/types";
+import { paginateItems } from "@/lib/pagination";
 
-function formatCurrency(value: number): string {
-  return new Intl.NumberFormat("en-GB", {
-    style: "currency",
-    currency: "GBP",
-    maximumFractionDigits: 0,
-  }).format(value);
-}
+type Props = {
+  providers: AdminProvider[];
+  dataSource: "supabase" | "unavailable";
+};
 
-function StripeStatusBadge({ status }: { status: AdminProvider["stripeStatus"] }) {
-  const styles: Record<AdminProvider["stripeStatus"], string> = {
-    not_connected: "bg-zinc-100 text-zinc-600",
-    action_required: "bg-amber-50 text-amber-800",
-    connected: "bg-sky-50 text-sky-700",
-    restricted: "bg-rose-50 text-rose-700",
-    payouts_enabled: "bg-emerald-50 text-emerald-700",
-  };
+type StatusFilter = AdminProvider["accountStatus"] | "all";
+type PaymentFilter = AdminPaymentProviderMode | "all";
+type VerificationFilter = "all" | "verified" | "unverified";
 
-  return (
-    <span
-      className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ${styles[status]}`}
-    >
-      {PROVIDER_STRIPE_STATUS_LABELS[status]}
-    </span>
-  );
-}
+const ORGANISATION_TABS: ProviderOrganisationType[] = [
+  "club",
+  "franchise",
+  "enterprise",
+];
+
+const INPUT_CLASS =
+  "rounded-xl border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100";
 
 function AccountStatusBadge({
   status,
@@ -58,43 +53,385 @@ function AccountStatusBadge({
   );
 }
 
-export function AdminProvidersSection() {
-  const [page, setPage] = useState(1);
-  const pagination = useMemo(
-    () => paginateItems(MOCK_PROVIDERS, page, 10),
-    [page],
+function VerificationBadge({ verified }: { verified: boolean }) {
+  return (
+    <span
+      className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+        verified ? "bg-emerald-50 text-emerald-700" : "bg-zinc-100 text-zinc-600"
+      }`}
+    >
+      {verified ? "Verified" : "Unverified"}
+    </span>
   );
+}
+
+function PaymentSetupCell({ provider }: { provider: AdminProvider }) {
+  return (
+    <div className="text-xs text-zinc-600">
+      <p className="font-medium text-zinc-800">
+        {PAYMENT_PROVIDER_MODE_LABELS[provider.paymentProviderMode]}
+      </p>
+      <p className="mt-0.5">{provider.paymentMethodsEnabled}</p>
+    </div>
+  );
+}
+
+function formatCreatedDate(joinedAt: string): string {
+  const parsed = new Date(joinedAt);
+  if (Number.isNaN(parsed.getTime())) {
+    return joinedAt;
+  }
+
+  return parsed.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function ClubRow({ provider }: { provider: AdminProvider }) {
+  return (
+    <tr className="transition-colors hover:bg-zinc-50/50">
+      <td className="whitespace-nowrap px-4 py-4">
+        <Link
+          href={`/admin/providers/${provider.id}`}
+          className="text-sm font-medium text-violet-700 hover:text-violet-900"
+        >
+          {provider.clubName}
+        </Link>
+        <p className="text-xs text-zinc-500">{provider.email}</p>
+      </td>
+      <td className="whitespace-nowrap px-4 py-4 text-sm text-zinc-700">
+        {provider.ownerName}
+      </td>
+      <td className="whitespace-nowrap px-4 py-4 text-sm text-zinc-700">
+        {provider.subscriptionPlan}
+      </td>
+      <td className="px-4 py-4">
+        <PaymentSetupCell provider={provider} />
+      </td>
+      <td className="whitespace-nowrap px-4 py-4">
+        <VerificationBadge verified={provider.verified} />
+      </td>
+      <td className="whitespace-nowrap px-4 py-4">
+        <AccountStatusBadge status={provider.accountStatus} />
+      </td>
+      <td className="whitespace-nowrap px-4 py-4 text-sm text-zinc-600">
+        {formatCreatedDate(provider.joinedAt)}
+      </td>
+      <td className="whitespace-nowrap px-4 py-4">
+        <ProviderRowActions provider={provider} />
+      </td>
+    </tr>
+  );
+}
+
+function FranchiseRow({ provider }: { provider: AdminProvider }) {
+  return (
+    <tr className="transition-colors hover:bg-zinc-50/50">
+      <td className="whitespace-nowrap px-4 py-4">
+        <Link
+          href={`/admin/providers/${provider.id}`}
+          className="text-sm font-medium text-violet-700 hover:text-violet-900"
+        >
+          {provider.clubName}
+        </Link>
+        <p className="text-xs text-zinc-500">{provider.email}</p>
+      </td>
+      <td className="whitespace-nowrap px-4 py-4 text-sm text-zinc-700">
+        {provider.ownerName}
+      </td>
+      <td className="whitespace-nowrap px-4 py-4 text-sm text-zinc-700">
+        {provider.clubsCount}
+      </td>
+      <td className="whitespace-nowrap px-4 py-4 text-sm text-zinc-700">
+        {provider.subscriptionPlan}
+      </td>
+      <td className="px-4 py-4">
+        <PaymentSetupCell provider={provider} />
+      </td>
+      <td className="whitespace-nowrap px-4 py-4">
+        <VerificationBadge verified={provider.verified} />
+      </td>
+      <td className="whitespace-nowrap px-4 py-4">
+        <AccountStatusBadge status={provider.accountStatus} />
+      </td>
+      <td className="whitespace-nowrap px-4 py-4">
+        <ProviderRowActions provider={provider} />
+      </td>
+    </tr>
+  );
+}
+
+function EnterpriseRow({ provider }: { provider: AdminProvider }) {
+  return (
+    <tr className="transition-colors hover:bg-zinc-50/50">
+      <td className="whitespace-nowrap px-4 py-4">
+        <Link
+          href={`/admin/providers/${provider.id}`}
+          className="text-sm font-medium text-violet-700 hover:text-violet-900"
+        >
+          {provider.clubName}
+        </Link>
+        <p className="text-xs text-zinc-500">{provider.email}</p>
+      </td>
+      <td className="whitespace-nowrap px-4 py-4 text-sm text-zinc-700">
+        {provider.ownerName}
+      </td>
+      <td className="whitespace-nowrap px-4 py-4 text-sm text-zinc-700">
+        {provider.clubsCount}
+      </td>
+      <td className="whitespace-nowrap px-4 py-4 text-sm text-zinc-700">
+        {provider.subscriptionPlan}
+      </td>
+      <td className="px-4 py-4">
+        <PaymentSetupCell provider={provider} />
+      </td>
+      <td className="whitespace-nowrap px-4 py-4">
+        <VerificationBadge verified={provider.verified} />
+      </td>
+      <td className="whitespace-nowrap px-4 py-4">
+        <AccountStatusBadge status={provider.accountStatus} />
+      </td>
+      <td className="whitespace-nowrap px-4 py-4">
+        <ProviderRowActions provider={provider} />
+      </td>
+    </tr>
+  );
+}
+
+const TABLE_HEADINGS: Record<ProviderOrganisationType, string[]> = {
+  club: [
+    "Club name",
+    "Owner",
+    "Plan",
+    "Payment setup",
+    "Verification",
+    "Status",
+    "Created date",
+    "Actions",
+  ],
+  franchise: [
+    "Franchise name",
+    "Head office contact",
+    "Number of clubs",
+    "Plan",
+    "Payment setup",
+    "Verification",
+    "Status",
+    "Actions",
+  ],
+  enterprise: [
+    "Organisation name",
+    "Primary admin",
+    "Sites/clubs count",
+    "Plan",
+    "Payment setup",
+    "Verification",
+    "Status",
+    "Actions",
+  ],
+};
+
+export function AdminProvidersSection({ providers, dataSource }: Props) {
+  const [activeTab, setActiveTab] = useState<ProviderOrganisationType>("club");
+  const [page, setPage] = useState(1);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [paymentFilter, setPaymentFilter] = useState<PaymentFilter>("all");
+  const [verificationFilter, setVerificationFilter] =
+    useState<VerificationFilter>("all");
+  const [search, setSearch] = useState("");
+
+  const counts = useMemo(() => {
+    const tally: Record<ProviderOrganisationType, number> = {
+      club: 0,
+      franchise: 0,
+      enterprise: 0,
+    };
+
+    for (const provider of providers) {
+      tally[provider.organisationType] += 1;
+    }
+
+    return tally;
+  }, [providers]);
+
+  const filtered = useMemo(() => {
+    const query = search.trim().toLowerCase();
+
+    return providers.filter((provider) => {
+      if (provider.organisationType !== activeTab) {
+        return false;
+      }
+
+      if (statusFilter !== "all" && provider.accountStatus !== statusFilter) {
+        return false;
+      }
+
+      if (
+        paymentFilter !== "all" &&
+        provider.paymentProviderMode !== paymentFilter
+      ) {
+        return false;
+      }
+
+      if (verificationFilter === "verified" && !provider.verified) {
+        return false;
+      }
+
+      if (verificationFilter === "unverified" && provider.verified) {
+        return false;
+      }
+
+      if (!query) {
+        return true;
+      }
+
+      return (
+        provider.clubName.toLowerCase().includes(query) ||
+        provider.email.toLowerCase().includes(query) ||
+        provider.ownerName.toLowerCase().includes(query)
+      );
+    });
+  }, [
+    providers,
+    activeTab,
+    statusFilter,
+    paymentFilter,
+    verificationFilter,
+    search,
+  ]);
+
+  const pagination = useMemo(
+    () => paginateItems(filtered, page, 10),
+    [filtered, page],
+  );
+
+  const headings = TABLE_HEADINGS[activeTab];
+  const emptyMessage =
+    providers.length === 0
+      ? "No providers signed up yet."
+      : PROVIDER_ORGANISATION_EMPTY_MESSAGES[activeTab];
+
+  function handleTabChange(tab: ProviderOrganisationType) {
+    setActiveTab(tab);
+    setPage(1);
+  }
 
   return (
     <div className="space-y-8">
       <PageHeader
         title="Providers"
-        description="Manage clubs on the Activora marketplace — view, verify, and monitor Stripe Connect."
+        description="Manage clubs, franchises, and enterprise accounts — verify providers and monitor payment setup."
         action={
-          <button
-            type="button"
-            className="rounded-xl bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-zinc-800"
-          >
-            Export list
-          </button>
+          dataSource === "unavailable" ? (
+            <span className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs font-medium text-amber-800">
+              Supabase not connected
+            </span>
+          ) : (
+            <span className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-xs font-medium text-emerald-800">
+              Live data
+            </span>
+          )
         }
       />
+
+      <div className="flex flex-wrap gap-2 border-b border-zinc-200">
+        {ORGANISATION_TABS.map((tab) => (
+          <button
+            key={tab}
+            type="button"
+            onClick={() => handleTabChange(tab)}
+            className={`rounded-t-xl px-4 py-2.5 text-sm font-medium transition-colors ${
+              activeTab === tab
+                ? "border-b-2 border-violet-600 text-violet-800"
+                : "text-zinc-500 hover:text-zinc-800"
+            }`}
+          >
+            {PROVIDER_ORGANISATION_TAB_LABELS[tab]} ({counts[tab]})
+          </button>
+        ))}
+      </div>
+
+      <div className="flex flex-wrap items-end gap-3 rounded-2xl border border-zinc-200/80 bg-white p-4 shadow-sm">
+        <label className="min-w-[140px]">
+          <span className="text-xs font-semibold text-zinc-600">Status</span>
+          <select
+            value={statusFilter}
+            onChange={(event) => {
+              setStatusFilter(event.target.value as StatusFilter);
+              setPage(1);
+            }}
+            className={`mt-1 ${INPUT_CLASS}`}
+          >
+            <option value="all">All statuses</option>
+            <option value="active">Active</option>
+            <option value="paused">Paused</option>
+            <option value="suspended">Suspended</option>
+          </select>
+        </label>
+
+        <label className="min-w-[160px]">
+          <span className="text-xs font-semibold text-zinc-600">
+            Payment provider
+          </span>
+          <select
+            value={paymentFilter}
+            onChange={(event) => {
+              setPaymentFilter(event.target.value as PaymentFilter);
+              setPage(1);
+            }}
+            className={`mt-1 ${INPUT_CLASS}`}
+          >
+            <option value="all">All providers</option>
+            <option value="stripe_only">Stripe only</option>
+            <option value="gocardless_only">GoCardless only</option>
+            <option value="both">Stripe + GoCardless</option>
+            <option value="not_connected">Not connected</option>
+          </select>
+        </label>
+
+        <label className="min-w-[140px]">
+          <span className="text-xs font-semibold text-zinc-600">
+            Verification
+          </span>
+          <select
+            value={verificationFilter}
+            onChange={(event) => {
+              setVerificationFilter(event.target.value as VerificationFilter);
+              setPage(1);
+            }}
+            className={`mt-1 ${INPUT_CLASS}`}
+          >
+            <option value="all">All</option>
+            <option value="verified">Verified</option>
+            <option value="unverified">Unverified</option>
+          </select>
+        </label>
+
+        <label className="min-w-[200px] flex-1">
+          <span className="text-xs font-semibold text-zinc-600">
+            Search name or email
+          </span>
+          <input
+            type="search"
+            value={search}
+            onChange={(event) => {
+              setSearch(event.target.value);
+              setPage(1);
+            }}
+            placeholder="Club name, owner, or email"
+            className={`mt-1 w-full ${INPUT_CLASS}`}
+          />
+        </label>
+      </div>
 
       <div className="overflow-hidden rounded-2xl border border-zinc-200/80 bg-white shadow-sm">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-zinc-100">
             <thead>
               <tr className="bg-zinc-50/80">
-                {[
-                  "Club",
-                  "Owner",
-                  "Stripe",
-                  "Plan",
-                  "Revenue",
-                  "Status",
-                  "Verified",
-                  "Actions",
-                ].map((heading) => (
+                {headings.map((heading) => (
                   <th
                     key={heading}
                     scope="col"
@@ -106,69 +443,40 @@ export function AdminProvidersSection() {
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100">
-              {pagination.items.map((provider) => (
-                <tr
-                  key={provider.id}
-                  className="transition-colors hover:bg-zinc-50/50"
-                >
-                  <td className="whitespace-nowrap px-4 py-4">
-                    <Link
-                      href={`/admin/providers/${provider.id}`}
-                      className="text-sm font-medium text-violet-700 hover:text-violet-900"
-                    >
-                      {provider.clubName}
-                    </Link>
-                    <p className="text-xs text-zinc-500">{provider.email}</p>
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-4 text-sm text-zinc-700">
-                    {provider.ownerName}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-4">
-                    <StripeStatusBadge status={provider.stripeStatus} />
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-4 text-sm text-zinc-700">
-                    {provider.subscriptionPlan}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-4 text-sm font-medium text-zinc-900">
-                    {formatCurrency(provider.totalRevenue)}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-4">
-                    <AccountStatusBadge status={provider.accountStatus} />
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-4 text-sm text-zinc-700">
-                    {provider.verified ? "Yes" : "No"}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-4">
-                    <div className="flex flex-wrap gap-2">
-                      <Link
-                        href={`/admin/providers/${provider.id}`}
-                        className="rounded-lg border border-zinc-200 px-2.5 py-1 text-xs font-medium text-zinc-600 transition-colors hover:bg-zinc-50"
-                      >
-                        View
-                      </Link>
-                      {["Suspend", "Verify"].map((action) => (
-                        <button
-                          key={action}
-                          type="button"
-                          className="rounded-lg border border-zinc-200 px-2.5 py-1 text-xs font-medium text-zinc-600 transition-colors hover:bg-zinc-50"
-                        >
-                          {action}
-                        </button>
-                      ))}
-                    </div>
+              {pagination.items.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={headings.length}
+                    className="px-4 py-12 text-center text-sm text-zinc-500"
+                  >
+                    {emptyMessage}
                   </td>
                 </tr>
-              ))}
+              ) : activeTab === "club" ? (
+                pagination.items.map((provider) => (
+                  <ClubRow key={provider.id} provider={provider} />
+                ))
+              ) : activeTab === "franchise" ? (
+                pagination.items.map((provider) => (
+                  <FranchiseRow key={provider.id} provider={provider} />
+                ))
+              ) : (
+                pagination.items.map((provider) => (
+                  <EnterpriseRow key={provider.id} provider={provider} />
+                ))
+              )}
             </tbody>
           </table>
-          <PaginationControls
-            page={pagination.page}
-            totalPages={pagination.totalPages}
-            totalItems={pagination.totalItems}
-            startIndex={pagination.startIndex}
-            endIndex={pagination.endIndex}
-            onPageChange={setPage}
-          />
+          {pagination.totalItems > 0 ? (
+            <PaginationControls
+              page={pagination.page}
+              totalPages={pagination.totalPages}
+              totalItems={pagination.totalItems}
+              startIndex={pagination.startIndex}
+              endIndex={pagination.endIndex}
+              onPageChange={setPage}
+            />
+          ) : null}
         </div>
       </div>
     </div>

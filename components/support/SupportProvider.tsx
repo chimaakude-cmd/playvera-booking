@@ -19,11 +19,13 @@ import {
   bulkDeleteThreads as bulkDeleteThreadsStorage,
   createThread,
   deleteThread as deleteThreadStorage,
+  endThread as endThreadStorage,
   escalateThreadToHuman,
   getCurrentUserContact,
   getMessagesForThread,
   getThreadById,
   getThreads,
+  isThreadEnded,
   permanentlyDeleteThread as permanentlyDeleteThreadStorage,
   renameThread as renameThreadStorage,
   restoreThread as restoreThreadStorage,
@@ -59,6 +61,7 @@ type SupportContextValue = {
   ) => SupportThread;
   sendMessage: (body: string, messageType?: MessageType) => void;
   escalate: () => void;
+  endThread: () => void;
   showArchived: boolean;
   setShowArchived: (v: boolean) => void;
   showRecentlyDeleted: boolean;
@@ -199,6 +202,12 @@ export function SupportProvider({ children }: SupportProviderProps) {
 
   const sendMessage = useCallback(
     (body: string, messageType: MessageType = "general") => {
+      if (activeThreadId) {
+        const thread = getThreadById(activeThreadId);
+        if (thread && isThreadEnded(thread.status)) {
+          return;
+        }
+      }
       if (!activeThreadId) {
         startChatWithMessage(body, messageType);
         return;
@@ -214,6 +223,15 @@ export function SupportProvider({ children }: SupportProviderProps) {
       return;
     }
     escalateThreadToHuman(activeThreadId);
+    refresh();
+  }, [activeThreadId, refresh]);
+
+  const endThread = useCallback(() => {
+    if (!activeThreadId) {
+      return;
+    }
+    const contact = getCurrentUserContact();
+    endThreadStorage(activeThreadId, contact.name);
     refresh();
   }, [activeThreadId, refresh]);
 
@@ -234,6 +252,7 @@ export function SupportProvider({ children }: SupportProviderProps) {
     startChatWithMessage,
     sendMessage,
     escalate,
+    endThread,
     showArchived,
     setShowArchived,
     showRecentlyDeleted,

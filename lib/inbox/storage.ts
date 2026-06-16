@@ -1,4 +1,4 @@
-import { getThreads } from "@/lib/support";
+import { getThreads, isThreadEnded } from "@/lib/support";
 import { INBOX_STORAGE_KEY, SEED_INBOX_ITEMS } from "./defaults";
 import type {
   InboxCategory,
@@ -57,7 +57,9 @@ function supportThreadToInboxItem(
     title: thread.subject,
     preview: thread.last_message_preview || "No messages yet",
     timestamp: thread.last_message_at,
-    status: stored?.status ?? (thread.status === "resolved" ? "read" : "unread"),
+    status:
+      stored?.status ??
+      (isThreadEnded(thread.status) ? "read" : "unread"),
     priority:
       thread.status === "waiting" && thread.support_mode === "human"
         ? "high"

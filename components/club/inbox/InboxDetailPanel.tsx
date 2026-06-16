@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo } from "react";
-import { getMessagesForThread } from "@/lib/support";
+import { getMessagesForThread, getThreadById, isThreadEnded } from "@/lib/support";
 import type { InboxItem } from "@/lib/inbox";
 import { openSupportDrawer } from "@/lib/inbox";
 
@@ -113,6 +113,12 @@ export function InboxDetailPanel({
   onArchive,
   onClose,
 }: InboxDetailPanelProps) {
+  const thread =
+    item.type === "message" && item.threadId
+      ? getThreadById(item.threadId)
+      : undefined;
+  const chatEnded = thread ? isThreadEnded(thread.status) : false;
+
   return (
     <div className="flex h-full flex-col border-l border-zinc-200 bg-white">
       <div className="flex items-start justify-between gap-4 border-b border-zinc-100 px-5 py-4">
@@ -157,7 +163,7 @@ export function InboxDetailPanel({
 
       <div className="flex flex-wrap items-center gap-3 border-t border-zinc-100 px-5 py-4">
         <DetailActions item={item} />
-        {item.type === "message" && item.threadId ? (
+        {item.type === "message" && item.threadId && !chatEnded ? (
           <button
             type="button"
             onClick={() => openSupportDrawer({ threadId: item.threadId })}

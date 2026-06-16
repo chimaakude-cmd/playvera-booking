@@ -21,7 +21,12 @@ export type MessageType =
   | "technical"
   | "general";
 
-export type ThreadStatus = "waiting" | "assigned" | "resolved";
+export type ThreadStatus =
+  | "open"
+  | "waiting"
+  | "assigned"
+  | "resolved"
+  | "closed";
 
 export type SenderType = "user" | "ai" | "human" | "system";
 

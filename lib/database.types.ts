@@ -25,9 +25,27 @@ export type Database = {
           email: string | null;
           phone: string | null;
           location: string | null;
-          stripe_account_id: string;
+          stripe_account_id: string | null;
+          stripe_connect_status: string;
+          stripe_charges_enabled: boolean;
+          stripe_payouts_enabled: boolean;
+          stripe_details_submitted: boolean;
+          stripe_disabled_reason: string | null;
+          stripe_requirements_due: Json;
+          stripe_connected_at: string | null;
+          gocardless_status: string;
+          gocardless_organisation_id: string | null;
+          gocardless_merchant_id: string | null;
+          gocardless_connected_at: string | null;
+          preferred_payment_provider: string;
+          payment_method_stripe_card: boolean;
+          payment_method_gocardless_dd: boolean;
+          payment_method_manual_invoice: boolean;
+          account_status: string;
           platform_fee_percent: number;
           fee_handling: Database["public"]["Enums"]["fee_handling"];
+          organisation_type: string;
+          parent_provider_id: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -39,9 +57,27 @@ export type Database = {
           email?: string | null;
           phone?: string | null;
           location?: string | null;
-          stripe_account_id?: string;
+          stripe_account_id?: string | null;
+          stripe_connect_status?: string;
+          stripe_charges_enabled?: boolean;
+          stripe_payouts_enabled?: boolean;
+          stripe_details_submitted?: boolean;
+          stripe_disabled_reason?: string | null;
+          stripe_requirements_due?: Json;
+          stripe_connected_at?: string | null;
+          gocardless_status?: string;
+          gocardless_organisation_id?: string | null;
+          gocardless_merchant_id?: string | null;
+          gocardless_connected_at?: string | null;
+          preferred_payment_provider?: string;
+          payment_method_stripe_card?: boolean;
+          payment_method_gocardless_dd?: boolean;
+          payment_method_manual_invoice?: boolean;
+          account_status?: string;
           platform_fee_percent?: number;
           fee_handling?: Database["public"]["Enums"]["fee_handling"];
+          organisation_type?: string;
+          parent_provider_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -53,13 +89,39 @@ export type Database = {
           email?: string | null;
           phone?: string | null;
           location?: string | null;
-          stripe_account_id?: string;
+          stripe_account_id?: string | null;
+          stripe_connect_status?: string;
+          stripe_charges_enabled?: boolean;
+          stripe_payouts_enabled?: boolean;
+          stripe_details_submitted?: boolean;
+          stripe_disabled_reason?: string | null;
+          stripe_requirements_due?: Json;
+          stripe_connected_at?: string | null;
+          gocardless_status?: string;
+          gocardless_organisation_id?: string | null;
+          gocardless_merchant_id?: string | null;
+          gocardless_connected_at?: string | null;
+          preferred_payment_provider?: string;
+          payment_method_stripe_card?: boolean;
+          payment_method_gocardless_dd?: boolean;
+          payment_method_manual_invoice?: boolean;
+          account_status?: string;
           platform_fee_percent?: number;
           fee_handling?: Database["public"]["Enums"]["fee_handling"];
+          organisation_type?: string;
+          parent_provider_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "providers_parent_provider_id_fkey";
+            columns: ["parent_provider_id"];
+            isOneToOne: false;
+            referencedRelation: "providers";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       provider_venues: {
         Row: {
@@ -225,6 +287,109 @@ export type Database = {
             foreignKeyName: "club_profiles_provider_id_fkey";
             columns: ["provider_id"];
             isOneToOne: true;
+            referencedRelation: "providers";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      provider_subscriptions: {
+        Row: {
+          id: string;
+          provider_id: string;
+          plan: string;
+          gocardless_customer_id: string | null;
+          mandate_id: string | null;
+          subscription_id: string | null;
+          status: string;
+          next_billing_date: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          provider_id: string;
+          plan?: string;
+          gocardless_customer_id?: string | null;
+          mandate_id?: string | null;
+          subscription_id?: string | null;
+          status?: string;
+          next_billing_date?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          provider_id?: string;
+          plan?: string;
+          gocardless_customer_id?: string | null;
+          mandate_id?: string | null;
+          subscription_id?: string | null;
+          status?: string;
+          next_billing_date?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "provider_subscriptions_provider_id_fkey";
+            columns: ["provider_id"];
+            isOneToOne: true;
+            referencedRelation: "providers";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      club_team_members: {
+        Row: {
+          id: string;
+          provider_id: string;
+          auth_user_id: string | null;
+          first_name: string;
+          last_name: string;
+          email: string;
+          role: Database["public"]["Enums"]["club_team_role"];
+          status: Database["public"]["Enums"]["club_team_member_status"];
+          is_owner: boolean;
+          last_active_at: string | null;
+          joined_at: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          provider_id: string;
+          auth_user_id?: string | null;
+          first_name?: string;
+          last_name?: string;
+          email: string;
+          role?: Database["public"]["Enums"]["club_team_role"];
+          status?: Database["public"]["Enums"]["club_team_member_status"];
+          is_owner?: boolean;
+          last_active_at?: string | null;
+          joined_at?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          provider_id?: string;
+          auth_user_id?: string | null;
+          first_name?: string;
+          last_name?: string;
+          email?: string;
+          role?: Database["public"]["Enums"]["club_team_role"];
+          status?: Database["public"]["Enums"]["club_team_member_status"];
+          is_owner?: boolean;
+          last_active_at?: string | null;
+          joined_at?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "club_team_members_provider_id_fkey";
+            columns: ["provider_id"];
+            isOneToOne: false;
             referencedRelation: "providers";
             referencedColumns: ["id"];
           },
@@ -720,6 +885,8 @@ export type Database = {
         | "unverified"
         | "verified"
         | "premium_verified";
+      club_team_role: "coach" | "administrator" | "manager" | "owner";
+      club_team_member_status: "active" | "pending";
     };
     CompositeTypes: Record<string, never>;
   };
