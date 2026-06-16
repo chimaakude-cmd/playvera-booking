@@ -240,13 +240,31 @@ The `/api/addresses/[postcode]` route prefers `GETADDRESS_API_KEY` on the server
 
 ### Temporary test admin login (staging/dev only)
 
+Server-side credentials for `/admin-login` during development. **Remove before production launch.**
+
 | Variable | Example / notes | Exposed to browser |
 |----------|-----------------|-------------------|
-| `ADMIN_TEST_EMAIL` | Test admin email for `/admin-login` | No |
-| `ADMIN_TEST_PASSWORD` | Test admin password (server-validated) | No |
-| `ADMIN_TEST_2FA_CODE` | Test 2FA code for `/admin-login` | No |
+| `ADMIN_TEST_EMAIL` | Default: `admin-test@activora.local` (see `.env.local.example`) | No |
+| `ADMIN_TEST_PASSWORD` | Auto-generated; server-validated at login | No |
 
-Remove or replace with production auth before go-live. Credentials are never bundled in the client.
+Credentials are never bundled in the client.
+
+#### Initial setup (local)
+
+```bash
+npm run admin:regenerate-credentials
+```
+
+The script writes `ADMIN_TEST_EMAIL` and `ADMIN_TEST_PASSWORD` to `.env.local` and prints the password **once** to the terminal. Restart the dev server if it is already running, then sign in at `/admin-login`.
+
+#### Regenerate while developing
+
+- **Terminal:** `npm run admin:regenerate-credentials` (updates `.env.local`, prints password once).
+- **Admin UI:** Admin ? Settings ? **Regenerate Test Admin Credentials** (requires an active test admin session). Updates `.env.local` when writable; otherwise updates in-memory credentials for the current server process only.
+
+On **Vercel**, the UI/API cannot write project env files. Regeneration updates in-memory credentials until the next cold start; set `ADMIN_TEST_PASSWORD` manually in Vercel ? Project ? Environment Variables for persistence across deploys.
+
+Remove or replace with production auth before go-live.
 
 ### Optional
 

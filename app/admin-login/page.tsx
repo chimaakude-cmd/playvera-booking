@@ -1,6 +1,6 @@
 import { StaffAccessPage } from "@/components/auth/StaffAccessPage";
 
-// TODO: Restore full password + 2FA admin login before launch.
+// TODO: Replace dev test admin login with production auth before launch.
 export const metadata = {
   title: "Admin Login | Activora",
 };
