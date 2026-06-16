@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Logo } from "@/components/branding";
@@ -15,7 +16,13 @@ function formatLockoutRemaining(ms: number): string {
   return `${minutes} minute${minutes === 1 ? "" : "s"}`;
 }
 
-export function StaffAccessPage() {
+export function StaffAccessPage({
+  backHref,
+  backLabel,
+}: {
+  backHref?: string;
+  backLabel?: string;
+} = {}) {
   const router = useRouter();
   const [email, setEmail] = useState(
     process.env.NODE_ENV !== "production" ? TEST_ACCOUNTS.admin.email : "",
@@ -131,6 +138,14 @@ export function StaffAccessPage() {
             Sign in
           </button>
         </form>
+
+        {backHref && backLabel ? (
+          <p className="mt-6 text-center text-sm text-violet-200/70">
+            <Link href={backHref} className="font-medium text-violet-200 hover:text-white">
+              {backLabel}
+            </Link>
+          </p>
+        ) : null}
       </div>
     </div>
   );
