@@ -16,6 +16,7 @@ import {
   formatStripeStatusLabel,
   PAYMENT_PROVIDER_MODE_LABELS,
   PROVIDER_ACCOUNT_STATUS_LABELS,
+  PROVIDER_ORGANISATION_TYPE_LABELS,
 } from "@/lib/admin";
 import type { AdminProviderDetail } from "@/lib/admin/types";
 
@@ -127,7 +128,11 @@ export function AdminProviderDetailSection({ provider }: Props) {
     <div className="space-y-8">
       <PageHeader
         title={activeProvider.clubName}
-        description={`Provider ID: ${activeProvider.id} · Joined ${activeProvider.joinedAt}`}
+        description={`${PROVIDER_ORGANISATION_TYPE_LABELS[activeProvider.organisationType]} · Provider ID: ${activeProvider.id} · Joined ${activeProvider.joinedAt}${
+          activeProvider.clubsCount > 0
+            ? ` · ${activeProvider.clubsCount} linked clubs`
+            : ""
+        }`}
         action={
           <Link
             href="/admin/providers"
