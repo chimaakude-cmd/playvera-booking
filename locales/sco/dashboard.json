@@ -1,0 +1,17 @@
+{
+  "club": {
+    "dashboard": "Dashboard",
+    "bookings": "Bookings",
+    "settings": "Settings",
+    "menu": "Menu"
+  },
+  "parent": {
+    "dashboard": "Dashboard",
+    "bookings": "Bookings",
+    "menu": "Menu"
+  },
+  "settings": {
+    "languageTitle": "Leid",
+    "languageDescription": "Pick the leid for Activora's interface."
+  }
+}

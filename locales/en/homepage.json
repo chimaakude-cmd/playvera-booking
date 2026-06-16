@@ -1,0 +1,106 @@
+{
+  "header": {
+    "tagline": "Helping every child play, learn and grow.",
+    "login": "Login",
+    "signup": "Sign up",
+    "getStarted": "Get Started",
+    "bookDemo": "Book Demo",
+    "searchShortcut": "Search",
+    "nav": {
+      "activities": "Activities",
+      "forClubs": "For Clubs",
+      "pricing": "Pricing",
+      "faq": "FAQ",
+      "support": "Support"
+    }
+  },
+  "hero": {
+    "title": "Find activities your child will actually love.",
+    "subtitle": "Search local clubs, camps and classes — book in minutes, not hours.",
+    "location": "Location",
+    "locationPlaceholder": "City or postcode",
+    "useLocation": "Use My Location",
+    "locating": "Locating...",
+    "childAge": "Age",
+    "radius": "Distance",
+    "radiusMiles": "{{value}} mi",
+    "activity": "Activity",
+    "activityPlaceholder": "e.g. Football, Dance...",
+    "date": "Date",
+    "searchActivities": "Find Activities",
+    "seeAllResults": "See all results →",
+    "trustedBy": "Trusted by families",
+    "heroImageAlt": "Children participating in sports activities"
+  },
+  "chips": {
+    "title": "Browse by activity"
+  },
+  "trustBar": {
+    "parentRating": "Parent rating",
+    "bookings": "Bookings",
+    "providers": "Providers",
+    "uptime": "Uptime"
+  },
+  "popularClubs": {
+    "title": "Popular clubs near you",
+    "withinRadius": "Within {{value}} miles",
+    "viewAll": "View all",
+    "bookNow": "Book now",
+    "verified": "Verified",
+    "spacesLeft": "Only {{count}} spaces left"
+  },
+  "howItWorks": {
+    "title": "How Activora works",
+    "speedNote": "Usually under 60 seconds"
+  },
+  "whyProviders": {
+    "eyebrow": "For providers",
+    "title": "Why providers move to Activora",
+    "subtitle": "Everything you need to take bookings, manage registers and get paid — without monthly fees.",
+    "testimonial": "\"We switched from spreadsheets and WhatsApp. Parents book online and we get paid automatically.\"",
+    "testimonialAuthor": "Sarah M., Football club owner"
+  },
+  "languageCommunity": {
+    "title": "Available across UK communities",
+    "subtitle": "Choose your preferred language for the platform interface.",
+    "moreComing": "More coming"
+  },
+  "bookDemo": {
+    "title": "Book a 30-minute walkthrough",
+    "subtitle": "See how Activora works for your club — no obligation.",
+    "clubName": "Club name",
+    "email": "Email",
+    "phone": "Phone",
+    "activity": "Activity type",
+    "message": "Message",
+    "submit": "Book 30-minute walkthrough",
+    "submitting": "Submitting…",
+    "successTitle": "Thanks — we've received your enquiry",
+    "successBody": "Our team will be in touch soon.",
+    "submitAnother": "Submit another enquiry"
+  },
+  "faq": {
+    "title": "Questions? We've got you covered.",
+    "subtitle": "Quick answers to the questions parents and providers ask most.",
+    "searchPlaceholder": "Search FAQs…",
+    "noResults": "No FAQs match your search.",
+    "viewAll": "View all FAQs",
+    "needHelp": "Need more help? Contact support or arrange a demo.",
+    "chatSupport": "Chat with support"
+  },
+  "updates": {
+    "eyebrow": "What's new",
+    "title": "Latest updates",
+    "subtitle": "Recent improvements shipped across the platform.",
+    "viewAll": "View all updates",
+    "comingSoon": "Coming soon",
+    "votes": "{{count}} votes"
+  },
+  "quickActions": {
+    "open": "Quick actions",
+    "search": "Search",
+    "support": "Support",
+    "bookDemo": "Book demo",
+    "reportBug": "Report bug"
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "callback": {
+    "subject": "Fhuair sinn d'iarratas airson gairm air ais",
+    "greeting": "Ha {{name}},",
+    "intro": "Tapadh leat airson fios a chur gu Activora."
+  }
+}

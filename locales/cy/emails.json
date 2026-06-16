@@ -1,0 +1,13 @@
+{
+  "callback": {
+    "subject": "Rydym wedi derbyn eich cais am alwad nôl",
+    "greeting": "Helo {{name}},",
+    "intro": "Diolch am gysylltu â Activora.",
+    "body": "Rydym wedi derbyn eich cais am alwad nôl ynghylch {{topic}}. Bydd ein tîm yn cysylltu â chi {{time}}.",
+    "supportHours": "Oriau cymorth: Llun–Gwen 07:00–18:00, Sad–Sul 09:00–12:00.",
+    "urgent": "Os yw eich ymholiad yn frys, gallwch hefyd gysylltu â ni trwy'r sgwrs gymorth ar ein gwefan.",
+    "signoff": "Cofion gorau,\nTîm Activora",
+    "timeDuringHours": "yn ystod ein horiau agor",
+    "timeOn": "ar {{datetime}}"
+  }
+}

@@ -1,0 +1,154 @@
+/**
+ * Activora platform admin types.
+ *
+ * Storage (today): localStorage `activora-admin-session`
+ * Database: future `platform_admins` + `platform_settings`
+ */
+
+export type AdminRole = "super_admin" | "finance_admin" | "support_admin";
+
+export type AdminNavSection =
+  | "dashboard"
+  | "providers"
+  | "activities"
+  | "bookings"
+  | "messages"
+  | "bugs"
+  | "careers"
+  | "partnerships"
+  | "partners"
+  | "contact"
+  | "releases"
+  | "translations"
+  | "communications"
+  | "reviews"
+  | "finance"
+  | "settings";
+
+export type ProviderStripeStatus =
+  | "not_connected"
+  | "action_required"
+  | "connected"
+  | "restricted"
+  | "payouts_enabled";
+
+export type ProviderAccountStatus = "active" | "paused" | "suspended";
+
+export type PlatformSettings = {
+  platformName: string;
+  supportEmail: string;
+  supportPhone: string;
+  platformUrl: string;
+  defaultCurrency: string;
+  country: string;
+  vatThreshold: number;
+  marketplaceFooterText: string;
+  defaultPlatformFeePercent: number;
+  marketplaceEnabled: boolean;
+  aiAssistantEnabled: boolean;
+};
+
+export type AdminOverviewMetrics = {
+  totalProviders: number;
+  totalBookings: number;
+  platformRevenue: number;
+  openSupportMessages: number;
+};
+
+export type AdminProvider = {
+  id: string;
+  clubName: string;
+  ownerName: string;
+  email: string;
+  stripeStatus: ProviderStripeStatus;
+  subscriptionPlan: string;
+  totalRevenue: number;
+  accountStatus: ProviderAccountStatus;
+  verified: boolean;
+  joinedAt: string;
+};
+
+export type AdminFinanceSummary = {
+  platformFeePercent: number;
+  totalPlatformFeesEarned: number;
+  stripePlatformFees: number;
+  pendingPayouts: number;
+  failedPayments: number;
+  refunds: number;
+  openDisputes: number;
+  vatThreshold: number;
+  rollingTwelveMonthRevenue: number;
+};
+
+export type PlatformFeeByProvider = {
+  providerId: string;
+  clubName: string;
+  bookings: number;
+  grossRevenue: number;
+  platformFees: number;
+};
+
+export type ActivityStatus = "published" | "paused" | "cancelled" | "draft";
+
+export type ActivityVisibility = "public" | "hidden";
+
+export type AdminActivity = {
+  id: string;
+  title: string;
+  providerId: string;
+  providerName: string;
+  venue: string;
+  day: string;
+  startTime: string;
+  endTime: string;
+  capacity: number;
+  bookingsCount: number;
+  price: number;
+  status: ActivityStatus;
+  visibility: ActivityVisibility;
+  createdAt: string;
+};
+
+export type BookingPaymentStatus =
+  | "paid"
+  | "pending"
+  | "failed"
+  | "refunded"
+  | "partial_refund";
+
+export type AdminBooking = {
+  id: string;
+  reference: string;
+  parentName: string;
+  childName: string;
+  email: string;
+  activityId: string;
+  activityTitle: string;
+  providerId: string;
+  providerName: string;
+  sessionDate: string;
+  status: "pending" | "confirmed" | "cancelled" | "refund_requested";
+  paymentStatus: BookingPaymentStatus;
+  amount: number;
+  notes: string;
+  createdAt: string;
+};
+
+export type AdminProviderDetail = AdminProvider & {
+  phone: string;
+  location: string;
+  slug: string;
+  description: string;
+  website: string;
+  stripeAccountId: string;
+  totalBookings: number;
+  pendingPayout: number;
+  platformFeesPaid: number;
+};
+
+export type AdminSession = {
+  adminId: string;
+  email: string;
+  name: string;
+  role: AdminRole;
+};

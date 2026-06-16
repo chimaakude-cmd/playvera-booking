@@ -1,0 +1,64 @@
+-- Organisation / franchise architecture (future Supabase migration stub)
+-- Today: localStorage keys activora-organisation, activora-franchisee-clubs,
+--        activora-org-permission-policy, activora-org-users
+--
+-- Terminology:
+--   Franchisor = organisation head office managing multiple clubs
+--   Franchisee = individual club/location/provider
+
+-- CREATE TABLE IF NOT EXISTS public.organisations (
+--   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+--   name text NOT NULL,
+--   slug text NOT NULL UNIQUE,
+--   plan jsonb NOT NULL DEFAULT '{}'::jsonb,
+--   created_at timestamptz NOT NULL DEFAULT now(),
+--   updated_at timestamptz NOT NULL DEFAULT now()
+-- );
+--
+-- CREATE TABLE IF NOT EXISTS public.organisation_users (
+--   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+--   organisation_id uuid NOT NULL REFERENCES public.organisations(id) ON DELETE CASCADE,
+--   user_id uuid NOT NULL,
+--   email text NOT NULL,
+--   name text NOT NULL,
+--   role text NOT NULL CHECK (role IN ('owner', 'admin', 'manager', 'viewer')),
+--   created_at timestamptz NOT NULL DEFAULT now(),
+--   UNIQUE (organisation_id, user_id)
+-- );
+--
+-- CREATE TABLE IF NOT EXISTS public.franchisee_clubs (
+--   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+--   organisation_id uuid NOT NULL REFERENCES public.organisations(id) ON DELETE CASCADE,
+--   provider_id uuid REFERENCES public.providers(id) ON DELETE SET NULL,
+--   name text NOT NULL,
+--   area text,
+--   manager_name text,
+--   manager_email text,
+--   status text NOT NULL DEFAULT 'pending'
+--     CHECK (status IN ('active', 'pending', 'suspended')),
+--   stripe_status text NOT NULL DEFAULT 'not_connected'
+--     CHECK (stripe_status IN ('connected', 'pending', 'not_connected')),
+--   bookings_count integer NOT NULL DEFAULT 0,
+--   revenue_pence bigint NOT NULL DEFAULT 0,
+--   created_at timestamptz NOT NULL DEFAULT now(),
+--   updated_at timestamptz NOT NULL DEFAULT now()
+-- );
+--
+-- CREATE TABLE IF NOT EXISTS public.organisation_permission_policies (
+--   organisation_id uuid PRIMARY KEY REFERENCES public.organisations(id) ON DELETE CASCADE,
+--   franchisee_can_edit jsonb NOT NULL DEFAULT '{}'::jsonb,
+--   updated_at timestamptz NOT NULL DEFAULT now()
+-- );
+--
+-- ALTER TABLE public.providers
+--   ADD COLUMN IF NOT EXISTS organisation_id uuid
+--     REFERENCES public.organisations(id) ON DELETE SET NULL;
+--
+-- CREATE INDEX IF NOT EXISTS idx_franchisee_clubs_organisation
+--   ON public.franchisee_clubs (organisation_id);
+--
+-- CREATE INDEX IF NOT EXISTS idx_franchisee_clubs_provider
+--   ON public.franchisee_clubs (provider_id);
+--
+-- CREATE INDEX IF NOT EXISTS idx_providers_organisation
+--   ON public.providers (organisation_id);

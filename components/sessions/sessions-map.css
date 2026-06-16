@@ -1,0 +1,248 @@
+.activora-map-container {
+  --activora-pink: #ec4899;
+  --activora-pink-dark: #db2777;
+  --activora-pink-soft: #fce7f3;
+}
+
+.activora-map-container .mapboxgl-canvas {
+  filter: saturate(1.14) contrast(1.03);
+}
+
+.activora-map-container .mapboxgl-ctrl-top-right {
+  top: 12px;
+  right: 12px;
+}
+
+.activora-map-container .mapboxgl-ctrl-group {
+  border: 1px solid rgb(228 228 231 / 0.9);
+  border-radius: 12px;
+  background: rgb(255 255 255 / 0.96);
+  box-shadow:
+    0 1px 2px rgb(0 0 0 / 0.04),
+    0 8px 24px rgb(0 0 0 / 0.08);
+  overflow: hidden;
+  backdrop-filter: blur(8px);
+}
+
+.activora-map-container .mapboxgl-ctrl-group button {
+  width: 40px;
+  height: 40px;
+}
+
+.activora-map-container .mapboxgl-ctrl-group button + button {
+  border-top: 1px solid rgb(244 244 245);
+}
+
+.activora-map-container .mapboxgl-ctrl-group button:hover {
+  background-color: rgb(250 250 250);
+}
+
+.activora-map-container .mapboxgl-ctrl-group button:focus-visible {
+  outline: 2px solid var(--activora-pink);
+  outline-offset: -2px;
+}
+
+.activora-map-popup.mapboxgl-popup {
+  z-index: 5;
+  max-width: min(280px, calc(100vw - 32px)) !important;
+}
+
+.activora-map-popup .mapboxgl-popup-content {
+  padding: 0;
+  border: 1px solid rgb(228 228 231);
+  border-radius: 16px;
+  background: #fff;
+  box-shadow:
+    0 1px 2px rgb(0 0 0 / 0.04),
+    0 12px 32px rgb(0 0 0 / 0.12);
+  overflow: hidden;
+}
+
+.activora-map-popup .mapboxgl-popup-tip {
+  border-top-color: #fff;
+}
+
+.activora-map-popup .mapboxgl-popup-close-button {
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  color: rgb(113 113 122);
+  font-size: 18px;
+  line-height: 28px;
+}
+
+.activora-map-popup .mapboxgl-popup-close-button:hover {
+  background: rgb(244 244 245);
+  color: rgb(39 39 42);
+}
+
+.activora-popup {
+  padding: 14px 16px 16px;
+}
+
+.activora-popup__activity {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--activora-pink-dark);
+}
+
+.activora-popup__title {
+  margin: 4px 0 0;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: rgb(24 24 27);
+}
+
+.activora-popup__location {
+  margin: 4px 0 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: rgb(63 63 70);
+}
+
+.activora-popup__meta {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: rgb(113 113 122);
+}
+
+.activora-popup__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid rgb(244 244 245);
+}
+
+.activora-popup__price {
+  font-size: 16px;
+  font-weight: 700;
+  color: rgb(24 24 27);
+}
+
+.activora-popup__cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 10px;
+  background: rgb(24 24 27);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background-color 0.15s ease;
+}
+
+.activora-popup__cta:hover {
+  background: rgb(39 39 42);
+}
+
+.activora-marker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.activora-marker:focus-visible {
+  outline: none;
+}
+
+.activora-marker:focus-visible .activora-marker__pin {
+  outline: 2px solid var(--activora-pink);
+  outline-offset: 3px;
+  border-radius: 999px;
+}
+
+.activora-marker__price {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 42px;
+  padding: 3px 8px;
+  border: 2px solid #fff;
+  border-radius: 999px;
+  background: var(--activora-pink);
+  box-shadow: 0 2px 8px rgb(236 72 153 / 0.35);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+  transition:
+    transform 0.2s ease,
+    background-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.activora-marker__pin {
+  display: flex;
+  filter: drop-shadow(0 3px 6px rgb(0 0 0 / 0.18));
+  transition: transform 0.2s ease;
+}
+
+.activora-marker__pin svg {
+  display: block;
+  width: 32px;
+  height: 42px;
+}
+
+.activora-marker:hover .activora-marker__price,
+.activora-marker:hover .activora-marker__pin {
+  transform: translateY(-2px) scale(1.04);
+}
+
+.activora-marker--selected .activora-marker__price {
+  background: var(--activora-pink-dark);
+  box-shadow: 0 4px 14px rgb(219 39 119 / 0.45);
+}
+
+.activora-marker--selected .activora-marker__pin {
+  animation: activora-marker-bounce 1.5s ease-in-out infinite;
+}
+
+@keyframes activora-marker-bounce {
+  0%,
+  100% {
+    transform: translateY(0) scale(1.08);
+  }
+
+  50% {
+    transform: translateY(-4px) scale(1.12);
+  }
+}
+
+@media (max-width: 640px) {
+  .activora-map-container .mapboxgl-ctrl-top-right {
+    top: auto;
+    right: 10px;
+    bottom: 10px;
+  }
+
+  .activora-marker__pin svg {
+    width: 36px;
+    height: 46px;
+  }
+
+  .activora-marker__price {
+    min-width: 46px;
+    padding: 4px 10px;
+    font-size: 12px;
+  }
+}

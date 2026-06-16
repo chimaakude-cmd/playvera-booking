@@ -1,0 +1,17 @@
+{
+  "club": {
+    "dashboard": "Deas-bhòrd",
+    "bookings": "Glèidheadh",
+    "settings": "Roghainnean",
+    "menu": "Clàr-taice"
+  },
+  "parent": {
+    "dashboard": "Deas-bhòrd",
+    "bookings": "Glèidheadh",
+    "menu": "Clàr-taice"
+  },
+  "settings": {
+    "languageTitle": "Cànan",
+    "languageDescription": "Tagh cànan eadar-aghaidh Activora."
+  }
+}

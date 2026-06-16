@@ -1,0 +1,36 @@
+{
+  "buttons": {
+    "login": "Mewngofnodi",
+    "signup": "Cofrestru",
+    "continue": "Parhau",
+    "cancel": "Canslo",
+    "save": "Cadw",
+    "search": "Chwilio",
+    "menu": "Dewislen",
+    "close": "Cau",
+    "closeMenu": "Cau'r ddewislen",
+    "openMenu": "Agor y ddewislen",
+    "switch": "Newid",
+    "keepEnglish": "Cadw'r Saesneg",
+    "translate": "Cyfieithu",
+    "startFree": "Dechrau am ddim",
+    "bookDemo": "Archebu demo",
+    "viewAll": "Gweld y cyfan",
+    "soon": "Yn fuan"
+  },
+  "errors": {
+    "generic": "Aeth rhywbeth o'i le. Rhowch gynnig arall arni.",
+    "loading": "Yn llwytho..."
+  },
+  "language": {
+    "label": "Iaith",
+    "selectLabel": "Dewis iaith",
+    "currentLanguage": "Iaith bresennol: {{language}}",
+    "changeLanguage": "Newid iaith",
+    "selectorAria": "Dewisydd iaith"
+  },
+  "translate": {
+    "comingSoon": "Cyfieithiad ar y gweill",
+    "copiedOriginal": "Copïwyd y testun gwreiddiol"
+  }
+}

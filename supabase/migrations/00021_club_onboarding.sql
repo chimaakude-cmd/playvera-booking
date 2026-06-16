@@ -1,0 +1,18 @@
+-- Club onboarding persistence (future Supabase migration stub)
+-- Today: localStorage keys activora-club-onboarding-draft, activora-club-onboarding-complete
+
+-- CREATE TABLE IF NOT EXISTS public.club_onboarding_drafts (
+--   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+--   provider_id uuid NOT NULL REFERENCES public.providers(id) ON DELETE CASCADE,
+--   draft jsonb NOT NULL DEFAULT '{}'::jsonb,
+--   current_step smallint NOT NULL DEFAULT 1 CHECK (current_step BETWEEN 1 AND 11),
+--   completed_at timestamptz,
+--   created_at timestamptz NOT NULL DEFAULT now(),
+--   updated_at timestamptz NOT NULL DEFAULT now()
+-- );
+--
+-- CREATE INDEX IF NOT EXISTS idx_club_onboarding_drafts_provider
+--   ON public.club_onboarding_drafts (provider_id);
+--
+-- ALTER TABLE public.providers
+--   ADD COLUMN IF NOT EXISTS onboarding_completed_at timestamptz;

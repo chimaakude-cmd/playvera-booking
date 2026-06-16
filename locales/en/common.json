@@ -1,0 +1,36 @@
+{
+  "buttons": {
+    "login": "Login",
+    "signup": "Sign up",
+    "continue": "Continue",
+    "cancel": "Cancel",
+    "save": "Save",
+    "search": "Search",
+    "menu": "Menu",
+    "close": "Close",
+    "closeMenu": "Close menu",
+    "openMenu": "Open menu",
+    "switch": "Switch",
+    "keepEnglish": "Keep English",
+    "translate": "Translate",
+    "startFree": "Start free",
+    "bookDemo": "Book a demo",
+    "viewAll": "View all",
+    "soon": "Soon"
+  },
+  "errors": {
+    "generic": "Something went wrong. Please try again.",
+    "loading": "Loading..."
+  },
+  "language": {
+    "label": "Language",
+    "selectLabel": "Select language",
+    "currentLanguage": "Current language: {{language}}",
+    "changeLanguage": "Change language",
+    "selectorAria": "Language selector"
+  },
+  "translate": {
+    "comingSoon": "Translation coming soon",
+    "copiedOriginal": "Original text copied"
+  }
+}

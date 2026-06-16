@@ -1,0 +1,36 @@
+{
+  "buttons": {
+    "login": "Logáil isteach",
+    "signup": "Cláraigh",
+    "continue": "Lean ar aghaidh",
+    "cancel": "Cealaigh",
+    "save": "Sábháil",
+    "search": "Cuardaigh",
+    "menu": "Roghchlár",
+    "close": "Dún",
+    "closeMenu": "Dún an roghchlár",
+    "openMenu": "Oscail an roghchlár",
+    "switch": "Athraigh",
+    "keepEnglish": "Coinnigh an Béarla",
+    "translate": "Aistrigh",
+    "startFree": "Tosaigh saor in aisce",
+    "bookDemo": "Cuir taispeántas in áirithe",
+    "viewAll": "Féach ar gach rud",
+    "soon": "Go luath"
+  },
+  "errors": {
+    "generic": "Chuaigh rud éigin mícheart. Bain triail eile as.",
+    "loading": "Ag lódáil..."
+  },
+  "language": {
+    "label": "Teanga",
+    "selectLabel": "Roghnaigh teanga",
+    "currentLanguage": "Teanga reatha: {{language}}",
+    "changeLanguage": "Athraigh teanga",
+    "selectorAria": "Roghnóir teanga"
+  },
+  "translate": {
+    "comingSoon": "Aistriúchán ag teacht go luath",
+    "copiedOriginal": "Cóipeáladh an téacs bunaidh"
+  }
+}

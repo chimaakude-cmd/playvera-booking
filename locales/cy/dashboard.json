@@ -1,0 +1,34 @@
+{
+  "club": {
+    "dashboard": "Dangosfwrdd",
+    "inbox": "Blwch derbyn",
+    "activities": "Gweithgareddau",
+    "bookings": "Archebion",
+    "registers": "Cofrestrau",
+    "customers": "Cwsmeriaid",
+    "finance": "Cyllid",
+    "settings": "Gosodiadau",
+    "clubProfile": "Proffil y clwb",
+    "teamAccess": "Cyfrif a thîm",
+    "menu": "Dewislen"
+  },
+  "parent": {
+    "dashboard": "Dangosfwrdd",
+    "children": "Plant",
+    "bookings": "Archebion",
+    "profile": "Proffil",
+    "menu": "Dewislen"
+  },
+  "org": {
+    "dashboard": "Dangosfwrdd",
+    "clubs": "Clybiau",
+    "bookings": "Archebion",
+    "finance": "Cyllid",
+    "settings": "Gosodiadau",
+    "menu": "Dewislen"
+  },
+  "settings": {
+    "languageTitle": "Iaith",
+    "languageDescription": "Dewiswch iaith rhyngwyneb Activora. Nid yw hyn yn cyfieithu cynnwys eich clwb."
+  }
+}

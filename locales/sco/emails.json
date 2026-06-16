@@ -1,0 +1,6 @@
+{
+  "callback": {
+    "subject": "We'e received yer callback request",
+    "greeting": "Hi {{name}},"
+  }
+}

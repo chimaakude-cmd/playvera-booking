@@ -1,0 +1,26 @@
+{
+  "header": {
+    "tagline": "Helpin ilka wee yin play, learn an grow.",
+    "login": "Log in",
+    "signup": "Sign up"
+  },
+  "hero": {
+    "titlePrefix": "Find the",
+    "titleHighlight": "perfect activity",
+    "titleSuffix": "for yer wee yin",
+    "subtitle": "Search, book an manage clubs, camps an activities — aw in yin place.",
+    "searchActivities": "Search Activities"
+  },
+  "whyProviders": {
+    "title": "Run yer club. Grow yer business."
+  },
+  "faq": {
+    "title": "Questions? We hae ye covered.",
+    "viewAll": "View aw FAQs"
+  },
+  "languageCommunity": {
+    "title": "Built for ilka community.",
+    "subtitle": "Available in mony UK leids.",
+    "cardPartial": "Pairtial"
+  }
+}

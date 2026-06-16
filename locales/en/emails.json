@@ -1,0 +1,13 @@
+{
+  "callback": {
+    "subject": "We've received your callback request",
+    "greeting": "Hi {{name}},",
+    "intro": "Thank you for contacting Activora.",
+    "body": "We've received your callback request regarding {{topic}}. Our team will contact you {{time}}.",
+    "supportHours": "Support hours: Mon–Fri 07:00–18:00, Sat–Sun 09:00–12:00.",
+    "urgent": "If your enquiry is urgent, you can also reach us via the support chat on our website.",
+    "signoff": "Kind regards,\nThe Activora Team",
+    "timeDuringHours": "during our opening hours",
+    "timeOn": "on {{datetime}}"
+  }
+}

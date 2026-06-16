@@ -1,0 +1,103 @@
+-- Finance / payout architecture (future Supabase migration stub)
+-- Today: localStorage keys activora-org-payout-schedule, activora-org-franchisor-fees,
+--        activora-club-payout-preferences, activora-finance-reports,
+--        activora-org-payout-overrides, activora-org-fee-overrides
+--
+-- Terminology:
+--   Franchisor fee = fee retained by organisation before franchisee payout
+--   Franchisee payout = net amount sent to club after Stripe, Activora, franchisor fees
+
+-- CREATE TYPE public.payout_frequency AS ENUM (
+--   'every_3_days',
+--   'every_7_days',
+--   'monthly',
+--   'custom'
+-- );
+--
+-- CREATE TYPE public.franchisor_fee_type AS ENUM (
+--   'percentage',
+--   'fixed_monthly',
+--   'percentage_plus_fixed',
+--   'higher_of_percentage_or_minimum'
+-- );
+--
+-- CREATE TYPE public.finance_payout_status AS ENUM (
+--   'scheduled',
+--   'processing',
+--   'paid',
+--   'held',
+--   'failed'
+-- );
+--
+-- CREATE TABLE IF NOT EXISTS public.organisation_payout_schedules (
+--   organisation_id uuid PRIMARY KEY REFERENCES public.organisations(id) ON DELETE CASCADE,
+--   frequency public.payout_frequency NOT NULL DEFAULT 'monthly',
+--   monthly_day smallint NOT NULL DEFAULT 1 CHECK (monthly_day BETWEEN 1 AND 28),
+--   hold_period_days smallint NOT NULL DEFAULT 3,
+--   applies_to_all boolean NOT NULL DEFAULT true,
+--   allow_per_franchisee_override boolean NOT NULL DEFAULT false,
+--   updated_at timestamptz NOT NULL DEFAULT now()
+-- );
+--
+-- CREATE TABLE IF NOT EXISTS public.organisation_franchisor_fees (
+--   organisation_id uuid PRIMARY KEY REFERENCES public.organisations(id) ON DELETE CASCADE,
+--   fee_type public.franchisor_fee_type NOT NULL DEFAULT 'percentage',
+--   percentage_fee numeric(5, 2) NOT NULL DEFAULT 0,
+--   minimum_fee numeric(10, 2) NOT NULL DEFAULT 0,
+--   fixed_fee numeric(10, 2) NOT NULL DEFAULT 0,
+--   billing_period text NOT NULL DEFAULT 'monthly'
+--     CHECK (billing_period IN ('weekly', 'monthly')),
+--   applies_to_all boolean NOT NULL DEFAULT true,
+--   allow_per_franchisee_override boolean NOT NULL DEFAULT false,
+--   updated_at timestamptz NOT NULL DEFAULT now()
+-- );
+--
+-- CREATE TABLE IF NOT EXISTS public.club_payout_preferences (
+--   club_id uuid PRIMARY KEY REFERENCES public.clubs(id) ON DELETE CASCADE,
+--   frequency public.payout_frequency NOT NULL DEFAULT 'every_7_days',
+--   monthly_day smallint NOT NULL DEFAULT 1 CHECK (monthly_day BETWEEN 1 AND 28),
+--   available_balance numeric(12, 2) NOT NULL DEFAULT 0,
+--   pending_balance numeric(12, 2) NOT NULL DEFAULT 0,
+--   updated_at timestamptz NOT NULL DEFAULT now()
+-- );
+--
+-- CREATE TABLE IF NOT EXISTS public.franchisee_payout_overrides (
+--   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+--   organisation_id uuid NOT NULL REFERENCES public.organisations(id) ON DELETE CASCADE,
+--   club_id uuid NOT NULL REFERENCES public.franchisee_clubs(id) ON DELETE CASCADE,
+--   frequency public.payout_frequency,
+--   monthly_day smallint CHECK (monthly_day BETWEEN 1 AND 28),
+--   hold_period_days smallint,
+--   UNIQUE (organisation_id, club_id)
+-- );
+--
+-- CREATE TABLE IF NOT EXISTS public.franchisee_fee_overrides (
+--   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+--   organisation_id uuid NOT NULL REFERENCES public.organisations(id) ON DELETE CASCADE,
+--   club_id uuid NOT NULL REFERENCES public.franchisee_clubs(id) ON DELETE CASCADE,
+--   fee_type public.franchisor_fee_type,
+--   percentage_fee numeric(5, 2),
+--   minimum_fee numeric(10, 2),
+--   fixed_fee numeric(10, 2),
+--   UNIQUE (organisation_id, club_id)
+-- );
+--
+-- CREATE TABLE IF NOT EXISTS public.organisation_finance_reports (
+--   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+--   organisation_id uuid NOT NULL REFERENCES public.organisations(id) ON DELETE CASCADE,
+--   club_id uuid NOT NULL REFERENCES public.franchisee_clubs(id) ON DELETE CASCADE,
+--   gross_sales numeric(12, 2) NOT NULL,
+--   stripe_fees numeric(12, 2) NOT NULL DEFAULT 0,
+--   activeora_fees numeric(12, 2) NOT NULL DEFAULT 0,
+--   franchisor_fees numeric(12, 2) NOT NULL DEFAULT 0,
+--   net_payout numeric(12, 2) NOT NULL,
+--   payout_date timestamptz NOT NULL,
+--   payout_status public.finance_payout_status NOT NULL DEFAULT 'scheduled',
+--   created_at timestamptz NOT NULL DEFAULT now()
+-- );
+--
+-- ALTER TABLE public.organisation_permission_policies
+--   ADD COLUMN IF NOT EXISTS payout_schedule_controlled_by_franchisor boolean NOT NULL DEFAULT true;
+--
+-- ALTER TABLE public.organisations
+--   ADD COLUMN IF NOT EXISTS franchisor_controls_payouts boolean NOT NULL DEFAULT true;

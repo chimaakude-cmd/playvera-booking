@@ -1,0 +1,26 @@
+{
+  "club": {
+    "dashboard": "Painéal",
+    "inbox": "Bosca isteach",
+    "activities": "Gníomhaíochtaí",
+    "bookings": "Áirithintí",
+    "settings": "Socruithe",
+    "menu": "Roghchlár"
+  },
+  "parent": {
+    "dashboard": "Painéal",
+    "children": "Leanaí",
+    "bookings": "Áirithintí",
+    "profile": "Próifíl",
+    "menu": "Roghchlár"
+  },
+  "org": {
+    "dashboard": "Painéal",
+    "settings": "Socruithe",
+    "menu": "Roghchlár"
+  },
+  "settings": {
+    "languageTitle": "Teanga",
+    "languageDescription": "Roghnaigh teanga comhéadan Activora. Ní aistríonn sé seo ábhar do chlub."
+  }
+}

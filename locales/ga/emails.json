@@ -1,0 +1,12 @@
+{
+  "callback": {
+    "subject": "Fuaireamar d'iarratas glao ar ais",
+    "greeting": "A {{name}}, a chara,",
+    "intro": "Go raibh maith agat as teagmháil a dhéanamh le Activora.",
+    "body": "Fuaireamar d'iarratas glao ar ais maidir le {{topic}}. Déanfaidh ár bhfoireann teagmháil leat {{time}}.",
+    "supportHours": "Uaireanta tacaíochta: Luan–Aoine 07:00–18:00, Sath–Domh 09:00–12:00.",
+    "signoff": "Le dea-mhéin,\nFoireann Activora",
+    "timeDuringHours": "le linn uaireanta oscailte",
+    "timeOn": "ar {{datetime}}"
+  }
+}

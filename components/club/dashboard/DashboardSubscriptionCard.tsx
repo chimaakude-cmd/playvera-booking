@@ -1,0 +1,51 @@
+"use client";
+
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import {
+  formatMonthlyPrice,
+  formatPlatformFee,
+  getPlanByIdOrDefault,
+  getPlanLabel,
+} from "@/src/config/pricing";
+import { getProviderSubscription } from "@/lib/provider-subscription";
+import { PricingDisclaimer } from "@/components/pricing/PricingDisclaimer";
+
+export function DashboardSubscriptionCard() {
+  const [planLabel, setPlanLabel] = useState(getPlanLabel("STARTER"));
+  const [monthlyPrice, setMonthlyPrice] = useState(
+    formatMonthlyPrice(getPlanByIdOrDefault("STARTER")),
+  );
+  const [platformFee, setPlatformFee] = useState(
+    formatPlatformFee(getPlanByIdOrDefault("STARTER")),
+  );
+
+  useEffect(() => {
+    const subscription = getProviderSubscription();
+    const plan = getPlanByIdOrDefault(subscription.planId);
+    setPlanLabel(getPlanLabel(plan.id));
+    setMonthlyPrice(formatMonthlyPrice(plan));
+    setPlatformFee(formatPlatformFee(plan));
+  }, []);
+
+  return (
+    <section className="rounded-2xl border border-zinc-200/80 bg-white p-5 shadow-sm sm:p-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-sm font-medium text-zinc-500">Your subscription</p>
+          <h2 className="mt-1 text-xl font-semibold text-[#0F172A]">{planLabel}</h2>
+          <p className="mt-1 text-sm text-zinc-600">
+            {monthlyPrice} · {platformFee} platform fee per booking
+          </p>
+          <PricingDisclaimer className="mt-2" />
+        </div>
+        <Link
+          href="/club/settings/subscription"
+          className="inline-flex shrink-0 rounded-xl bg-[#2563EB] px-4 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+        >
+          Manage plan
+        </Link>
+      </div>
+    </section>
+  );
+}

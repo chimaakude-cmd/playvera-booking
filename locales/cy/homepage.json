@@ -1,0 +1,50 @@
+{
+  "header": {
+    "tagline": "Helpu pob plentyn chwarae, dysgu a thyfu.",
+    "login": "Mewngofnodi",
+    "signup": "Cofrestru"
+  },
+  "hero": {
+    "titlePrefix": "Dewch o hyd i'r",
+    "titleHighlight": "gweithgaredd perffaith",
+    "titleSuffix": "ar gyfer eich plentyn",
+    "subtitle": "Chwilio, archebu a rheoli clybiau, gwersyll a gweithgareddau — mewn un lle.",
+    "location": "Lleoliad",
+    "locationPlaceholder": "Dinas neu god post",
+    "useLocation": "Defnyddio Fy Lleoliad",
+    "locating": "Yn canfod lleoliad...",
+    "childAge": "Oedran y Plentyn",
+    "radius": "Radiws",
+    "radiusMiles": "{{value}} mi",
+    "activity": "Beth ydych chi'n chwilio amdano?",
+    "activityPlaceholder": "e.e. Pêl-droed, Dawns...",
+    "searchActivities": "Chwilio Gweithgareddau",
+    "seeAllResults": "Gweld yr holl ganlyniadau →",
+    "heroImageAlt": "Plant yn cymryd rhan mewn gweithgareddau chwaraeon"
+  },
+  "whyProviders": {
+    "eyebrow": "Pam Activora",
+    "title": "Rheoli eich clwb. Tyfu eich busnes.",
+    "subtitle": "Popeth mae darparwyr ei angen i reoli archebion, rhieni, taliadau a thyfiant — heb dalu am gymhlethdod.",
+    "tagline": "Dim ffioedd gosod • Adeiladwyd ar gyfer clybiau • Taliadau diogel",
+    "bottomTitle": "Yn barod i wario llai amser yn rheoli a mwy amser yn darparu?",
+    "bottomTagline": "Adeiladwyd ar gyfer clybiau o bob maint.",
+    "visualBadge": "Adeiladwyd ar gyfer clybiau. Cynlluniwyd ar gyfer tyfiant."
+  },
+  "faq": {
+    "title": "Cwestiynau? Rydyn ni yma i helpu.",
+    "subtitle": "Atebion cyflym i'r cwestiynau mwyaf cyffredin gan rieni a darparwyr.",
+    "viewAll": "Gweld yr holl Cwestiynau Cyffredin",
+    "needHelp": "Angen mwy o help? Cysylltwch â'r tîm cymorth neu drefnu demo.",
+    "chatSupport": "Sgwrsio â'r tîm cymorth"
+  },
+  "languageCommunity": {
+    "eyebrow": "Ieithoedd",
+    "title": "Adeiladwyd ar gyfer pob cymuned.",
+    "subtitle": "Ar gael mewn ieithoedd lluosog y DU.",
+    "description": "Mae Activora wedi'i gynllunio ar gyfer teuluoedd a darparwyr ledled y DU. Dewiswch eich iaith ddewisol ar gyfer rhyngwyneb y platfform.",
+    "cardAvailable": "Ar gael",
+    "cardPartial": "Rhannol",
+    "cardComingSoon": "Yn dod yn fuan"
+  }
+}

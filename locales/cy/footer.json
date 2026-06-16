@@ -1,0 +1,30 @@
+{
+  "brand": {
+    "description": "Y platfform cynhwysfawr sy'n helpu clybiau, ysgolion a darparwyr gweithgareddau i reoli archebion, taliadau a theuluoedd — fel y gallwch ganolbwyntio ar yr hyn sy'n bwysig."
+  },
+  "cta": {
+    "title": "Yn barod i dyfu eich clwb?",
+    "subtitle": "Ymunwch â channoedd o ddarparwyr gweithgareddau sy'n defnyddio Activora eisoes.",
+    "startFree": "Dechrau am ddim",
+    "bookDemo": "Archebu demo"
+  },
+  "contact": {
+    "title": "Cysylltu â'r tîm cymorth",
+    "supportHoursLabel": "Oriau cymorth:",
+    "requestCallback": "Gofyn am alwad nôl",
+    "bookDemo": "Archebu demo",
+    "responseNote": "Ein nod yw ymateb yn ystod oriau agor."
+  },
+  "columns": {
+    "platform": "Platfform",
+    "industries": "Diwydiannau",
+    "resources": "Adnoddau",
+    "company": "Cwmni",
+    "contact": "Cysylltu"
+  },
+  "bottom": {
+    "builtIn": "Adeiladwyd yn y Deyrnas Unedig",
+    "legalNav": "Cyfreithiol a chydymffurfio"
+  },
+  "siteFooter": "Troedyn y wefan"
+}

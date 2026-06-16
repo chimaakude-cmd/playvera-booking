@@ -1,0 +1,30 @@
+{
+  "brand": {
+    "description": "An t-ardán uile-i-amháin a chabhraíonn le clubanna, scoileanna agus soláthraithe gníomhaíochta áirithintí, íocaíochtaí agus teaghlach a bhainistiú."
+  },
+  "cta": {
+    "title": "Réidh chun do chlub a fhás?",
+    "subtitle": "Bí páirteach le céadta soláthraithe gníomhaíochta atá ag úsáid Activora cheana.",
+    "startFree": "Tosaigh saor in aisce",
+    "bookDemo": "Cuir taispeántas in áirithe"
+  },
+  "contact": {
+    "title": "Déan teagmháil le tacaíocht",
+    "supportHoursLabel": "Uaireanta tacaíochta:",
+    "requestCallback": "Iarr glao ar ais",
+    "bookDemo": "Cuir taispeántas in áirithe",
+    "responseNote": "Déanaimid iarracht freagairt le linn uaireanta oscailte."
+  },
+  "columns": {
+    "platform": "Ardán",
+    "industries": "Tionscail",
+    "resources": "Acmhainní",
+    "company": "Cuideachta",
+    "contact": "Teagmháil"
+  },
+  "bottom": {
+    "builtIn": "Tógtha sa Ríocht Aontaithe",
+    "legalNav": "Dlíthiúil agus comhlíonadh"
+  },
+  "siteFooter": "Buntásc an tsuímh"
+}

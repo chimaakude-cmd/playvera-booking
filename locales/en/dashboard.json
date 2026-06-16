@@ -1,0 +1,34 @@
+{
+  "club": {
+    "dashboard": "Dashboard",
+    "inbox": "Inbox",
+    "activities": "Activities",
+    "bookings": "Bookings",
+    "registers": "Registers",
+    "customers": "Customers",
+    "finance": "Finance",
+    "settings": "Settings",
+    "clubProfile": "Club profile",
+    "teamAccess": "Account & team",
+    "menu": "Menu"
+  },
+  "parent": {
+    "dashboard": "Dashboard",
+    "children": "Children",
+    "bookings": "Bookings",
+    "profile": "Profile",
+    "menu": "Menu"
+  },
+  "org": {
+    "dashboard": "Dashboard",
+    "clubs": "Clubs",
+    "bookings": "Bookings",
+    "finance": "Finance",
+    "settings": "Settings",
+    "menu": "Menu"
+  },
+  "settings": {
+    "languageTitle": "Language",
+    "languageDescription": "Choose the language for Activora's interface. This does not translate your club content."
+  }
+}

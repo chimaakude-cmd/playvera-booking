@@ -1,0 +1,25 @@
+{
+  "brand": {
+    "description": "The all-in-one platform helping clubs, schools and activity providers manage bookings, payments and families — so you can focus on what matters."
+  },
+  "contact": {
+    "title": "Contact support",
+    "supportHoursLabel": "Support hours:",
+    "requestCallback": "Request callback",
+    "bookDemo": "Book a demo",
+    "responseNote": "We aim to respond during opening hours."
+  },
+  "columns": {
+    "platform": "Platform",
+    "parents": "Parents",
+    "providers": "Providers",
+    "company": "Company",
+    "support": "Support",
+    "trust": "Trust"
+  },
+  "bottom": {
+    "builtIn": "Built in United Kingdom",
+    "legalNav": "Legal and compliance"
+  },
+  "siteFooter": "Site footer"
+}

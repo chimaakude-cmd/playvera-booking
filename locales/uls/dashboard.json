@@ -1,0 +1,14 @@
+{
+  "club": {
+    "dashboard": "Dashboard",
+    "settings": "Settings",
+    "menu": "Menu"
+  },
+  "parent": {
+    "dashboard": "Dashboard",
+    "menu": "Menu"
+  },
+  "settings": {
+    "languageTitle": "Leid"
+  }
+}

@@ -1,0 +1,40 @@
+.venue-pin-map {
+  --venue-pin-pink: #ec4899;
+}
+
+.venue-pin-map__container {
+  min-height: 320px;
+  overflow: hidden;
+  border: 1px solid rgb(228 228 231);
+  border-radius: 1rem;
+}
+
+.venue-pin-map__container .mapboxgl-canvas {
+  filter: saturate(1.08);
+}
+
+.venue-pin-marker {
+  display: flex;
+  cursor: grab;
+  filter: drop-shadow(0 3px 6px rgb(0 0 0 / 0.2));
+}
+
+.venue-pin-marker:active {
+  cursor: grabbing;
+}
+
+.venue-pin-marker svg {
+  display: block;
+  width: 34px;
+  height: 44px;
+}
+
+.venue-pin-marker path {
+  fill: var(--venue-pin-pink);
+  stroke: #fff;
+  stroke-width: 2;
+}
+
+.venue-pin-marker circle {
+  fill: #fff;
+}

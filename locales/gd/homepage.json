@@ -1,0 +1,29 @@
+{
+  "header": {
+    "tagline": "A' cuideachadh gach pàiste cluich, ionnsachadh agus fàs.",
+    "login": "Log a-steach",
+    "signup": "Clàraich"
+  },
+  "hero": {
+    "titlePrefix": "Lorg an",
+    "titleHighlight": "gnìomhachd foirfe",
+    "titleSuffix": "airson do phàiste",
+    "subtitle": "Lorg, glèidh agus stiùirich clubaichean, campaichean agus gnìomhachdan — uile ann an aon àite.",
+    "location": "Àite",
+    "searchActivities": "Lorg gnìomhachdan"
+  },
+  "whyProviders": {
+    "eyebrow": "Carson Activora",
+    "title": "Ruith do chlub. Meudaich do ghnothach.",
+    "startFree": "Tòisich an-asgaidh"
+  },
+  "faq": {
+    "title": "Ceistean? Tha sinn an seo gus cuideachadh.",
+    "viewAll": "Seall na Ceistean Cumanta uile"
+  },
+  "languageCommunity": {
+    "title": "Air a thogail airson gach coimhearsnachd.",
+    "subtitle": "Ri fhaighinn ann an iomadh cànan sa RA.",
+    "cardPartial": "Pàirteach"
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "header": {
+    "tagline": "Helpin ilka bairn play, learn an grow.",
+    "login": "Log in",
+    "signup": "Sign up"
+  },
+  "hero": {
+    "titlePrefix": "Find the",
+    "titleHighlight": "perfect activity",
+    "titleSuffix": "for yer bairn",
+    "subtitle": "Search, book an manage clubs, camps an activities — aw in ae place.",
+    "location": "Location",
+    "searchActivities": "Search Activities"
+  },
+  "whyProviders": {
+    "eyebrow": "Why Activora",
+    "title": "Run yer club. Grow yer business.",
+    "tagline": "Nae setup fees • Built for clubs • Secure payments"
+  },
+  "faq": {
+    "title": "Questions? We'e got ye covered.",
+    "viewAll": "View aw FAQs"
+  },
+  "languageCommunity": {
+    "title": "Built for ilka community.",
+    "subtitle": "Available in mony UK leids.",
+    "cardPartial": "Pairtial"
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "header": {
+    "tagline": "Ag cabhrú le gach leanbh imirt, foghlaim agus fás.",
+    "login": "Logáil isteach",
+    "signup": "Cláraigh"
+  },
+  "hero": {
+    "titlePrefix": "Faigh an",
+    "titleHighlight": "gníomhaíocht foirfe",
+    "titleSuffix": "do do leanbh",
+    "subtitle": "Cuardaigh, cuir in áirithe agus bainistigh clubanna, campaí agus gníomhaíochtaí — in aon áit amháin.",
+    "location": "Suíomh",
+    "locationPlaceholder": "Cathair nó cód poist",
+    "useLocation": "Úsáid Mo Shuíomh",
+    "locating": "Ag aimsiú suímh...",
+    "childAge": "Aois an Linbh",
+    "radius": "Ga",
+    "radiusMiles": "{{value}} míle",
+    "activity": "Cad atá tú ag cuardach?",
+    "activityPlaceholder": "m.sh. Peil, Damhsa...",
+    "searchActivities": "Cuardaigh Gníomhaíochtaí",
+    "seeAllResults": "Féach ar na torthaí go léir →",
+    "heroImageAlt": "Leanaí ag glacadh páirte i ngníomhaíochtaí spóirt"
+  },
+  "whyProviders": {
+    "eyebrow": "Cén fáth Activora",
+    "title": "Rith do chlub. Fás do ghnó.",
+    "subtitle": "Gach rud atá ag teastáil ó sholáthraithe chun áirithintí, tuismitheoirí, íocaíochtaí agus fás a bhainistiú — gan íoc as castacht.",
+    "tagline": "Gan táillí socraithe • Tógtha do chlubanna • Íocaíochtaí slána",
+    "bottomTitle": "Réidh le níos lú ama a chaitheamh ag bainistiú agus níos mó ama ag seachadadh?",
+    "bottomTagline": "Tógtha do chlubanna de gach méid."
+  },
+  "faq": {
+    "title": "Ceisteanna? Táimid anseo chun cabhrú.",
+    "subtitle": "Freagraí tapa ar na ceisteanna is minice ó thuismitheoirí agus soláthraithe.",
+    "viewAll": "Féach ar na Ceisteanna Coitianta go léir",
+    "needHelp": "An bhfuil tuilleadh cabhrach uait? Déan teagmháil le tacaíocht nó socraigh taispeántas.",
+    "chatSupport": "Comhrá le tacaíocht"
+  },
+  "languageCommunity": {
+    "eyebrow": "Teangacha",
+    "title": "Tógtha do gach pobal.",
+    "subtitle": "Ar fáil i dteangacha éagsúla sa RA.",
+    "description": "Tá Activora deartha do theaghlach agus soláthraithe ar fud na RA. Roghnaigh do theanga is fearr leat don chomhéadan.",
+    "cardAvailable": "Ar fáil",
+    "cardPartial": "Páirteach",
+    "cardComingSoon": "Ag teacht go luath"
+  }
+}

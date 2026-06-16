@@ -1,0 +1,22 @@
+{
+  "buttons": {
+    "login": "Log in",
+    "signup": "Sign up",
+    "continue": "Continue",
+    "menu": "Menu",
+    "openMenu": "Open menu",
+    "switch": "Switch",
+    "keepEnglish": "Keep English",
+    "translate": "Translate",
+    "startFree": "Start free",
+    "bookDemo": "Book a demo"
+  },
+  "language": {
+    "label": "Leid",
+    "selectLabel": "Pick a leid",
+    "selectorAria": "Leid selector"
+  },
+  "translate": {
+    "comingSoon": "Translation comin suin"
+  }
+}

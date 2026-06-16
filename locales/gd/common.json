@@ -1,0 +1,24 @@
+{
+  "buttons": {
+    "login": "Log a-steach",
+    "signup": "Clàraich",
+    "continue": "Lean air adhart",
+    "cancel": "Sguir dheth",
+    "menu": "Clàr-taice",
+    "openMenu": "Fosgail an clàr-taice",
+    "closeMenu": "Dùin an clàr-taice",
+    "switch": "Atharraich",
+    "keepEnglish": "Cum Beurla",
+    "translate": "Eadar-theangaich",
+    "startFree": "Tòisich an-asgaidh",
+    "bookDemo": "Glèidh taisbeanadh"
+  },
+  "language": {
+    "label": "Cànan",
+    "selectLabel": "Tagh cànan",
+    "selectorAria": "Taghadair cànain"
+  },
+  "translate": {
+    "comingSoon": "Eadar-theangachadh a' tighinn a dh'aithghearr"
+  }
+}

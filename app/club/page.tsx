@@ -1,0 +1,20 @@
+"use client";
+
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { getCurrentUser } from "@/lib/auth";
+
+export default function ClubIndexPage() {
+  const router = useRouter();
+
+  useEffect(() => {
+    const user = getCurrentUser();
+    router.replace(user?.role === "club" ? "/club/dashboard" : "/club/login");
+  }, [router]);
+
+  return (
+    <div className="flex min-h-full items-center justify-center bg-[#f6f7f9] text-sm text-zinc-500">
+      Loading club portal…
+    </div>
+  );
+}

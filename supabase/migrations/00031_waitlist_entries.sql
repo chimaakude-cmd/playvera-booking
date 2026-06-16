@@ -1,0 +1,44 @@
+-- Waitlist entries (future Supabase migration stub)
+-- Today: localStorage key activora-waitlist-entries
+
+-- CREATE TYPE public.waitlist_entry_status AS ENUM (
+--   'WAITLIST_PENDING',
+--   'INVITED_TO_BOOK',
+--   'PAYMENT_PENDING',
+--   'BOOKED',
+--   'DECLINED',
+--   'EXPIRED'
+-- );
+--
+-- CREATE TABLE IF NOT EXISTS public.waitlist_entries (
+--   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+--   session_id uuid NOT NULL REFERENCES public.sessions(id) ON DELETE CASCADE,
+--   parent_id uuid REFERENCES public.parent_profiles(id) ON DELETE SET NULL,
+--   child_id uuid REFERENCES public.children(id) ON DELETE SET NULL,
+--   guest_booking_id uuid,
+--   position integer NOT NULL,
+--   joined_at timestamptz NOT NULL DEFAULT now(),
+--   expires_at timestamptz,
+--   status public.waitlist_entry_status NOT NULL DEFAULT 'WAITLIST_PENDING',
+--   invite_token text UNIQUE,
+--   invite_expires_at timestamptz,
+--   parent_name text NOT NULL,
+--   email text NOT NULL,
+--   child_name text NOT NULL,
+--   child_age smallint NOT NULL,
+--   emergency_contact text NOT NULL DEFAULT '',
+--   booking_snapshot jsonb NOT NULL DEFAULT '{}'::jsonb,
+--   created_at timestamptz NOT NULL DEFAULT now(),
+--   updated_at timestamptz NOT NULL DEFAULT now()
+-- );
+--
+-- CREATE INDEX IF NOT EXISTS idx_waitlist_entries_session_position
+--   ON public.waitlist_entries (session_id, position);
+--
+-- CREATE INDEX IF NOT EXISTS idx_waitlist_entries_status
+--   ON public.waitlist_entries (status)
+--   WHERE status IN ('WAITLIST_PENDING', 'INVITED_TO_BOOK', 'PAYMENT_PENDING');
+--
+-- CREATE INDEX IF NOT EXISTS idx_waitlist_entries_invite_token
+--   ON public.waitlist_entries (invite_token)
+--   WHERE invite_token IS NOT NULL;
