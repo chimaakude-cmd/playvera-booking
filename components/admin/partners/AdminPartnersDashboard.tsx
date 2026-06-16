@@ -343,29 +343,40 @@ export function AdminPartnersDashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map((partner) => (
-                    <tr
-                      key={partner.id}
-                      onClick={() => setSelectedId(partner.id)}
-                      className={`cursor-pointer border-b border-zinc-50 transition hover:bg-violet-50/40 ${
-                        selectedId === partner.id ? "bg-violet-50/60" : ""
-                      }`}
-                    >
-                      <td className="px-4 py-3 font-semibold text-zinc-900">
-                        {partner.name}
-                      </td>
-                      <td className="px-4 py-3 text-zinc-600">
-                        {PARTNER_CATEGORY_LABELS[partner.category]}
-                      </td>
-                      <td className="px-4 py-3">
-                        <StatusBadge status={partner.status} />
-                      </td>
-                      <td className="px-4 py-3 text-xs text-zinc-500">
-                        {partner.analytics.views}v · {partner.analytics.clicks}c ·{" "}
-                        {partner.analytics.claims} claims
+                  {filtered.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={4}
+                        className="px-4 py-12 text-center text-sm text-zinc-500"
+                      >
+                        No partners added yet.
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    filtered.map((partner) => (
+                      <tr
+                        key={partner.id}
+                        onClick={() => setSelectedId(partner.id)}
+                        className={`cursor-pointer border-b border-zinc-50 transition hover:bg-violet-50/40 ${
+                          selectedId === partner.id ? "bg-violet-50/60" : ""
+                        }`}
+                      >
+                        <td className="px-4 py-3 font-semibold text-zinc-900">
+                          {partner.name}
+                        </td>
+                        <td className="px-4 py-3 text-zinc-600">
+                          {PARTNER_CATEGORY_LABELS[partner.category]}
+                        </td>
+                        <td className="px-4 py-3">
+                          <StatusBadge status={partner.status} />
+                        </td>
+                        <td className="px-4 py-3 text-xs text-zinc-500">
+                          {partner.analytics.views}v · {partner.analytics.clicks}c ·{" "}
+                          {partner.analytics.claims} claims
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>

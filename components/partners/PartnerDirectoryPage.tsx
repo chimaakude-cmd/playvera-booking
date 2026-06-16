@@ -177,22 +177,35 @@ export function PartnerDirectoryPage() {
 
         {filtered.length === 0 ? (
           <div className="mt-10 rounded-2xl border border-dashed border-zinc-200 bg-white px-6 py-16 text-center">
-            <p className="text-lg font-semibold text-zinc-800">
-              No partners match your filters
-            </p>
-            <p className="mt-2 text-sm text-zinc-500">
-              Try a different category or clear your search.
-            </p>
-            <button
-              type="button"
-              onClick={() => {
-                setCategory("all");
-                setQuery("");
-              }}
-              className="mt-5 rounded-xl bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-700"
-            >
-              Show all partners
-            </button>
+            {partners.length === 0 ? (
+              <>
+                <p className="text-lg font-semibold text-zinc-800">
+                  No partners available yet
+                </p>
+                <p className="mt-2 text-sm text-zinc-500">
+                  Check back soon for exclusive offers from trusted organisations.
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-lg font-semibold text-zinc-800">
+                  No partners match your filters
+                </p>
+                <p className="mt-2 text-sm text-zinc-500">
+                  Try a different category or clear your search.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCategory("all");
+                    setQuery("");
+                  }}
+                  className="mt-5 rounded-xl bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-700"
+                >
+                  Show all partners
+                </button>
+              </>
+            )}
           </div>
         ) : (
           <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">

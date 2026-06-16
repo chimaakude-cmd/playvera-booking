@@ -1,9 +1,10 @@
 import {
   CLUB_SAVED_PARTNERS_KEY,
+  LEGACY_DEMO_CLAIM_IDS,
+  LEGACY_DEMO_PARTNER_IDS,
   PARTNER_CLAIMS_STORAGE_KEY,
+  PARTNERS_DEMO_PURGE_KEY,
   PARTNERS_STORAGE_KEY,
-  SEED_PARTNER_CLAIMS,
-  SEED_PARTNERS,
 } from "./defaults";
 import type {
   CreatePartnerClaimInput,
@@ -54,14 +55,56 @@ function writeJson<T>(key: string, value: T): void {
   localStorage.setItem(key, JSON.stringify(value));
 }
 
-function ensureSeeded(): void {
+function ensureStorageInitialized(): void {
   if (!isBrowser()) {
     return;
   }
   if (!localStorage.getItem(PARTNERS_STORAGE_KEY)) {
-    writeJson(PARTNERS_STORAGE_KEY, SEED_PARTNERS);
-    writeJson(PARTNER_CLAIMS_STORAGE_KEY, SEED_PARTNER_CLAIMS);
+    writeJson(PARTNERS_STORAGE_KEY, []);
   }
+  if (!localStorage.getItem(PARTNER_CLAIMS_STORAGE_KEY)) {
+    writeJson(PARTNER_CLAIMS_STORAGE_KEY, []);
+  }
+}
+
+function purgeLegacyDemoData(): void {
+  if (!isBrowser()) {
+    return;
+  }
+  if (localStorage.getItem(PARTNERS_DEMO_PURGE_KEY)) {
+    return;
+  }
+
+  const partners = readJson<Partner[]>(PARTNERS_STORAGE_KEY, []);
+  const claims = readJson<PartnerClaim[]>(PARTNER_CLAIMS_STORAGE_KEY, []);
+  const saved = readJson<string[]>(CLUB_SAVED_PARTNERS_KEY, []);
+
+  const nextPartners = partners.filter(
+    (partner) => !LEGACY_DEMO_PARTNER_IDS.has(partner.id),
+  );
+  const nextClaims = claims.filter(
+    (claim) =>
+      !LEGACY_DEMO_CLAIM_IDS.has(claim.id) &&
+      !LEGACY_DEMO_PARTNER_IDS.has(claim.partnerId),
+  );
+  const nextSaved = saved.filter((id) => !LEGACY_DEMO_PARTNER_IDS.has(id));
+
+  if (
+    nextPartners.length !== partners.length ||
+    nextClaims.length !== claims.length ||
+    nextSaved.length !== saved.length
+  ) {
+    writeJson(PARTNERS_STORAGE_KEY, nextPartners);
+    writeJson(PARTNER_CLAIMS_STORAGE_KEY, nextClaims);
+    writeJson(CLUB_SAVED_PARTNERS_KEY, nextSaved);
+  }
+
+  localStorage.setItem(PARTNERS_DEMO_PURGE_KEY, "1");
+}
+
+function prepareStorage(): void {
+  ensureStorageInitialized();
+  purgeLegacyDemoData();
 }
 
 function sortPartners(partners: Partner[]): Partner[] {
@@ -79,21 +122,33 @@ function sortPartners(partners: Partner[]): Partner[] {
   });
 }
 
+function partnerAnalytics(partner: Partner): PartnerAnalytics {
+  return (
+    partner.analytics ?? {
+      views: 0,
+      clicks: 0,
+      claims: 0,
+      introductions: 0,
+    }
+  );
+}
+
 function updatePartnerAnalytics(
   partnerId: string,
   field: keyof PartnerAnalytics,
 ): void {
-  ensureSeeded();
+  prepareStorage();
   const partners = readJson<Partner[]>(PARTNERS_STORAGE_KEY, []);
   const index = partners.findIndex((partner) => partner.id === partnerId);
   if (index === -1) {
     return;
   }
+  const analytics = partnerAnalytics(partners[index]);
   partners[index] = {
     ...partners[index],
     analytics: {
-      ...partners[index].analytics,
-      [field]: partners[index].analytics[field] + 1,
+      ...analytics,
+      [field]: analytics[field] + 1,
     },
     updatedAt: nowIso(),
   };
@@ -101,7 +156,7 @@ function updatePartnerAnalytics(
 }
 
 export function getAllPartners(): Partner[] {
-  ensureSeeded();
+  prepareStorage();
   return sortPartners(readJson<Partner[]>(PARTNERS_STORAGE_KEY, []));
 }
 
@@ -163,7 +218,7 @@ export function filterPartners(
 }
 
 export function createPartner(input: CreatePartnerInput): Partner {
-  ensureSeeded();
+  prepareStorage();
   const partners = readJson<Partner[]>(PARTNERS_STORAGE_KEY, []);
   const now = nowIso();
   const baseSlug = slugifyPartnerName(input.name);
@@ -190,7 +245,7 @@ export function updatePartner(
   id: string,
   input: UpdatePartnerInput,
 ): Partner | null {
-  ensureSeeded();
+  prepareStorage();
   const partners = readJson<Partner[]>(PARTNERS_STORAGE_KEY, []);
   const index = partners.findIndex((partner) => partner.id === id);
   if (index === -1) {
@@ -234,7 +289,7 @@ export function setPartnerStatus(
 }
 
 export function deletePartner(id: string): boolean {
-  ensureSeeded();
+  prepareStorage();
   const partners = readJson<Partner[]>(PARTNERS_STORAGE_KEY, []);
   const next = partners.filter((partner) => partner.id !== id);
   if (next.length === partners.length) {
@@ -253,7 +308,7 @@ export function recordPartnerClick(partnerId: string): void {
 }
 
 export function getPartnerClaims(): PartnerClaim[] {
-  ensureSeeded();
+  prepareStorage();
   const claims = readJson<PartnerClaim[]>(PARTNER_CLAIMS_STORAGE_KEY, []);
   return [...claims].sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
@@ -267,7 +322,7 @@ export function getPartnerClaimsForPartner(partnerId: string): PartnerClaim[] {
 export function createPartnerClaim(
   input: CreatePartnerClaimInput,
 ): PartnerClaim {
-  ensureSeeded();
+  prepareStorage();
   const claims = readJson<PartnerClaim[]>(PARTNER_CLAIMS_STORAGE_KEY, []);
   const claim: PartnerClaim = {
     ...input,
@@ -318,11 +373,20 @@ export function getPartnersAnalyticsSummary(): PartnerAnalytics & {
   return {
     totalPartners: partners.length,
     livePartners: live.length,
-    views: partners.reduce((sum, partner) => sum + partner.analytics.views, 0),
-    clicks: partners.reduce((sum, partner) => sum + partner.analytics.clicks, 0),
-    claims: partners.reduce((sum, partner) => sum + partner.analytics.claims, 0),
+    views: partners.reduce(
+      (sum, partner) => sum + partnerAnalytics(partner).views,
+      0,
+    ),
+    clicks: partners.reduce(
+      (sum, partner) => sum + partnerAnalytics(partner).clicks,
+      0,
+    ),
+    claims: partners.reduce(
+      (sum, partner) => sum + partnerAnalytics(partner).claims,
+      0,
+    ),
     introductions: partners.reduce(
-      (sum, partner) => sum + partner.analytics.introductions,
+      (sum, partner) => sum + partnerAnalytics(partner).introductions,
       0,
     ),
   };
