@@ -2,10 +2,6 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { AUTH_EXEMPT_PATHS, getDashboardPath, getLoginPath } from "@/lib/auth/routes";
 import { AUTH_ROLE_COOKIE } from "@/lib/auth/constants";
-import {
-  hasTestAdminSessionFromRequest,
-  TEST_ADMIN_LOGIN_PATH,
-} from "@/lib/auth/test-admin-session";
 import type { UserRole } from "@/lib/auth/types";
 
 function getRoleFromCookie(request: NextRequest): UserRole | null {
@@ -27,15 +23,6 @@ function isExempt(pathname: string, role: UserRole): boolean {
   );
 }
 
-function hasAdminPortalAccess(request: NextRequest): boolean {
-  // TODO: Replace test-admin session gate with production auth before launch.
-  if (getRoleFromCookie(request) === "admin") {
-    return true;
-  }
-
-  return hasTestAdminSessionFromRequest(request);
-}
-
 function protectPortal(
   request: NextRequest,
   role: UserRole,
@@ -52,13 +39,7 @@ function protectPortal(
   }
 
   if (role === "admin") {
-    if (!hasAdminPortalAccess(request)) {
-      const loginUrl = request.nextUrl.clone();
-      loginUrl.pathname = TEST_ADMIN_LOGIN_PATH;
-      loginUrl.searchParams.set("next", pathname);
-      return NextResponse.redirect(loginUrl);
-    }
-
+    // TODO: Restore admin auth/session checks before launch.
     return null;
   }
 
