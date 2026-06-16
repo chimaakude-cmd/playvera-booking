@@ -340,7 +340,7 @@ export function ClubPublicPage({ profile, sessions }: ClubPublicPageProps) {
             {publishedReviews.length === 0 ? (
               <div className="rounded-3xl border border-dashed border-zinc-300 bg-white px-6 py-12 text-center">
                 <p className="text-sm font-medium text-zinc-700">
-                  No verified reviews yet
+                  No reviews submitted yet.
                 </p>
               </div>
             ) : (

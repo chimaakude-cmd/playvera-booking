@@ -117,15 +117,6 @@ const KEYWORD_STOP_WORDS = new Set([
   "each",
 ]);
 
-const SEED_KEYWORDS = [
-  "friendly",
-  "organised",
-  "great coaches",
-  "fun",
-  "welcoming",
-  "professional",
-];
-
 function roundRating(value: number): number {
   return Math.round(value * 10) / 10;
 }
@@ -152,10 +143,6 @@ export function extractKeywordsFromComments(
     .sort((a, b) => b[1] - a[1])
     .slice(0, limit)
     .map(([word]) => word);
-
-  if (sorted.length === 0) {
-    return SEED_KEYWORDS.slice(0, limit);
-  }
 
   return sorted;
 }
@@ -188,9 +175,7 @@ export function getReviewInsights(providerId?: string): ReviewInsights {
   const conversionPercent =
     sentRequests.length > 0
       ? Math.round((published.length / sentRequests.length) * 100)
-      : published.length > 0
-        ? 68
-        : 0;
+      : 0;
 
   return {
     averageRating,

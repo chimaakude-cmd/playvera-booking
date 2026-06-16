@@ -6,6 +6,7 @@
  * - Each review links to a real bookingId; verified when attendance is confirmed.
  * - Parents submit: stars, comment, recommend yes/no. Title is auto-generated.
  * - One review per child per session block.
+ * - Reviews require admin verification before public display.
  *
  * Storage keys:
  * - activora-reviews
@@ -16,7 +17,12 @@
  * Database: migrations 00016_reviews.sql, 00025_reviews_v2.sql
  */
 
-export type ReviewStatus = "published" | "pending" | "reported" | "hidden";
+export type ReviewStatus =
+  | "pending_verification"
+  | "published"
+  | "rejected"
+  | "hidden"
+  | "reported";
 
 export type AiModerationStatus =
   | "not_checked"
@@ -34,6 +40,8 @@ export type Review = {
   reviewerFirstName?: string;
   /** Internal — never shown publicly */
   childName?: string;
+  /** Internal — admin booking proof only */
+  reviewerEmail?: string;
   /** Required for public display */
   sessionTitle: string;
   /** Optional venue line for public display */
@@ -60,6 +68,8 @@ export type Review = {
   aiModerationStatus?: AiModerationStatus;
   duplicateDetected?: boolean;
   abusiveLanguageDetected?: boolean;
+  /** Set when admin requests more information from reviewer */
+  infoRequestedAt?: string;
 };
 
 export type ReviewEligibility = {
@@ -69,6 +79,16 @@ export type ReviewEligibility = {
   eligible: boolean;
   reason?: string;
   adminOverride?: boolean;
+};
+
+export type BookingProof = {
+  bookingId: string;
+  sessionName: string;
+  provider: string;
+  dateAttended: string;
+  paymentStatus: string;
+  attendanceStatus: string;
+  reviewerEmail: string;
 };
 
 export type ClubReviewSettings = {
@@ -149,3 +169,14 @@ export type ReviewInsights = {
   totalReviews: number;
   publishedReviews: number;
 };
+
+export const REVIEW_STATUS_LABELS: Record<ReviewStatus, string> = {
+  pending_verification: "Pending verification",
+  published: "Published",
+  rejected: "Rejected",
+  hidden: "Hidden",
+  reported: "Reported",
+};
+
+export const COMPLETED_BOOKING_REQUIRED_MESSAGE =
+  "Only customers with completed bookings can leave reviews.";

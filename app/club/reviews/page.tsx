@@ -9,7 +9,7 @@ import {
   getReviewResponses,
   getReviewInsights,
   getReviewSubmittedAt,
-  getReviewsForProvider,
+  getPublishedReviewsForProvider,
   reportReview,
   type Review,
 } from "@/lib/reviews";
@@ -25,7 +25,7 @@ export default function ClubReviewsPage() {
   function loadReviews() {
     const providerId = getClubProfile()?.providerId ?? "local-provider";
     setReviews(
-      getReviewsForProvider(providerId).sort(
+      getPublishedReviewsForProvider(providerId).sort(
         (a, b) =>
           new Date(getReviewSubmittedAt(b)).getTime() -
           new Date(getReviewSubmittedAt(a)).getTime(),
@@ -105,9 +105,9 @@ export default function ClubReviewsPage() {
 
       {reviews.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-zinc-300 bg-white px-6 py-12 text-center">
-          <p className="text-sm font-medium text-zinc-700">No reviews yet</p>
+          <p className="text-sm font-medium text-zinc-700">No reviews submitted yet.</p>
           <p className="mt-1 text-sm text-zinc-500">
-            Reviews appear here once parents submit feedback after attending.
+            Published reviews appear here after admin verification.
           </p>
         </div>
       ) : (

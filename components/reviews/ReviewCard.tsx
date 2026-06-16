@@ -131,7 +131,7 @@ export function StarRatingSummary({
 }) {
   if (reviewCount === 0) {
     return (
-      <p className="text-sm text-zinc-500">No verified reviews yet</p>
+      <p className="text-sm text-zinc-500">No reviews submitted yet.</p>
     );
   }
 

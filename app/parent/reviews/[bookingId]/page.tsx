@@ -85,7 +85,7 @@ export default function ParentReviewPage({
           </h1>
           <p className="mt-2 text-sm leading-6 text-zinc-600">
             Your verified review has been submitted. It will appear on the club
-            profile after moderation.
+            profile after admin verification.
           </p>
           <Link
             href="/parent/bookings"

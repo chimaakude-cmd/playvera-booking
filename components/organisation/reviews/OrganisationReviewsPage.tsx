@@ -178,7 +178,8 @@ export function OrganisationReviewsPage() {
           >
             <option value="all">All</option>
             <option value="published">Published</option>
-            <option value="pending">Pending</option>
+            <option value="pending_verification">Pending verification</option>
+            <option value="rejected">Rejected</option>
             <option value="reported">Reported</option>
             <option value="hidden">Hidden</option>
           </select>
@@ -197,7 +198,7 @@ export function OrganisationReviewsPage() {
 
       {reviews.length === 0 ? (
         <EmptyState
-          title="No reviews yet"
+          title="No reviews submitted yet."
           description="Reviews from franchisee club sessions will appear here."
         />
       ) : filtered.length === 0 ? (
@@ -254,8 +255,10 @@ export function OrganisationReviewsPage() {
                           ? "emerald"
                           : review.status === "reported"
                             ? "rose"
-                            : review.status === "pending"
+                            : review.status === "pending_verification"
                               ? "amber"
+                              : review.status === "rejected"
+                                ? "rose"
                               : "zinc"
                       }
                     />

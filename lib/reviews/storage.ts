@@ -1,6 +1,6 @@
-import { MOCK_REVIEWS, MOCK_REVIEW_RESPONSES } from "./defaults";
 import { canSubmitReview } from "./eligibility";
 import { generateReviewTitle } from "./titles";
+import { getCurrentUser } from "@/lib/auth";
 import { getBookingById } from "@/lib/bookings";
 import { getClubProfile } from "@/lib/club-profile";
 import { getParentDisplayName } from "@/lib/parent-profile";
@@ -14,7 +14,7 @@ import type {
 } from "./types";
 
 export const REVIEWS_STORAGE_KEY = "activora-reviews";
-const REVIEWS_STORAGE_VERSION = 2;
+const REVIEWS_STORAGE_VERSION = 3;
 
 type ReviewsState = {
   version?: number;
@@ -28,6 +28,7 @@ type LegacyReview = Review & {
   verifiedBooking?: boolean;
   activityTitle?: string;
   activityName?: string;
+  status?: string;
 };
 
 function isBrowser(): boolean {
@@ -47,22 +48,28 @@ function childFirstName(name?: string): string | undefined {
   return firstNameOnly(name);
 }
 
+function isDemoReview(review: LegacyReview): boolean {
+  return (
+    review.bookingId.startsWith("booking-demo-") ||
+    review.id.startsWith("rev-") ||
+    review.id.startsWith("demo-")
+  );
+}
+
 function migrateStatus(status: string): ReviewStatus {
+  if (status === "pending") return "pending_verification";
   if (status === "flagged") return "reported";
   if (status === "removed") return "hidden";
   if (
+    status === "pending_verification" ||
     status === "published" ||
-    status === "pending" ||
+    status === "rejected" ||
     status === "reported" ||
     status === "hidden"
   ) {
     return status;
   }
-  return "pending";
-}
-
-function findSeedReview(reviewId: string): Review | undefined {
-  return MOCK_REVIEWS.find((review) => review.id === reviewId);
+  return "pending_verification";
 }
 
 function resolveSessionTitle(raw: LegacyReview): string {
@@ -72,9 +79,6 @@ function resolveSessionTitle(raw: LegacyReview): string {
     raw.activityName?.trim() ||
     "";
   if (direct) return direct;
-
-  const seed = findSeedReview(raw.id);
-  if (seed?.sessionTitle) return seed.sessionTitle;
 
   if (raw.bookingId) {
     const booking = getBookingById(raw.bookingId);
@@ -89,9 +93,6 @@ function resolveVenueName(raw: LegacyReview): string | undefined {
   const direct = raw.venueName?.trim();
   if (direct) return direct;
 
-  const seed = findSeedReview(raw.id);
-  if (seed?.venueName) return seed.venueName;
-
   if (raw.bookingId) {
     const booking = getBookingById(raw.bookingId);
     const session = booking ? getSessionById(booking.sessionId) : undefined;
@@ -102,26 +103,29 @@ function resolveVenueName(raw: LegacyReview): string | undefined {
 }
 
 function migrateReview(raw: LegacyReview): Review {
+  const booking = raw.bookingId ? getBookingById(raw.bookingId) : undefined;
+
   return {
     ...raw,
     comment: raw.comment ?? raw.body ?? "",
     verified: raw.verified ?? raw.verifiedBooking ?? false,
     helpfulCount: raw.helpfulCount ?? 0,
     reviewerFirstName: raw.reviewerFirstName ?? "Verified Parent",
+    reviewerEmail: raw.reviewerEmail ?? booking?.email,
     sessionTitle: resolveSessionTitle(raw),
     venueName: resolveVenueName(raw),
-    providerName: raw.providerName ?? "",
+    providerName: raw.providerName ?? booking?.providerName ?? "",
     dateAttended: raw.dateAttended ?? raw.createdAt.slice(0, 10),
     reviewSubmittedAt: raw.reviewSubmittedAt ?? raw.createdAt,
-    status: migrateStatus(String(raw.status)),
+    status: migrateStatus(String(raw.status ?? "pending_verification")),
   };
 }
 
 function getDefaultState(): ReviewsState {
   return {
     version: REVIEWS_STORAGE_VERSION,
-    reviews: structuredClone(MOCK_REVIEWS),
-    responses: structuredClone(MOCK_REVIEW_RESPONSES),
+    reviews: [],
+    responses: [],
     reports: [],
   };
 }
@@ -141,16 +145,21 @@ export function getReviewsState(): ReviewsState {
 
     const parsed = JSON.parse(raw) as ReviewsState;
     const rawReviews = parsed.reviews ?? [];
-    const reviews = rawReviews.map((review) =>
-      migrateReview(review as LegacyReview),
-    );
+    const reviews = rawReviews
+      .map((review) => migrateReview(review as LegacyReview))
+      .filter((review) => !isDemoReview(review as LegacyReview));
+
     const needsPersist =
       (parsed.version ?? 1) < REVIEWS_STORAGE_VERSION ||
+      reviews.length !== rawReviews.length ||
       reviews.some((review, index) => {
         const legacy = rawReviews[index] as LegacyReview;
+        if (!legacy) return false;
         return (
           review.sessionTitle !== (legacy.sessionTitle?.trim() ?? "") ||
-          review.venueName !== legacy.venueName?.trim()
+          review.venueName !== legacy.venueName?.trim() ||
+          migrateStatus(String(legacy.status ?? "pending")) !==
+            migrateStatus(String(legacy.status ?? "pending_verification"))
         );
       });
 
@@ -219,6 +228,7 @@ export function getReviewResponses(reviewId?: string): ReviewResponse[] {
 function buildReviewFromInput(input: ReviewInput): Omit<Review, "id" | "createdAt" | "status"> {
   const booking = getBookingById(input.bookingId);
   const profile = getClubProfile();
+  const user = getCurrentUser();
   const parentName = booking?.parentName ?? getParentDisplayName();
   const anonymous = input.anonymous ?? false;
   const session = booking ? getSessionById(booking.sessionId) : undefined;
@@ -229,6 +239,7 @@ function buildReviewFromInput(input: ReviewInput): Omit<Review, "id" | "createdA
     recommend: input.recommend,
     title: generateReviewTitle(input.rating),
     reviewerFirstName: anonymous ? "Verified Parent" : firstNameOnly(parentName),
+    reviewerEmail: booking?.email ?? user?.email,
     childName: childFirstName(booking?.childName),
     sessionTitle: session?.sessionTitle ?? booking?.sessionTitle ?? "Session",
     venueName: session?.venue?.venueName,
@@ -243,7 +254,7 @@ function buildReviewFromInput(input: ReviewInput): Omit<Review, "id" | "createdA
     anonymous,
     providerId: profile?.providerId ?? "local-provider",
     activityId: booking?.sessionId ?? "",
-    parentId: "parent-local",
+    parentId: user?.email ?? booking?.email ?? "parent-local",
     childId: booking?.childId,
     aiModerationStatus: "not_checked",
     suspiciousFlag: false,
@@ -263,7 +274,7 @@ export function submitReview(input: ReviewInput): Review {
   const review: Review = {
     ...buildReviewFromInput(input),
     id: createId("rev"),
-    status: "pending",
+    status: "pending_verification",
     createdAt: submittedAt,
     reviewSubmittedAt: submittedAt,
   };
@@ -282,6 +293,45 @@ export function updateReviewStatus(
   if (index === -1) return null;
 
   state.reviews[index] = { ...state.reviews[index], status };
+  saveState(state);
+  return state.reviews[index];
+}
+
+export function verifyAndPublishReview(reviewId: string): Review | null {
+  return updateReviewStatus(reviewId, "published");
+}
+
+export function rejectReview(reviewId: string): Review | null {
+  return updateReviewStatus(reviewId, "rejected");
+}
+
+export function hideReview(reviewId: string): Review | null {
+  return updateReviewStatus(reviewId, "hidden");
+}
+
+export function markReviewReported(reviewId: string): Review | null {
+  const state = getReviewsState();
+  const index = state.reviews.findIndex((review) => review.id === reviewId);
+  if (index === -1) return null;
+
+  state.reviews[index] = {
+    ...state.reviews[index],
+    status: "reported",
+    suspiciousFlag: true,
+  };
+  saveState(state);
+  return state.reviews[index];
+}
+
+export function requestReviewMoreInfo(reviewId: string): Review | null {
+  const state = getReviewsState();
+  const index = state.reviews.findIndex((review) => review.id === reviewId);
+  if (index === -1) return null;
+
+  state.reviews[index] = {
+    ...state.reviews[index],
+    infoRequestedAt: new Date().toISOString(),
+  };
   saveState(state);
   return state.reviews[index];
 }

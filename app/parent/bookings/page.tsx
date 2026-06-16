@@ -144,10 +144,7 @@ export default function ParentBookingsPage() {
                 </div>
               </div>
               {booking.status === "confirmed" ? (
-                <ReviewPrompt
-                  bookingId={booking.id}
-                  attended
-                />
+                <ReviewPrompt bookingId={booking.id} />
               ) : null}
             </article>
           ))}

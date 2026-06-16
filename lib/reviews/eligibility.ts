@@ -1,7 +1,6 @@
 import { getCurrentUser } from "@/lib/auth";
 import { getBookingById } from "@/lib/bookings";
-import { REGISTER_ATTENDANCE_KEY } from "@/lib/club-registers";
-import type { RegisterAttendanceRecord } from "@/lib/club-registers";
+import { validateBookingEligibility } from "./booking-proof";
 import { getReviews } from "./storage";
 import type { ReviewEligibility } from "./types";
 
@@ -51,26 +50,6 @@ function isParentAccountActive(): boolean {
   return user?.role === "parent" || Boolean(user?.email);
 }
 
-function isBookingAttended(bookingId: string): boolean {
-  if (!isBrowser()) return false;
-
-  try {
-    const raw = localStorage.getItem(REGISTER_ATTENDANCE_KEY);
-    if (!raw) return false;
-
-    const all = JSON.parse(raw) as Record<string, RegisterAttendanceRecord>;
-    for (const record of Object.values(all)) {
-      const entry = record.entries[bookingId];
-      if (entry && (entry.attendance === "present" || entry.attendance === "late")) {
-        return true;
-      }
-    }
-    return false;
-  } catch {
-    return false;
-  }
-}
-
 function hasExistingReviewForChildAndBlock(
   childId: string,
   sessionBlockId: string,
@@ -79,7 +58,8 @@ function hasExistingReviewForChildAndBlock(
     (review) =>
       review.childId === childId &&
       review.activityId === sessionBlockId &&
-      review.status !== "hidden",
+      review.status !== "hidden" &&
+      review.status !== "rejected",
   );
 }
 
@@ -106,9 +86,19 @@ export function canSubmitReview(
     };
   }
 
+  const bookingCheck = validateBookingEligibility(bookingId);
+  if (!bookingCheck.eligible) {
+    return {
+      eligible: false,
+      reason: bookingCheck.reason,
+      sessionBlockId: bookingCheck.sessionId,
+      childId: bookingCheck.childId,
+    };
+  }
+
   const booking = getBookingById(bookingId);
   if (!booking) {
-    return { eligible: false, reason: "Booking not found." };
+    return { eligible: false, reason: bookingCheck.reason };
   }
 
   const resolvedChildId = childId ?? booking.childId ?? booking.id;
@@ -118,15 +108,6 @@ export function canSubmitReview(
     return {
       eligible: false,
       reason: "Parent account must be active to leave a review.",
-      sessionBlockId,
-      childId: resolvedChildId,
-    };
-  }
-
-  if (!isBookingAttended(bookingId)) {
-    return {
-      eligible: false,
-      reason: "Attendance must be marked before you can review.",
       sessionBlockId,
       childId: resolvedChildId,
     };

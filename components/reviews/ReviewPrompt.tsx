@@ -15,16 +15,12 @@ import {
 
 type ReviewPromptProps = {
   bookingId: string;
-  /** Stub: treat confirmed bookings as attended for demo */
-  attended?: boolean;
 };
 
-export function ReviewPrompt({
-  bookingId,
-  attended = true,
-}: ReviewPromptProps) {
+export function ReviewPrompt({ bookingId }: ReviewPromptProps) {
   const [open, setOpen] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const sessionAttended = formatSessionAttended(
     getSessionTitleForBooking(bookingId),
@@ -32,20 +28,30 @@ export function ReviewPrompt({
   );
   const dateAttended = formatDateAttended(getDateAttendedForBooking(bookingId));
 
-  if (!attended || !canReviewBooking(bookingId)) {
+  if (!canReviewBooking(bookingId)) {
     return null;
   }
 
   function handleSubmit(input: ReviewInput) {
-    submitReview(input);
-    setSubmitted(true);
-    setOpen(false);
+    try {
+      submitReview(input);
+      setSubmitted(true);
+      setOpen(false);
+      setError(null);
+    } catch (submitError) {
+      setError(
+        submitError instanceof Error
+          ? submitError.message
+          : "Could not submit review.",
+      );
+    }
   }
 
   if (submitted) {
     return (
       <div className="mt-4 rounded-xl border border-teal-200 bg-teal-50 px-4 py-3 text-sm text-teal-800">
-        Thank you! Your review has been submitted and will appear after moderation.
+        Thank you! Your review has been submitted and will appear after admin
+        verification.
       </div>
     );
   }
@@ -74,8 +80,9 @@ export function ReviewPrompt({
     <div className="mt-4 rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
       <h3 className="text-base font-semibold text-zinc-900">Leave a review</h3>
       <p className="mt-1 text-xs text-zinc-500">
-        Only parents who booked and attended can review.
+        Only customers with completed bookings can leave reviews.
       </p>
+      {error ? <p className="mt-2 text-sm text-red-600">{error}</p> : null}
       <div className="mt-4">
         <ReviewForm
           bookingId={bookingId}

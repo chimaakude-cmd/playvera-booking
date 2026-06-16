@@ -704,7 +704,7 @@ export const DEFAULT_ORG_REVIEWS: OrgReview[] = [
     franchiseeClubId: "franchisee_club_001",
     franchiseeClubName: "PlayVera Juniors — Central",
     reviewedAt: "2026-05-28T19:00:00.000Z",
-    status: "pending",
+    status: "pending_verification",
     parentName: "Tom B.",
     flagged: false,
   },

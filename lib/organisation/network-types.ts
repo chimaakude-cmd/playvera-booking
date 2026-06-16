@@ -128,7 +128,12 @@ export type OrgBroadcast = {
   status: "draft" | "sent";
 };
 
-export type OrgReviewStatus = "published" | "pending" | "reported" | "hidden";
+export type OrgReviewStatus =
+  | "published"
+  | "pending_verification"
+  | "rejected"
+  | "reported"
+  | "hidden";
 
 export type OrgReview = {
   id: string;

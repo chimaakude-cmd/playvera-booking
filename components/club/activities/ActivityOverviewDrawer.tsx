@@ -220,7 +220,7 @@ export function ActivityOverviewDrawer({
               <p className="text-sm text-zinc-600">
                 {row.reviews.count > 0
                   ? `${row.reviews.rating.toFixed(1)} average from ${row.reviews.count} review${row.reviews.count === 1 ? "" : "s"}.`
-                  : "No reviews yet for this activity."}
+                  : "No reviews submitted yet."}
               </p>
               <Link
                 href="/club/reviews"
