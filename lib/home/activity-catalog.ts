@@ -22,7 +22,7 @@ export const ACTIVITY_CATEGORY_LABELS: Record<ActivityCategoryGroup, string> = {
   wellbeing: "Wellbeing",
 };
 
-/** Number of activity chips shown before "View all". */
+/** Number of activity chips shown on the homepage row (before the More tile). */
 export const INITIAL_ACTIVITY_VISIBLE_COUNT = 7;
 
 export const ACTIVITY_CATALOG: ActivityChip[] = [
