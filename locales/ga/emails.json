@@ -7,6 +7,7 @@
     "supportHours": "Uaireanta tacaíochta: Luan–Aoine 07:00–18:00, Sath–Domh 09:00–12:00.",
     "signoff": "Le dea-mhéin,\nFoireann Activora",
     "timeDuringHours": "le linn uaireanta oscailte",
-    "timeOn": "ar {{datetime}}"
+    "timeOn": "ar {{datetime}}",
+    "urgent": "Má tá d'fhiosrúchán práinneach, is féidir leat teagmháil a dhéanamh linn tríd an comhrá tacaíochta ar ár suíomh gréasáin."
   }
 }

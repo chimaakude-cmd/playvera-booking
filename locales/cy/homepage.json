@@ -2,7 +2,17 @@
   "header": {
     "tagline": "Helpu pob plentyn chwarae, dysgu a thyfu.",
     "login": "Mewngofnodi",
-    "signup": "Cofrestru"
+    "signup": "Cofrestru",
+    "getStarted": "Dechrau",
+    "bookDemo": "Archebu Demo",
+    "searchShortcut": "Chwilio",
+    "nav": {
+      "activities": "Gweithgareddau",
+      "forClubs": "Ar gyfer Clybiau",
+      "pricing": "Prisio",
+      "faq": "Cwestiynau Cyffredin",
+      "support": "Cymorth"
+    }
   },
   "hero": {
     "titlePrefix": "Dewch o hyd i'r",
@@ -20,7 +30,10 @@
     "activityPlaceholder": "e.e. Pêl-droed, Dawns...",
     "searchActivities": "Chwilio Gweithgareddau",
     "seeAllResults": "Gweld yr holl ganlyniadau →",
-    "heroImageAlt": "Plant yn cymryd rhan mewn gweithgareddau chwaraeon"
+    "heroImageAlt": "Plant yn cymryd rhan mewn gweithgareddau chwaraeon",
+    "title": "Chwilio clybiau, gwersyll a dosbarthiadau lleol — archebu mewn munudau",
+    "date": "Dyddiad",
+    "trustedBy": "Ymddiriedir gan deuluoedd"
   },
   "whyProviders": {
     "eyebrow": "Pam Activora",
@@ -29,14 +42,18 @@
     "tagline": "Dim ffioedd gosod • Adeiladwyd ar gyfer clybiau • Taliadau diogel",
     "bottomTitle": "Yn barod i wario llai amser yn rheoli a mwy amser yn darparu?",
     "bottomTagline": "Adeiladwyd ar gyfer clybiau o bob maint.",
-    "visualBadge": "Adeiladwyd ar gyfer clybiau. Cynlluniwyd ar gyfer tyfiant."
+    "visualBadge": "Adeiladwyd ar gyfer clybiau. Cynlluniwyd ar gyfer tyfiant.",
+    "testimonial": "\"Newidiasom o daenlenni a WhatsApp. Mae rhieni'n archebu ar-lein ac rydym yn cael ein talu'n awtomatig.\"",
+    "testimonialAuthor": "Sarah M., Perchennog clwb pêl-droed"
   },
   "faq": {
     "title": "Cwestiynau? Rydyn ni yma i helpu.",
     "subtitle": "Atebion cyflym i'r cwestiynau mwyaf cyffredin gan rieni a darparwyr.",
     "viewAll": "Gweld yr holl Cwestiynau Cyffredin",
     "needHelp": "Angen mwy o help? Cysylltwch â'r tîm cymorth neu drefnu demo.",
-    "chatSupport": "Sgwrsio â'r tîm cymorth"
+    "chatSupport": "Sgwrsio â'r tîm cymorth",
+    "searchPlaceholder": "Chwilio Cwestiynau Cyffredin…",
+    "noResults": "Dim Cwestiynau Cyffredin yn cyfateb i'ch chwiliad."
   },
   "languageCommunity": {
     "eyebrow": "Ieithoedd",
@@ -45,6 +62,84 @@
     "description": "Mae Activora wedi'i gynllunio ar gyfer teuluoedd a darparwyr ledled y DU. Dewiswch eich iaith ddewisol ar gyfer rhyngwyneb y platfform.",
     "cardAvailable": "Ar gael",
     "cardPartial": "Rhannol",
-    "cardComingSoon": "Yn dod yn fuan"
+    "cardComingSoon": "Yn dod yn fuan",
+    "moreComing": "Mwy ar y ffordd"
+  },
+  "chips": {
+    "title": "Pori yn ôl gweithgaredd",
+    "searchLabel": "Chwilio gweithgareddau",
+    "searchPlaceholder": "Chwilio gweithgareddau…",
+    "more": "Mwy",
+    "panelTitle": "Pori'r holl weithgareddau",
+    "panelClose": "Cau porwr gweithgareddau",
+    "noResults": "Dim gweithgareddau yn cyfateb i'ch chwiliad."
+  },
+  "trustBar": {
+    "parentRating": "Graddfa rhieni",
+    "bookings": "Archebion",
+    "providers": "Darparwyr",
+    "uptime": "Amser gweithredu"
+  },
+  "popularClubs": {
+    "title": "Clybiau poblogaidd gerllaw",
+    "withinRadius": "O fewn {{value}} milltir",
+    "viewAll": "Gweld y cyfan",
+    "bookNow": "Archebu nawr",
+    "verified": "Wedi'i wirio",
+    "spacesLeft": "Dim ond {{count}} o leoedd ar ôl"
+  },
+  "howItWorks": {
+    "title": "Sut mae Activora yn gweithio",
+    "speedNote": "Fel arfer o dan 60 eiliad"
+  },
+  "bookDemo": {
+    "title": "Archebu taith 30 munud",
+    "subtitle": "Gweld sut mae Activora yn gweithio ar gyfer eich clwb — dim rhwymedigaeth.",
+    "clubName": "Enw'r clwb",
+    "email": "E-bost",
+    "phone": "Ffôn",
+    "activity": "Math o weithgaredd",
+    "message": "Neges",
+    "submit": "Archebu taith 30 munud",
+    "submitting": "Yn cyflwyno…",
+    "successTitle": "Diolch — rydym wedi derbyn eich ymholiad",
+    "successBody": "Bydd ein tîm mewn cysylltiad cyn bo hir.",
+    "submitAnother": "Cyflwyno ymholiad arall"
+  },
+  "updates": {
+    "eyebrow": "Beth sy'n newydd",
+    "title": "Diweddariadau diweddaraf",
+    "subtitle": "Gwelliantau diweddar ar draws y platfform.",
+    "viewAll": "Gweld yr holl ddiweddariadau",
+    "comingSoon": "Yn dod yn fuan",
+    "votes": "{{count}} pleidlais"
+  },
+  "getStarted": {
+    "title": "Dechrau gyda Activora",
+    "subtitle": "Dewiswch y math o gyfrif sy'n cyfateb orau i'ch sefydliad. Gallwch ddechrau am ddim.",
+    "freeBadge": "Dechrau am ddim",
+    "footerText": "Oes gennych chi gyfrif eisoes?",
+    "signInButton": "Mewngofnodi",
+    "options": {
+      "club": {
+        "title": "Cofrestru fel Clwb",
+        "description": "Ar gyfer clybiau unigol, hyfforddwyr, tiwtoriaid a darparwyr gweithgareddau sy'n rhedeg sesiynau bob dydd."
+      },
+      "franchisor": {
+        "title": "Cofrestru fel Franffiseiswr",
+        "description": "Ar gyfer brandiau ffranffise a swyddfeydd canolog sy'n rheoli lleoliadau clwb lluosog o dan un brand."
+      },
+      "enterprise": {
+        "title": "Cofrestru fel Menter / Sefydliad Mawr",
+        "description": "Ar gyfer cyngorau, ymddiriedolaethau, gweithredwyr aml-leoliad a rhaglenni mwy sydd angen rheolaeth ganolog."
+      }
+    }
+  },
+  "quickActions": {
+    "open": "Gweithredoedd cyflym",
+    "search": "Chwilio",
+    "support": "Cymorth",
+    "bookDemo": "Archebu demo",
+    "reportBug": "Adrodd nam"
   }
 }

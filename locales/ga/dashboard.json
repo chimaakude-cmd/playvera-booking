@@ -5,7 +5,12 @@
     "activities": "Gníomhaíochtaí",
     "bookings": "Áirithintí",
     "settings": "Socruithe",
-    "menu": "Roghchlár"
+    "menu": "Roghchlár",
+    "registers": "Cláir",
+    "customers": "Custaiméirí",
+    "finance": "Airgeadas",
+    "clubProfile": "Próifíl an chlub",
+    "teamAccess": "Cuntas agus foireann"
   },
   "parent": {
     "dashboard": "Painéal",
@@ -17,7 +22,10 @@
   "org": {
     "dashboard": "Painéal",
     "settings": "Socruithe",
-    "menu": "Roghchlár"
+    "menu": "Roghchlár",
+    "clubs": "Clubanna",
+    "bookings": "Áirithintí",
+    "finance": "Airgeadas"
   },
   "settings": {
     "languageTitle": "Teanga",

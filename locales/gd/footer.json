@@ -8,6 +8,23 @@
     "bookDemo": "Glèidh taisbeanadh"
   },
   "bottom": {
-    "builtIn": "Air a thogail sa Rìoghachd Aonaichte"
-  }
+    "builtIn": "Air a thogail sa Rìoghachd Aonaichte",
+    "legalNav": "Laghail is co-chòrdalachd"
+  },
+  "contact": {
+    "title": "Cuir fios gu taic",
+    "supportHoursLabel": "Uairean taic:",
+    "requestCallback": "Iarr gairm air ais",
+    "bookDemo": "Glèidh taisbeanadh",
+    "responseNote": "Tha sinn ag amas freagairt rè uairean fosgailte."
+  },
+  "columns": {
+    "platform": "Àrd-ùrlar",
+    "parents": "Pàrantan",
+    "providers": "Solaraichean",
+    "company": "Companaidh",
+    "support": "Taic",
+    "trust": "Earbsa"
+  },
+  "siteFooter": "Bonn an làraich"
 }

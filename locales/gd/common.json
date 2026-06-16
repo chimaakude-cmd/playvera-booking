@@ -11,14 +11,26 @@
     "keepEnglish": "Cum Beurla",
     "translate": "Eadar-theangaich",
     "startFree": "Tòisich an-asgaidh",
-    "bookDemo": "Glèidh taisbeanadh"
+    "bookDemo": "Glèidh taisbeanadh",
+    "save": "Sàbhail",
+    "search": "Lorg",
+    "close": "Dùin",
+    "viewAll": "Seall na h-uile",
+    "soon": "A dh'aithghearr"
   },
   "language": {
     "label": "Cànan",
     "selectLabel": "Tagh cànan",
-    "selectorAria": "Taghadair cànain"
+    "selectorAria": "Taghadair cànain",
+    "currentLanguage": "Cànan làithreach: {{language}}",
+    "changeLanguage": "Atharraich cànan"
   },
   "translate": {
-    "comingSoon": "Eadar-theangachadh a' tighinn a dh'aithghearr"
+    "comingSoon": "Eadar-theangachadh a' tighinn a dh'aithghearr",
+    "copiedOriginal": "Chaidh an teacsa tùsail a chopaigeadh"
+  },
+  "errors": {
+    "generic": "Chaidh rudeigin ceàrr. Feuch ris a-rithist.",
+    "loading": "A' luchdadh..."
   }
 }

@@ -20,7 +20,11 @@
     "industries": "Tionscail",
     "resources": "Acmhainní",
     "company": "Cuideachta",
-    "contact": "Teagmháil"
+    "contact": "Teagmháil",
+    "parents": "Tuismitheoirí",
+    "providers": "Soláthraithe",
+    "support": "Tacaíocht",
+    "trust": "Muinín"
   },
   "bottom": {
     "builtIn": "Tógtha sa Ríocht Aontaithe",

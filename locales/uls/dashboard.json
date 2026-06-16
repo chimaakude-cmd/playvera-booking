@@ -2,13 +2,33 @@
   "club": {
     "dashboard": "Dashboard",
     "settings": "Settings",
-    "menu": "Menu"
+    "menu": "Menu",
+    "inbox": "Inbox",
+    "activities": "Activities",
+    "bookings": "Bookings",
+    "registers": "Registers",
+    "customers": "Customers",
+    "finance": "Finance",
+    "clubProfile": "Club profile",
+    "teamAccess": "Account & team"
   },
   "parent": {
     "dashboard": "Dashboard",
-    "menu": "Menu"
+    "menu": "Menu",
+    "children": "Weans",
+    "bookings": "Bookings",
+    "profile": "Profile"
   },
   "settings": {
-    "languageTitle": "Leid"
+    "languageTitle": "Leid",
+    "languageDescription": "Pick the leid for Activora's interface. This disnae translate yer club content."
+  },
+  "org": {
+    "dashboard": "Dashboard",
+    "clubs": "Clubs",
+    "bookings": "Bookings",
+    "finance": "Finance",
+    "settings": "Settings",
+    "menu": "Menu"
   }
 }

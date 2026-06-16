@@ -2,7 +2,17 @@
   "header": {
     "tagline": "Helpin ilka bairn play, learn an grow.",
     "login": "Log in",
-    "signup": "Sign up"
+    "signup": "Sign up",
+    "getStarted": "Get Startit",
+    "bookDemo": "Book Demo",
+    "searchShortcut": "Search",
+    "nav": {
+      "activities": "Activities",
+      "forClubs": "For Clubs",
+      "pricing": "Pricing",
+      "faq": "FAQ",
+      "support": "Support"
+    }
   },
   "hero": {
     "titlePrefix": "Find the",
@@ -10,20 +20,119 @@
     "titleSuffix": "for yer bairn",
     "subtitle": "Search, book an manage clubs, camps an activities — aw in ae place.",
     "location": "Location",
-    "searchActivities": "Search Activities"
+    "searchActivities": "Search Activities",
+    "title": "Search local clubs, camps an classes — book in minutes, no hours",
+    "locationPlaceholder": "City or postcode",
+    "useLocation": "Use Ma Location",
+    "locating": "Locatin...",
+    "childAge": "Age",
+    "radius": "Distance",
+    "radiusMiles": "{{value}} mi",
+    "activity": "Activity",
+    "activityPlaceholder": "e.g. Fitba, Dance...",
+    "date": "Date",
+    "seeAllResults": "See aw results →",
+    "trustedBy": "Trusted by families",
+    "heroImageAlt": "Bairns takin part in sports activities"
   },
   "whyProviders": {
     "eyebrow": "Why Activora",
     "title": "Run yer club. Grow yer business.",
-    "tagline": "Nae setup fees • Built for clubs • Secure payments"
+    "tagline": "Nae setup fees • Built for clubs • Secure payments",
+    "subtitle": "Awthing ye need tae tak bookings, manage registers an get paid — withoot monthly fees.",
+    "testimonial": "\"We switched frae spreadsheets an WhatsApp. Parents book online an we get paid automatically.\"",
+    "testimonialAuthor": "Sarah M., Fitba club owner"
   },
   "faq": {
     "title": "Questions? We'e got ye covered.",
-    "viewAll": "View aw FAQs"
+    "viewAll": "View aw FAQs",
+    "subtitle": "Quick answers tae the questions parents an providers ask maist.",
+    "searchPlaceholder": "Search FAQs…",
+    "noResults": "Nae FAQs match yer search.",
+    "needHelp": "Need mair help? Contact support or arrange a demo.",
+    "chatSupport": "Chat wi support"
   },
   "languageCommunity": {
     "title": "Built for ilka community.",
     "subtitle": "Available in mony UK leids.",
-    "cardPartial": "Pairtial"
+    "cardPartial": "Pairtial",
+    "moreComing": "Mair comin"
+  },
+  "chips": {
+    "title": "Browse by activity",
+    "searchLabel": "Search activities",
+    "searchPlaceholder": "Search activities…",
+    "more": "Mair",
+    "panelTitle": "Browse aw activities",
+    "panelClose": "Close activity browser",
+    "noResults": "Nae activities match yer search."
+  },
+  "trustBar": {
+    "parentRating": "Parent rating",
+    "bookings": "Bookings",
+    "providers": "Providers",
+    "uptime": "Uptime"
+  },
+  "popularClubs": {
+    "title": "Popular clubs near ye",
+    "withinRadius": "Within {{value}} miles",
+    "viewAll": "View aw",
+    "bookNow": "Book noo",
+    "verified": "Verified",
+    "spacesLeft": "Only {{count}} spaces left"
+  },
+  "howItWorks": {
+    "title": "How Activora works",
+    "speedNote": "Usually under 60 seconds"
+  },
+  "bookDemo": {
+    "title": "Book a 30-minute walkthrough",
+    "subtitle": "See how Activora works for yer club — nae obligation.",
+    "clubName": "Club name",
+    "email": "Email",
+    "phone": "Phone",
+    "activity": "Activity type",
+    "message": "Message",
+    "submit": "Book 30-minute walkthrough",
+    "submitting": "Submittin…",
+    "successTitle": "Thanks — we'e received yer enquiry",
+    "successBody": "Oor team will be in touch suin.",
+    "submitAnother": "Submit anither enquiry"
+  },
+  "updates": {
+    "eyebrow": "Whit's new",
+    "title": "Latest updates",
+    "subtitle": "Recent improvements shipped across the platform.",
+    "viewAll": "View aw updates",
+    "comingSoon": "Comin suin",
+    "votes": "{{count}} votes"
+  },
+  "getStarted": {
+    "title": "Get startit wi Activora",
+    "subtitle": "Choose the account type that best matches yer organisation. Ye can start for free.",
+    "freeBadge": "Start free",
+    "footerText": "Already hae an account?",
+    "signInButton": "Sign in",
+    "options": {
+      "club": {
+        "title": "Sign up as a Club",
+        "description": "For individual clubs, coaches, tutors an activity providers runnin sessions day tae day."
+      },
+      "franchisor": {
+        "title": "Sign up as a Franchisor",
+        "description": "For franchise brands an head offices managin multiple club locations unner yin brand."
+      },
+      "enterprise": {
+        "title": "Sign up as Enterprise / Larger Organisation",
+        "description": "For councils, trusts, multi-site operators an larger programmes that need centralised control."
+      }
+    }
+  },
+  "quickActions": {
+    "open": "Quick actions",
+    "search": "Search",
+    "support": "Support",
+    "bookDemo": "Book demo",
+    "reportBug": "Report bug"
   }
 }

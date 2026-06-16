@@ -2,6 +2,12 @@
   "callback": {
     "subject": "Fhuair sinn d'iarratas airson gairm air ais",
     "greeting": "Ha {{name}},",
-    "intro": "Tapadh leat airson fios a chur gu Activora."
+    "intro": "Tapadh leat airson fios a chur gu Activora.",
+    "body": "Fhuair sinn d'iarratas airson gairm air ais mu {{topic}}. Cuiridh an sgioba againn fios thugad {{time}}.",
+    "supportHours": "Uairean taic: Dil–Dihao 07:00–18:00, Dis–Dòmh 09:00–12:00.",
+    "urgent": "Ma tha d'iarrtas prìneil, faodaidh tu cuideachd fios a chur thugainn tro chabadaich taic air an làrach-lìn againn.",
+    "signoff": "Le deagh dhùrachd,\nSgioba Activora",
+    "timeDuringHours": "rè uairean fosgailte",
+    "timeOn": "air {{datetime}}"
   }
 }

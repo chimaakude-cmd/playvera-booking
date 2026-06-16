@@ -1,6 +1,13 @@
 {
   "callback": {
     "subject": "We'e received yer callback request",
-    "greeting": "Hi {{name}},"
+    "greeting": "Hi {{name}},",
+    "intro": "Thank ye for contactin Activora.",
+    "body": "We'e received yer callback request regardin {{topic}}. Oor team will contact ye {{time}}.",
+    "supportHours": "Support hours: Mon–Fri 07:00–18:00, Sat–Sun 09:00–12:00.",
+    "urgent": "If yer enquiry is urgent, ye can also reach us via the support chat on oor website.",
+    "signoff": "Kind regards,\nThe Activora Team",
+    "timeDuringHours": "durin oor openin hours",
+    "timeOn": "on {{datetime}}"
   }
 }

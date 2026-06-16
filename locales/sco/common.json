@@ -9,14 +9,28 @@
     "keepEnglish": "Keep English",
     "translate": "Translate",
     "startFree": "Start free",
-    "bookDemo": "Book a demo"
+    "bookDemo": "Book a demo",
+    "cancel": "Cancel",
+    "save": "Save",
+    "search": "Search",
+    "close": "Close",
+    "closeMenu": "Close menu",
+    "viewAll": "View aw",
+    "soon": "Suin"
   },
   "language": {
     "label": "Leid",
     "selectLabel": "Pick a leid",
-    "selectorAria": "Leid selector"
+    "selectorAria": "Leid selector",
+    "currentLanguage": "Current leid: {{language}}",
+    "changeLanguage": "Change leid"
   },
   "translate": {
-    "comingSoon": "Translation comin suin"
+    "comingSoon": "Translation comin suin",
+    "copiedOriginal": "Original text copied"
+  },
+  "errors": {
+    "generic": "Something went wrang. Please try again.",
+    "loading": "Loadin..."
   }
 }

@@ -8,6 +8,23 @@
     "bookDemo": "Book demo"
   },
   "bottom": {
-    "builtIn": "Built in United Kingdom"
-  }
+    "builtIn": "Built in United Kingdom",
+    "legalNav": "Legal an compliance"
+  },
+  "contact": {
+    "title": "Contact support",
+    "supportHoursLabel": "Support hours:",
+    "requestCallback": "Request callback",
+    "bookDemo": "Book a demo",
+    "responseNote": "We aim tae respond durin openin hours."
+  },
+  "columns": {
+    "platform": "Platform",
+    "parents": "Parents",
+    "providers": "Providers",
+    "company": "Company",
+    "support": "Support",
+    "trust": "Trust"
+  },
+  "siteFooter": "Site footer"
 }

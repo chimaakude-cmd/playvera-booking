@@ -3,15 +3,32 @@
     "dashboard": "Deas-bhòrd",
     "bookings": "Glèidheadh",
     "settings": "Roghainnean",
-    "menu": "Clàr-taice"
+    "menu": "Clàr-taice",
+    "inbox": "Bogsa a-steach",
+    "activities": "Gnìomhachdan",
+    "registers": "Clàran",
+    "customers": "Luchd-ceannach",
+    "finance": "Ionmhas",
+    "clubProfile": "Pròifil a' chlub",
+    "teamAccess": "Cunntas is sgioba"
   },
   "parent": {
     "dashboard": "Deas-bhòrd",
     "bookings": "Glèidheadh",
-    "menu": "Clàr-taice"
+    "menu": "Clàr-taice",
+    "children": "Clann",
+    "profile": "Pròifil"
   },
   "settings": {
     "languageTitle": "Cànan",
     "languageDescription": "Tagh cànan eadar-aghaidh Activora."
+  },
+  "org": {
+    "dashboard": "Deas-bhòrd",
+    "clubs": "Clubaichean",
+    "bookings": "Glèidheadh",
+    "finance": "Ionmhas",
+    "settings": "Roghainnean",
+    "menu": "Clàr-taice"
   }
 }

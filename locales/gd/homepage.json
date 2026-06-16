@@ -2,7 +2,17 @@
   "header": {
     "tagline": "A' cuideachadh gach pàiste cluich, ionnsachadh agus fàs.",
     "login": "Log a-steach",
-    "signup": "Clàraich"
+    "signup": "Clàraich",
+    "getStarted": "Tòisich",
+    "bookDemo": "Glèidh taisbeanadh",
+    "searchShortcut": "Lorg",
+    "nav": {
+      "activities": "Gnìomhachdan",
+      "forClubs": "Airson Clubaichean",
+      "pricing": "Prìseachadh",
+      "faq": "Ceistean Cumanta",
+      "support": "Taic"
+    }
   },
   "hero": {
     "titlePrefix": "Lorg an",
@@ -10,20 +20,119 @@
     "titleSuffix": "airson do phàiste",
     "subtitle": "Lorg, glèidh agus stiùirich clubaichean, campaichean agus gnìomhachdan — uile ann an aon àite.",
     "location": "Àite",
-    "searchActivities": "Lorg gnìomhachdan"
+    "searchActivities": "Lorg gnìomhachdan",
+    "title": "Lorg clubaichean, campaichean is clasaichean ionadail — glèidh ann am mionaidean",
+    "locationPlaceholder": "Baile no còd-puist",
+    "useLocation": "Cleachd an t-àite agam",
+    "locating": "A' lorg àite...",
+    "childAge": "Aois",
+    "radius": "Astar",
+    "radiusMiles": "{{value}} mì",
+    "activity": "Gnìomhachd",
+    "activityPlaceholder": "m.e. Ball-coise, Dannsa...",
+    "date": "Ceann-là",
+    "seeAllResults": "Seall na toraidhean uile →",
+    "trustedBy": "Earbsa bho theaghlaichean",
+    "heroImageAlt": "Clann a' gabhail pàirt ann an gnìomhachdan spòrs"
   },
   "whyProviders": {
     "eyebrow": "Carson Activora",
     "title": "Ruith do chlub. Meudaich do ghnothach.",
-    "startFree": "Tòisich an-asgaidh"
+    "startFree": "Tòisich an-asgaidh",
+    "subtitle": "Gach rud a tha feum agad airson glèidheadh a ghabhail, clàran a stiùireadh agus pàigheadh fhaighinn — gun chìsean mìosail.",
+    "testimonial": "\"Dh'atharraich sinn bho sgeidealan agus WhatsApp. Bidh pàrantan a' glèidheadh air-loidhne agus tha sinn air ar pàigheadh gu fèin-obrachail.\"",
+    "testimonialAuthor": "Sarah M., Sealbhadair club ball-coise"
   },
   "faq": {
     "title": "Ceistean? Tha sinn an seo gus cuideachadh.",
-    "viewAll": "Seall na Ceistean Cumanta uile"
+    "viewAll": "Seall na Ceistean Cumanta uile",
+    "subtitle": "Freagairtean luath air na ceistean as cumanta bho phàrantan is solaraichean.",
+    "searchPlaceholder": "Lorg Ceistean Cumanta…",
+    "noResults": "Chan eil Ceistean Cumanta a rèir do lorg.",
+    "needHelp": "A bheil feum agad air barrachd cuideachaidh? Cuir fios gu taic no suidh taisbeanadh.",
+    "chatSupport": "Bruidhinn ri taic"
   },
   "languageCommunity": {
     "title": "Air a thogail airson gach coimhearsnachd.",
     "subtitle": "Ri fhaighinn ann an iomadh cànan sa RA.",
-    "cardPartial": "Pàirteach"
+    "cardPartial": "Pàirteach",
+    "moreComing": "Barrachd a' tighinn"
+  },
+  "chips": {
+    "title": "Rùraich a rèir gnìomhachd",
+    "searchLabel": "Lorg gnìomhachdan",
+    "searchPlaceholder": "Lorg gnìomhachdan…",
+    "more": "Barrachd",
+    "panelTitle": "Rùraich gach gnìomhachd",
+    "panelClose": "Dùin brabhsair gnìomhachdan",
+    "noResults": "Chan eil gnìomhachdan a rèir do lorg."
+  },
+  "trustBar": {
+    "parentRating": "Rangachadh phàrantan",
+    "bookings": "Glèidheadh",
+    "providers": "Solaraichean",
+    "uptime": "Ùine obrachaidh"
+  },
+  "popularClubs": {
+    "title": "Clubaichean mòr-chòrdte faisg ort",
+    "withinRadius": "Taobh a-staigh {{value}} mìle",
+    "viewAll": "Seall na h-uile",
+    "bookNow": "Glèidh an-dràsta",
+    "verified": "Dearbhte",
+    "spacesLeft": "Chan eil ach {{count}} àiteachan air fhàgail"
+  },
+  "howItWorks": {
+    "title": "Mar a tha Activora ag obair",
+    "speedNote": "Mar as trice nas lugha na 60 diog"
+  },
+  "bookDemo": {
+    "title": "Glèidh coiseachd 30 mionaid",
+    "subtitle": "Faic mar a tha Activora ag obair airson do chlub — gun oibleagaid.",
+    "clubName": "Ainm a' chlub",
+    "email": "Post-d",
+    "phone": "Fòn",
+    "activity": "Seòrsa gnìomhachd",
+    "message": "Teachdaireachd",
+    "submit": "Glèidh coiseachd 30 mionaid",
+    "submitting": "A' cur a-steach…",
+    "successTitle": "Tapadh leat — fhuair sinn d' iarrtas",
+    "successBody": "Bidh an sgioba againn ann an conaltradh a dh'aithghearr.",
+    "submitAnother": "Cuir a-steach iarrtas eile"
+  },
+  "updates": {
+    "eyebrow": "Dè tha ùr",
+    "title": "Ùrachaidhean as ùire",
+    "subtitle": "Leasachaidhean o chionn ghoirid air feadh an àrd-ùrlair.",
+    "viewAll": "Seall na h-ùrachaidhean uile",
+    "comingSoon": "A' tighinn a dh'aithghearr",
+    "votes": "{{count}} bhòtaichean"
+  },
+  "getStarted": {
+    "title": "Tòisich le Activora",
+    "subtitle": "Tagh an seòrsa cunntais a fhreagras as fheàrr ris an eagrachadh agad. Faodaidh tu tòiseachadh an-asgaidh.",
+    "freeBadge": "Tòisich an-asgaidh",
+    "footerText": "A bheil cunntas agad mu thràth?",
+    "signInButton": "Log a-steach",
+    "options": {
+      "club": {
+        "title": "Clàraich mar Chlub",
+        "description": "Airson clubaichean fa leth, luchd-trèanaidh, tiutairean agus solaraichean gnìomhachd a ruith seiseanan làitheil."
+      },
+      "franchisor": {
+        "title": "Clàraich mar Fhfranchise",
+        "description": "Airson brandaichean franchise agus oifisean cinn a' stiùireadh iomadh àite club fo aon bhrand."
+      },
+      "enterprise": {
+        "title": "Clàraich mar Fhionnsgoil / Buidheann Mhòr",
+        "description": "Airson chomhairlean, urrasan, oibrichean ioma-àite agus prògraman nas motha a tha feumach air rianachd mheadhanach."
+      }
+    }
+  },
+  "quickActions": {
+    "open": "Gnìomhan luath",
+    "search": "Lorg",
+    "support": "Taic",
+    "bookDemo": "Glèidh taisbeanadh",
+    "reportBug": "Aithris bug"
   }
 }

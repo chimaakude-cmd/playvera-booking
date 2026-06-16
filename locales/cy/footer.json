@@ -20,7 +20,11 @@
     "industries": "Diwydiannau",
     "resources": "Adnoddau",
     "company": "Cwmni",
-    "contact": "Cysylltu"
+    "contact": "Cysylltu",
+    "parents": "Rhieni",
+    "providers": "Darparwyr",
+    "support": "Cymorth",
+    "trust": "Ymddiriedolaeth"
   },
   "bottom": {
     "builtIn": "Adeiladwyd yn y Deyrnas Unedig",
