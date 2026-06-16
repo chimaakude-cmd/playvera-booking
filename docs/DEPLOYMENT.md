@@ -70,6 +70,37 @@ npx vercel --prod --yes
 **After deploy:** note the production alias (e.g. `https://playvera-booking.vercel.app`). Add custom domain `app.activora.uk` under **Project → Settings → Domains**, then redeploy if you changed env vars.
 
 **Optional:** connect the Git repo in the dashboard for automatic deploys on push to `main`.
+---
+
+## Continuous deployment (GitHub ? Vercel)
+
+After the Git repository is connected, every push to **`main`** triggers a **Production** deployment automatically. Pull requests and other branches get **Preview** deployments when Preview environment variables are configured.
+
+### One-time setup
+
+1. Push this repo to GitHub (see below if not done yet).
+2. In [Vercel](https://vercel.com/chimaakude-cmds-projects/playvera-booking/settings/git): **Project ? Settings ? Git ? Connect Git Repository**.
+3. Choose the GitHub repo (e.g. `playvera-booking`) and confirm **Production Branch** = **`main`**.
+4. Ensure **Production** environment variables are set (see [Environment variables](#2-environment-variables)); redeploy once after adding `NEXT_PUBLIC_*` keys.
+5. Optional: duplicate the same variables for **Preview** so PR preview URLs work (requires Git connected first).
+
+### Day-to-day workflow
+
+```bash
+git checkout main
+git pull
+# make changes, commit
+git push origin main
+```
+
+Vercel builds with **`npm install`** and **`npm run build`** (`next build`) and promotes the result to Production. No manual `vercel --prod` is required unless you are deploying from CLI only.
+
+### DNS reminder (staging)
+
+- **`app.activora.uk`** ? CNAME **`cname.vercel-dns.com`** (Fasthosts Advanced DNS; keep Automatic DNS Updates **OFF**).
+- Add **`app.activora.uk`** under **Project ? Settings ? Domains** if it is not listed yet.
+- Apex **`activora.uk`** cutover steps remain in [Fasthosts + Vercel � production cutover checklist](#fasthosts--vercel--production-cutover-checklist).
+
 
 ---
 
