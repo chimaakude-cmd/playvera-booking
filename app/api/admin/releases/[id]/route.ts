@@ -61,9 +61,21 @@ export async function POST(request: Request, context: RouteContext) {
     return NextResponse.json({ release });
   }
 
+  if (body.action === "unpublish") {
+    const release = await updateServerRelease(id, {
+      status: "draft",
+      publishedAt: null,
+    });
+    if (!release) {
+      return NextResponse.json({ error: "Release not found" }, { status: 404 });
+    }
+    return NextResponse.json({ release });
+  }
+
   if (body.action === "internal") {
     const release = await updateServerRelease(id, {
-      internalOnly: body.internalOnly ?? true,
+      status: "internal",
+      publishedAt: null,
     });
     if (!release) {
       return NextResponse.json({ error: "Release not found" }, { status: 404 });

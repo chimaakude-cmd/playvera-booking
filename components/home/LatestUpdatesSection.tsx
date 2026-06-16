@@ -16,10 +16,11 @@ import { HOME_BUTTON, HOME_CARD, HOME_SECTION } from "./shared";
 
 const CATEGORY_STYLES: Record<ReleaseCategory, string> = {
   feature: "bg-blue-50 text-blue-700",
-  improvement: "bg-slate-100 text-slate-700",
+  ui: "bg-slate-100 text-slate-700",
   fix: "bg-amber-50 text-amber-800",
   security: "bg-red-50 text-red-700",
   performance: "bg-teal-50 text-teal-700",
+  internal: "bg-zinc-100 text-zinc-700",
 };
 
 const COMING_SOON = {
@@ -40,10 +41,7 @@ function formatDate(iso: string): string {
 export function LatestUpdatesSection() {
   const { t } = useTranslation("homepage");
   const [releases, setReleases] = useState<Release[]>(
-    SEED_RELEASES.filter((r) => r.status === "published" && !r.internalOnly).slice(
-      0,
-      2,
-    ),
+    SEED_RELEASES.filter((r) => r.status === "published").slice(0, 2),
   );
 
   useEffect(() => {

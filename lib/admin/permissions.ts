@@ -202,7 +202,7 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
   {
     section: "releases",
     href: "/admin/releases",
-    label: "Releases",
+    label: "Release Notes",
     group: "Platform",
   },
   {

@@ -60,6 +60,7 @@ export {
   getReleaseSettings,
   getReleasesByStatus,
   hideRelease,
+  markReleaseInternal,
   markReleaseInternalOnly,
   mergeReleaseIntoPrevious,
   publishRelease,
@@ -67,6 +68,9 @@ export {
   requestAutoDraft,
   scheduleRelease,
   syncReleasesFromServer,
+  unpublishRelease,
   updateRelease,
   updateReleaseSettings,
 } from "./storage";
+
+export { createSupabaseReleasesRepository, type ReleasesRepository } from "./supabase";

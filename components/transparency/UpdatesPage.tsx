@@ -18,10 +18,11 @@ import {
 
 const CATEGORY_STYLES: Record<ReleaseCategory, string> = {
   feature: "bg-violet-50 text-violet-700",
-  improvement: "bg-sky-50 text-sky-700",
+  ui: "bg-sky-50 text-sky-700",
   fix: "bg-amber-50 text-amber-800",
   security: "bg-red-50 text-red-700",
   performance: "bg-teal-50 text-teal-700",
+  internal: "bg-zinc-100 text-zinc-700",
 };
 
 function formatDate(iso: string): string {
@@ -91,7 +92,7 @@ function ReleaseSections({ release }: { release: Release }) {
 
 export function UpdatesPage() {
   const [releases, setReleases] = useState<Release[]>(
-    SEED_RELEASES.filter((r) => r.status === "published" && !r.internalOnly),
+    SEED_RELEASES.filter((r) => r.status === "published"),
   );
 
   useEffect(() => {
