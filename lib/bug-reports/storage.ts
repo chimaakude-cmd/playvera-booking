@@ -1,7 +1,10 @@
 import { isDataUrl, toPersistableImageUrl } from "@/lib/image-urls";
 import {
   BUG_REPORT_NOTES_KEY,
+  BUG_REPORTS_DEMO_PURGE_KEY,
   BUG_REPORTS_KEY,
+  LEGACY_DEMO_BUG_NOTE_IDS,
+  LEGACY_DEMO_BUG_REPORT_IDS,
   MAX_SCREENSHOT_DATA_URL_BYTES,
   SEED_BUG_REPORT_NOTES,
   SEED_BUG_REPORTS,
@@ -47,6 +50,37 @@ function writeJson<T>(key: string, value: T): void {
   localStorage.setItem(key, JSON.stringify(value));
 }
 
+function purgeLegacyDemoData(): void {
+  if (!isBrowser()) {
+    return;
+  }
+  if (localStorage.getItem(BUG_REPORTS_DEMO_PURGE_KEY)) {
+    return;
+  }
+
+  const reports = readJson<BugReport[]>(BUG_REPORTS_KEY, []);
+  const notes = readJson<BugReportNote[]>(BUG_REPORT_NOTES_KEY, []);
+
+  const nextReports = reports.filter(
+    (report) => !LEGACY_DEMO_BUG_REPORT_IDS.has(report.id),
+  );
+  const nextNotes = notes.filter(
+    (note) =>
+      !LEGACY_DEMO_BUG_NOTE_IDS.has(note.id) &&
+      !LEGACY_DEMO_BUG_REPORT_IDS.has(note.bugReportId),
+  );
+
+  if (
+    nextReports.length !== reports.length ||
+    nextNotes.length !== notes.length
+  ) {
+    writeJson(BUG_REPORTS_KEY, nextReports);
+    writeJson(BUG_REPORT_NOTES_KEY, nextNotes);
+  }
+
+  localStorage.setItem(BUG_REPORTS_DEMO_PURGE_KEY, "1");
+}
+
 function ensureSeeded(): void {
   if (!isBrowser()) {
     return;
@@ -55,6 +89,7 @@ function ensureSeeded(): void {
     writeJson(BUG_REPORTS_KEY, SEED_BUG_REPORTS);
     writeJson(BUG_REPORT_NOTES_KEY, SEED_BUG_REPORT_NOTES);
   }
+  purgeLegacyDemoData();
 }
 
 /** Persist screenshot as data URL if under size limit, else http(s) URL or null. */

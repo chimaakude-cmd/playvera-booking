@@ -228,7 +228,9 @@ export function AdminBugsInbox() {
                     colSpan={9}
                     className="px-4 py-8 text-center text-zinc-500"
                   >
-                    No bug reports match this filter.
+                    {reports.length === 0
+                      ? "No bug reports submitted yet."
+                      : "No bug reports match this filter."}
                   </td>
                 </tr>
               ) : (
