@@ -7,6 +7,7 @@ export const INVITABLE_ADMIN_ROLES: Exclude<AdminUserRole, "owner">[] = [
   "support_admin",
   "finance_admin",
   "content_admin",
+  "read_only",
 ];
 
 export function canManageAdminUsers(role: AdminRole): boolean {

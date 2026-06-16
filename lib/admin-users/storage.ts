@@ -1,3 +1,6 @@
+/**
+ * Optional browser cache for admin users (server source of truth is Supabase).
+ */
 import { ADMIN_USERS_STORAGE_KEY } from "./types";
 import { SEED_ADMIN_USERS_STATE } from "./defaults";
 import { generateInviteToken } from "./invite-link";

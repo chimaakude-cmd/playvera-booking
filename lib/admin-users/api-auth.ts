@@ -14,6 +14,7 @@ const VALID_ROLES: AdminRole[] = [
   "support_admin",
   "finance_admin",
   "content_admin",
+  "read_only",
 ];
 
 function parseRole(value: string | null): AdminRole | null {

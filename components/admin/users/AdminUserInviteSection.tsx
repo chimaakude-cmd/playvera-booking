@@ -12,6 +12,7 @@ import {
   canManageAdminUsers,
   getInviteDeliveryNote,
   INVITABLE_ADMIN_ROLES,
+  ADMIN_INVITE_EMAIL_CONNECTED,
   type AdminUserRole,
 } from "@/lib/admin-users";
 
@@ -113,7 +114,14 @@ export function AdminUserInviteSection() {
         onSubmit={handleSubmit}
         className="max-w-xl space-y-5 rounded-2xl border border-zinc-200/80 bg-white p-6 shadow-sm"
       >
-        <p className="text-sm text-zinc-500">{getInviteDeliveryNote()}</p>
+        <p className="text-sm text-zinc-500">
+          {getInviteDeliveryNote()}
+          {!ADMIN_INVITE_EMAIL_CONNECTED ? (
+            <span className="mt-1 block font-medium text-amber-800">
+              Email not configured — copy invite link after sending.
+            </span>
+          ) : null}
+        </p>
 
         <label className="block space-y-1.5">
           <span className="text-sm font-medium text-zinc-700">Full name</span>

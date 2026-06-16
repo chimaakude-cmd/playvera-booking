@@ -864,6 +864,137 @@ export type Database = {
           },
         ];
       };
+      admin_users: {
+        Row: {
+          id: string;
+          auth_user_id: string | null;
+          name: string;
+          email: string;
+          role: Database["public"]["Enums"]["platform_admin_role"];
+          status: Database["public"]["Enums"]["platform_admin_status"];
+          email_verified: boolean;
+          password_hash: string | null;
+          invite_token: string | null;
+          invite_sent_at: string | null;
+          last_login_at: string | null;
+          is_owner: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          auth_user_id?: string | null;
+          name?: string;
+          email: string;
+          role?: Database["public"]["Enums"]["platform_admin_role"];
+          status?: Database["public"]["Enums"]["platform_admin_status"];
+          email_verified?: boolean;
+          password_hash?: string | null;
+          invite_token?: string | null;
+          invite_sent_at?: string | null;
+          last_login_at?: string | null;
+          is_owner?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          auth_user_id?: string | null;
+          name?: string;
+          email?: string;
+          role?: Database["public"]["Enums"]["platform_admin_role"];
+          status?: Database["public"]["Enums"]["platform_admin_status"];
+          email_verified?: boolean;
+          password_hash?: string | null;
+          invite_token?: string | null;
+          invite_sent_at?: string | null;
+          last_login_at?: string | null;
+          is_owner?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      admin_user_audit_log: {
+        Row: {
+          id: string;
+          action: string;
+          target_user_id: string | null;
+          target_email: string;
+          actor_id: string;
+          actor_name: string;
+          actor_email: string;
+          details: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          action: string;
+          target_user_id?: string | null;
+          target_email: string;
+          actor_id: string;
+          actor_name: string;
+          actor_email: string;
+          details?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          action?: string;
+          target_user_id?: string | null;
+          target_email?: string;
+          actor_id?: string;
+          actor_name?: string;
+          actor_email?: string;
+          details?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "admin_user_audit_log_target_user_id_fkey";
+            columns: ["target_user_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      admin_invites: {
+        Row: {
+          id: string;
+          full_name: string;
+          email: string;
+          role: string;
+          token: string;
+          status: string;
+          invited_by: string;
+          created_at: string;
+          expires_at: string;
+        };
+        Insert: {
+          id?: string;
+          full_name: string;
+          email: string;
+          role: string;
+          token: string;
+          status?: string;
+          invited_by: string;
+          created_at?: string;
+          expires_at: string;
+        };
+        Update: {
+          id?: string;
+          full_name?: string;
+          email?: string;
+          role?: string;
+          token?: string;
+          status?: string;
+          invited_by?: string;
+          created_at?: string;
+          expires_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
@@ -887,6 +1018,14 @@ export type Database = {
         | "premium_verified";
       club_team_role: "coach" | "administrator" | "manager" | "owner";
       club_team_member_status: "active" | "pending";
+      platform_admin_role:
+        | "owner"
+        | "super_admin"
+        | "support_admin"
+        | "finance_admin"
+        | "content_admin"
+        | "read_only";
+      platform_admin_status: "invited" | "active" | "disabled";
     };
     CompositeTypes: Record<string, never>;
   };

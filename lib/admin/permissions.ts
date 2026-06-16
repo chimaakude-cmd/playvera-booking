@@ -35,6 +35,7 @@ export const ADMIN_ROLE_LABELS: Record<AdminRole, string> = {
   support_admin: "Support Admin",
   finance_admin: "Finance Admin",
   content_admin: "Content Admin",
+  read_only: "Read Only",
 };
 
 const FULL_PLATFORM_PERMISSIONS: AdminPermission[] = [
@@ -103,6 +104,7 @@ export const ROLE_PERMISSIONS: Record<AdminRole, AdminPermission[]> = {
     "manage_translations",
     "manage_communications",
   ],
+  read_only: ["view_dashboard"],
 };
 
 export const ROLE_NAV_SECTIONS: Record<AdminRole, AdminNavSection[]> = {
@@ -163,6 +165,7 @@ export const ROLE_NAV_SECTIONS: Record<AdminRole, AdminNavSection[]> = {
     "translations",
     "communications",
   ],
+  read_only: ["dashboard"],
 };
 
 export type AdminNavItem = {
