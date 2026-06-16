@@ -5,7 +5,12 @@
  * Database: future `platform_admins` + `platform_settings`
  */
 
-export type AdminRole = "super_admin" | "finance_admin" | "support_admin";
+export type AdminRole =
+  | "owner"
+  | "super_admin"
+  | "support_admin"
+  | "finance_admin"
+  | "content_admin";
 
 export type AdminNavSection =
   | "dashboard"
@@ -23,7 +28,8 @@ export type AdminNavSection =
   | "communications"
   | "reviews"
   | "finance"
-  | "settings";
+  | "settings"
+  | "users";
 
 export type ProviderStripeStatus =
   | "not_connected"

@@ -90,6 +90,9 @@ export function getStaffDashboardPath(adminRole: AdminRole): string {
       return "/admin/finance";
     case "support_admin":
       return "/admin/messages";
+    case "content_admin":
+      return "/admin/releases";
+    case "owner":
     case "super_admin":
     default:
       return "/admin/dashboard";

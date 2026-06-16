@@ -26,43 +26,50 @@ export type AdminPermission =
   | "view_disputes"
   | "manage_invoices"
   | "manage_settings"
-  | "manage_admins";
+  | "manage_admins"
+  | "export_finance";
 
 export const ADMIN_ROLE_LABELS: Record<AdminRole, string> = {
+  owner: "Owner",
   super_admin: "Super Admin",
-  finance_admin: "Finance Admin",
   support_admin: "Support Admin",
+  finance_admin: "Finance Admin",
+  content_admin: "Content Admin",
 };
 
+const FULL_PLATFORM_PERMISSIONS: AdminPermission[] = [
+  "view_dashboard",
+  "manage_providers",
+  "view_provider_finance",
+  "suspend_providers",
+  "verify_providers",
+  "manage_activities",
+  "manage_bookings",
+  "view_bookings_payment",
+  "manage_messages",
+  "manage_bugs",
+  "manage_careers",
+  "manage_partnerships",
+  "manage_partners",
+  "manage_contact",
+  "manage_releases",
+  "manage_translations",
+  "manage_communications",
+  "manage_reviews",
+  "view_finance",
+  "manage_stripe",
+  "manage_platform_fees",
+  "view_payouts",
+  "view_disputes",
+  "manage_invoices",
+  "manage_settings",
+  "manage_admins",
+  "export_finance",
+];
+
 export const ROLE_PERMISSIONS: Record<AdminRole, AdminPermission[]> = {
-  super_admin: [
-    "view_dashboard",
-    "manage_providers",
-    "view_provider_finance",
-    "suspend_providers",
-    "verify_providers",
-    "manage_activities",
-    "manage_bookings",
-    "view_bookings_payment",
-    "manage_messages",
-    "manage_bugs",
-    "manage_careers",
-    "manage_partnerships",
-    "manage_partners",
-    "manage_contact",
-    "manage_releases",
-    "manage_translations",
-    "manage_communications",
-    "manage_reviews",
-    "view_finance",
-    "manage_stripe",
-    "manage_platform_fees",
-    "view_payouts",
-    "view_disputes",
-    "manage_invoices",
-    "manage_settings",
-    "manage_admins",
-  ],
+  owner: FULL_PLATFORM_PERMISSIONS,
+  super_admin: FULL_PLATFORM_PERMISSIONS,
   finance_admin: [
     "view_dashboard",
     "view_provider_finance",
@@ -74,6 +81,7 @@ export const ROLE_PERMISSIONS: Record<AdminRole, AdminPermission[]> = {
     "manage_invoices",
     "view_bookings_payment",
     "manage_bookings",
+    "export_finance",
   ],
   support_admin: [
     "view_dashboard",
@@ -84,17 +92,39 @@ export const ROLE_PERMISSIONS: Record<AdminRole, AdminPermission[]> = {
     "manage_bookings",
     "manage_messages",
     "manage_bugs",
+    "manage_reviews",
+  ],
+  content_admin: [
+    "view_dashboard",
     "manage_careers",
     "manage_partnerships",
     "manage_partners",
-    "manage_contact",
     "manage_releases",
     "manage_translations",
-    "manage_reviews",
+    "manage_communications",
   ],
 };
 
 export const ROLE_NAV_SECTIONS: Record<AdminRole, AdminNavSection[]> = {
+  owner: [
+    "dashboard",
+    "providers",
+    "activities",
+    "bookings",
+    "messages",
+    "bugs",
+    "careers",
+    "partnerships",
+    "partners",
+    "contact",
+    "releases",
+    "translations",
+    "communications",
+    "reviews",
+    "finance",
+    "settings",
+    "users",
+  ],
   super_admin: [
     "dashboard",
     "providers",
@@ -112,6 +142,7 @@ export const ROLE_NAV_SECTIONS: Record<AdminRole, AdminNavSection[]> = {
     "reviews",
     "finance",
     "settings",
+    "users",
   ],
   finance_admin: ["dashboard", "providers", "bookings", "finance"],
   support_admin: [
@@ -121,13 +152,16 @@ export const ROLE_NAV_SECTIONS: Record<AdminRole, AdminNavSection[]> = {
     "bookings",
     "messages",
     "bugs",
+    "reviews",
+  ],
+  content_admin: [
+    "dashboard",
     "careers",
     "partnerships",
     "partners",
-    "contact",
     "releases",
     "translations",
-    "reviews",
+    "communications",
   ],
 };
 
@@ -233,6 +267,12 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
     section: "settings",
     href: "/admin/settings",
     label: "Settings",
+    group: "System",
+  },
+  {
+    section: "users",
+    href: "/admin/users",
+    label: "Admin Users",
     group: "System",
   },
 ];

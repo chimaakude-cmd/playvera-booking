@@ -14,6 +14,13 @@ export const TEST_ACCOUNTS = {
     name: "Parent Tester",
     role: "parent",
   },
+  owner: {
+    email: "owner@activora.co.uk",
+    password: "Test123!",
+    name: "Platform Owner",
+    role: "admin",
+    adminRole: "owner",
+  },
   admin: {
     email: "admin@test.activeora.co.uk",
     password: "Test123!",
