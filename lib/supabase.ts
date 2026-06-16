@@ -43,7 +43,7 @@ let browserClient: ActivoraSupabaseClient | null = null;
 export function getSupabaseBrowserClient(): ActivoraSupabaseClient {
   if (typeof window === "undefined") {
     throw new Error(
-      "getSupabaseBrowserClient() is client-only. Use a server client in Server Components.",
+      "getSupabaseBrowserClient() is client-only. Use createSupabaseServerClient() in Server Components.",
     );
   }
 
@@ -52,4 +52,23 @@ export function getSupabaseBrowserClient(): ActivoraSupabaseClient {
   }
 
   return browserClient;
+}
+
+/**
+ * Server-side Supabase client for Server Components and Route Handlers.
+ * Uses the public anon key — RLS policies apply.
+ */
+export function createSupabaseServerClient(): ActivoraSupabaseClient {
+  if (!isSupabaseConfigured()) {
+    throw new Error(
+      "Supabase is not configured. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to .env.local.",
+    );
+  }
+
+  return createClient<Database>(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+  });
 }
