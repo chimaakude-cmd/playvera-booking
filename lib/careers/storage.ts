@@ -1,13 +1,16 @@
 import { isDataUrl } from "@/lib/image-urls";
+import { appendCareerAuditLog } from "./audit";
 import {
   CAREERS_APPLICATION_NOTES_KEY,
   CAREERS_APPLICATIONS_KEY,
+  CAREERS_AUDIT_LOG_KEY,
   CAREERS_JOBS_KEY,
   CAREERS_TALENT_POOL_KEY,
-  MAX_CV_DATA_URL_BYTES,
   SEED_APPLICATION_NOTES,
+  SEED_CAREER_AUDIT_LOG,
   SEED_CAREER_JOBS,
   SEED_JOB_APPLICATIONS,
+  MAX_CV_DATA_URL_BYTES,
 } from "./defaults";
 import type {
   ApplicationNote,
@@ -17,6 +20,7 @@ import type {
   CreateJobInput,
   CreateTalentPoolInput,
   JobApplication,
+  JobListFilter,
   JobStatus,
   TalentPoolSubmission,
   UpdateJobInput,
@@ -65,6 +69,37 @@ function ensureSeeded(): void {
     writeJson(CAREERS_APPLICATIONS_KEY, SEED_JOB_APPLICATIONS);
     writeJson(CAREERS_APPLICATION_NOTES_KEY, SEED_APPLICATION_NOTES);
     writeJson(CAREERS_TALENT_POOL_KEY, []);
+    writeJson(CAREERS_AUDIT_LOG_KEY, SEED_CAREER_AUDIT_LOG);
+  }
+}
+
+function isPublicJob(job: CareerJob): boolean {
+  return (
+    job.status !== "deleted" &&
+    job.status !== "archived" &&
+    job.status !== "draft"
+  );
+}
+
+function isActiveJob(job: CareerJob): boolean {
+  return job.status === "open" || job.status === "draft";
+}
+
+export function filterCareerJobs(
+  jobs: CareerJob[],
+  filter: JobListFilter,
+): CareerJob[] {
+  switch (filter) {
+    case "active":
+      return jobs.filter(isActiveJob);
+    case "closed":
+      return jobs.filter((job) => job.status === "closed");
+    case "archived":
+      return jobs.filter((job) => job.status === "archived");
+    case "deleted":
+      return jobs.filter((job) => job.status === "deleted");
+    default:
+      return jobs;
   }
 }
 
@@ -111,6 +146,16 @@ export function getCareerJobs(): CareerJob[] {
 
 export function getOpenCareerJobs(): CareerJob[] {
   return getCareerJobs().filter((job) => job.status === "open");
+}
+
+export function getPublicCareerJobBySlugOrId(
+  slugOrId: string,
+): CareerJob | null {
+  const job = getCareerJobBySlugOrId(slugOrId);
+  if (!job || !isPublicJob(job)) {
+    return null;
+  }
+  return job;
 }
 
 export function getCareerJobById(id: string): CareerJob | null {
@@ -207,6 +252,120 @@ export function updateCareerJob(
 
 export function setCareerJobStatus(id: string, status: JobStatus): CareerJob | null {
   return updateCareerJob(id, { status });
+}
+
+export type DeleteJobOptions = {
+  retainApplications: boolean;
+  actorId: string;
+  actorName: string;
+};
+
+export function deleteJob(id: string, options: DeleteJobOptions): CareerJob | null {
+  ensureSeeded();
+  const jobs = readJson<CareerJob[]>(CAREERS_JOBS_KEY, []);
+  const index = jobs.findIndex((job) => job.id === id);
+  if (index === -1) {
+    return null;
+  }
+  const current = jobs[index];
+  if (current.status === "deleted") {
+    return current;
+  }
+
+  const now = nowIso();
+  const deleted: CareerJob = {
+    ...current,
+    status: "deleted",
+    featuredOnHomepage: false,
+    deletedAt: now,
+    deletedBy: options.actorId,
+    deletedByName: options.actorName,
+    updatedAt: now,
+  };
+  jobs[index] = deleted;
+  writeJson(CAREERS_JOBS_KEY, jobs);
+
+  if (!options.retainApplications) {
+    removeApplicationsForJob(id);
+  }
+
+  appendCareerAuditLog({
+    action: "job_deleted",
+    jobId: id,
+    jobTitle: current.title,
+    actorId: options.actorId,
+    actorName: options.actorName,
+    details: options.retainApplications
+      ? "Applications retained"
+      : "Applications removed",
+  });
+
+  return deleted;
+}
+
+function removeApplicationsForJob(jobId: string): void {
+  const applications = readJson<JobApplication[]>(CAREERS_APPLICATIONS_KEY, []);
+  const removedIds = new Set(
+    applications.filter((app) => app.jobId === jobId).map((app) => app.id),
+  );
+  if (removedIds.size === 0) {
+    return;
+  }
+  writeJson(
+    CAREERS_APPLICATIONS_KEY,
+    applications.filter((app) => app.jobId !== jobId),
+  );
+  const notes = readJson<ApplicationNote[]>(CAREERS_APPLICATION_NOTES_KEY, []);
+  writeJson(
+    CAREERS_APPLICATION_NOTES_KEY,
+    notes.filter((note) => !removedIds.has(note.applicationId)),
+  );
+}
+
+export function bulkArchiveCareerJobs(
+  ids: string[],
+  actor: { actorId: string; actorName: string },
+): number {
+  let count = 0;
+  for (const id of ids) {
+    const job = setCareerJobStatus(id, "archived");
+    if (job) {
+      count += 1;
+      appendCareerAuditLog({
+        action: "jobs_bulk_archived",
+        jobId: id,
+        jobTitle: job.title,
+        actorId: actor.actorId,
+        actorName: actor.actorName,
+      });
+    }
+  }
+  return count;
+}
+
+export function bulkDeleteCareerJobs(
+  ids: string[],
+  options: DeleteJobOptions,
+): number {
+  let count = 0;
+  for (const id of ids) {
+    if (deleteJob(id, options)) {
+      count += 1;
+    }
+  }
+  return count;
+}
+
+export function exportCareerJobsJson(jobIds?: string[]): string {
+  const jobs = getCareerJobs();
+  const selected =
+    jobIds && jobIds.length > 0
+      ? jobs.filter((job) => jobIds.includes(job.id))
+      : jobs;
+  const applications = getJobApplications().filter((app) =>
+    selected.some((job) => job.id === app.jobId),
+  );
+  return JSON.stringify({ jobs: selected, applications }, null, 2);
 }
 
 export function duplicateCareerJob(id: string): CareerJob | null {
@@ -382,9 +541,14 @@ export function getCareersAnalytics(): {
   conversionRate: number;
   pipeline: Record<ApplicationStatus, number>;
 } {
-  const jobs = getCareerJobs();
-  const applications = getJobApplications();
-  const totalViews = jobs.reduce((sum, job) => sum + job.views, 0);
+  const activeJobs = getCareerJobs().filter(
+    (job) => job.status !== "deleted" && job.status !== "archived",
+  );
+  const activeJobIds = new Set(activeJobs.map((job) => job.id));
+  const applications = getJobApplications().filter((app) =>
+    activeJobIds.has(app.jobId),
+  );
+  const totalViews = activeJobs.reduce((sum, job) => sum + job.views, 0);
   const totalApplications = applications.length;
   const conversionRate =
     totalViews > 0

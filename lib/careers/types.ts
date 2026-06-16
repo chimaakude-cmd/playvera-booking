@@ -19,7 +19,12 @@ export type ContractType =
   | "contract"
   | "freelance";
 
-export type JobStatus = "open" | "closed" | "archived";
+export type JobStatus =
+  | "draft"
+  | "open"
+  | "closed"
+  | "archived"
+  | "deleted";
 
 export type ApplicationStatus =
   | "new"
@@ -48,6 +53,29 @@ export type CareerJob = {
   postedAt: string;
   createdAt: string;
   updatedAt: string;
+  deletedAt?: string | null;
+  deletedBy?: string | null;
+  deletedByName?: string | null;
+};
+
+export type CareerAuditAction =
+  | "job_created"
+  | "job_updated"
+  | "job_status_changed"
+  | "job_deleted"
+  | "job_archived"
+  | "jobs_bulk_archived"
+  | "jobs_bulk_deleted";
+
+export type CareerAuditLogEntry = {
+  id: string;
+  action: CareerAuditAction;
+  jobId: string;
+  jobTitle: string;
+  actorId: string;
+  actorName: string;
+  details?: string;
+  createdAt: string;
 };
 
 export type JobApplication = {
@@ -144,9 +172,21 @@ export const CONTRACT_TYPE_LABELS: Record<ContractType, string> = {
 };
 
 export const JOB_STATUS_LABELS: Record<JobStatus, string> = {
+  draft: "Draft",
   open: "Open",
   closed: "Closed",
   archived: "Archived",
+  deleted: "Deleted",
+};
+
+export type JobListFilter = "all" | "active" | "closed" | "archived" | "deleted";
+
+export const JOB_LIST_FILTER_LABELS: Record<JobListFilter, string> = {
+  all: "All",
+  active: "Active",
+  closed: "Closed",
+  archived: "Archived",
+  deleted: "Deleted",
 };
 
 export const APPLICATION_STATUS_LABELS: Record<ApplicationStatus, string> = {

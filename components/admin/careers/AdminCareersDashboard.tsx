@@ -7,14 +7,21 @@ import { getAdminSession } from "@/lib/admin";
 import {
   addApplicationNote,
   APPLICATION_STATUS_LABELS,
+  bulkArchiveCareerJobs,
+  bulkDeleteCareerJobs,
   CONTRACT_TYPE_LABELS,
   createCareerJob,
+  deleteJob,
   duplicateCareerJob,
+  exportCareerJobsJson,
+  filterCareerJobs,
   getApplicationNotes,
+  getCareerAuditLogForJob,
   getCareerJobs,
   getCareersAnalytics,
   getJobApplications,
   JOB_DEPARTMENT_LABELS,
+  JOB_LIST_FILTER_LABELS,
   JOB_STATUS_LABELS,
   setCareerJobStatus,
   updateApplicationStatus,
@@ -26,11 +33,27 @@ import {
   type ContractType,
   type JobApplication,
   type JobDepartment,
+  type JobListFilter,
   type JobStatus,
   type WorkLocationType,
 } from "@/lib/careers";
 
 type Tab = "jobs" | "applications";
+
+const JOB_FILTERS: JobListFilter[] = [
+  "all",
+  "active",
+  "closed",
+  "archived",
+  "deleted",
+];
+
+const EDITABLE_JOB_STATUSES: JobStatus[] = [
+  "draft",
+  "open",
+  "closed",
+  "archived",
+];
 
 const APPLICATION_STATUSES: ApplicationStatus[] = [
   "new",
@@ -81,9 +104,11 @@ function StatusBadge({ status }: { status: ApplicationStatus }) {
 
 function JobStatusBadge({ status }: { status: JobStatus }) {
   const styles: Record<JobStatus, string> = {
+    draft: "bg-sky-50 text-sky-800",
     open: "bg-emerald-50 text-emerald-700",
     closed: "bg-amber-50 text-amber-800",
     archived: "bg-zinc-100 text-zinc-600",
+    deleted: "bg-red-50 text-red-700",
   };
   return (
     <span
@@ -120,7 +145,7 @@ const emptyJobForm = (): JobFormState => ({
   responsibilities: "",
   requirements: "",
   benefits: "",
-  status: "open",
+  status: "draft",
   featuredOnHomepage: false,
 });
 
@@ -165,6 +190,12 @@ export function AdminCareersDashboard() {
   const [jobForm, setJobForm] = useState<JobFormState>(emptyJobForm());
   const [internalNote, setInternalNote] = useState("");
   const [refreshKey, setRefreshKey] = useState(0);
+  const [jobFilter, setJobFilter] = useState<JobListFilter>("all");
+  const [selectedJobIds, setSelectedJobIds] = useState<Set<string>>(new Set());
+  const [deleteTarget, setDeleteTarget] = useState<{
+    ids: string[];
+    title: string;
+  } | null>(null);
 
   useEffect(() => {
     setJobs(getCareerJobs());
@@ -172,6 +203,11 @@ export function AdminCareersDashboard() {
   }, [refreshKey]);
 
   const analytics = useMemo(() => getCareersAnalytics(), [refreshKey]);
+
+  const filteredJobs = useMemo(
+    () => filterCareerJobs(jobs, jobFilter),
+    [jobs, jobFilter],
+  );
 
   const filteredApps = useMemo(() => {
     if (appStatusFilter === "all") {
@@ -186,9 +222,114 @@ export function AdminCareersDashboard() {
   const appNotes: ApplicationNote[] = selectedApp
     ? getApplicationNotes(selectedApp.id)
     : [];
+  const jobAuditLog = selectedJob
+    ? getCareerAuditLogForJob(selectedJob.id)
+    : [];
 
   function refresh() {
     setRefreshKey((k) => k + 1);
+  }
+
+  function getActor() {
+    const session = getAdminSession();
+    return {
+      actorId: session?.adminId ?? "admin",
+      actorName: session?.name ?? "Admin",
+    };
+  }
+
+  function toggleJobSelection(jobId: string) {
+    setSelectedJobIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(jobId)) {
+        next.delete(jobId);
+      } else {
+        next.add(jobId);
+      }
+      return next;
+    });
+  }
+
+  function toggleSelectAllVisible() {
+    const visibleIds = filteredJobs.map((job) => job.id);
+    const allSelected = visibleIds.every((id) => selectedJobIds.has(id));
+    setSelectedJobIds((prev) => {
+      const next = new Set(prev);
+      if (allSelected) {
+        for (const id of visibleIds) {
+          next.delete(id);
+        }
+      } else {
+        for (const id of visibleIds) {
+          next.add(id);
+        }
+      }
+      return next;
+    });
+  }
+
+  function handleConfirmDelete(retainApplications: boolean) {
+    if (!deleteTarget) {
+      return;
+    }
+    const actor = getActor();
+    if (deleteTarget.ids.length === 1) {
+      deleteJob(deleteTarget.ids[0], { retainApplications, ...actor });
+    } else {
+      bulkDeleteCareerJobs(deleteTarget.ids, { retainApplications, ...actor });
+    }
+    setDeleteTarget(null);
+    setSelectedJobIds(new Set());
+    if (selectedJobId && deleteTarget.ids.includes(selectedJobId)) {
+      setSelectedJobId(null);
+    }
+    refresh();
+  }
+
+  function handleBulkArchive() {
+    const ids = [...selectedJobIds].filter((id) => {
+      const job = jobs.find((j) => j.id === id);
+      return job && job.status !== "deleted" && job.status !== "archived";
+    });
+    if (ids.length === 0) {
+      return;
+    }
+    bulkArchiveCareerJobs(ids, getActor());
+    setSelectedJobIds(new Set());
+    refresh();
+  }
+
+  function handleBulkExport() {
+    const ids = [...selectedJobIds];
+    const json = exportCareerJobsJson(ids.length > 0 ? ids : undefined);
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `activora-careers-${new Date().toISOString().slice(0, 10)}.json`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function openDeleteModal(job: CareerJob) {
+    setDeleteTarget({ ids: [job.id], title: job.title });
+  }
+
+  function openBulkDeleteModal() {
+    const ids = [...selectedJobIds].filter((id) => {
+      const job = jobs.find((j) => j.id === id);
+      return job && job.status !== "deleted";
+    });
+    if (ids.length === 0) {
+      return;
+    }
+    setDeleteTarget({
+      ids,
+      title:
+        ids.length === 1
+          ? (jobs.find((j) => j.id === ids[0])?.title ?? "Selected job")
+          : `${ids.length} selected jobs`,
+    });
   }
 
   function openCreateJob() {
@@ -320,7 +461,7 @@ export function AdminCareersDashboard() {
       {tab === "jobs" ? (
         <div className="grid gap-6 lg:grid-cols-3">
           <div className="lg:col-span-2">
-            <div className="mb-4 flex items-center justify-between">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-lg font-bold text-zinc-900">Job listings</h2>
               <button
                 type="button"
@@ -330,18 +471,97 @@ export function AdminCareersDashboard() {
                 Create job
               </button>
             </div>
-            <div className="space-y-3">
-              {jobs.map((job) => (
+
+            <div className="mb-4 flex flex-wrap gap-2">
+              {JOB_FILTERS.map((filter) => (
                 <button
-                  key={job.id}
+                  key={filter}
                   type="button"
-                  onClick={() => setSelectedJobId(job.id)}
-                  className={`w-full rounded-2xl border p-4 text-left transition ${
+                  onClick={() => setJobFilter(filter)}
+                  className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                    jobFilter === filter
+                      ? "bg-violet-600 text-white"
+                      : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
+                  }`}
+                >
+                  {JOB_LIST_FILTER_LABELS[filter]}
+                </button>
+              ))}
+            </div>
+
+            {selectedJobIds.size > 0 ? (
+              <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-violet-200 bg-violet-50/50 px-4 py-3">
+                <span className="text-sm font-semibold text-violet-900">
+                  {selectedJobIds.size} selected
+                </span>
+                <button
+                  type="button"
+                  onClick={handleBulkArchive}
+                  className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 hover:bg-zinc-50"
+                >
+                  Archive
+                </button>
+                <button
+                  type="button"
+                  onClick={openBulkDeleteModal}
+                  className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50"
+                >
+                  Delete
+                </button>
+                <button
+                  type="button"
+                  onClick={handleBulkExport}
+                  className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-violet-700 hover:bg-violet-50"
+                >
+                  Export
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedJobIds(new Set())}
+                  className="ml-auto text-xs font-semibold text-zinc-500 hover:text-zinc-800"
+                >
+                  Clear selection
+                </button>
+              </div>
+            ) : null}
+
+            {filteredJobs.length > 0 ? (
+              <label className="mb-2 flex items-center gap-2 text-xs font-medium text-zinc-500">
+                <input
+                  type="checkbox"
+                  checked={
+                    filteredJobs.length > 0 &&
+                    filteredJobs.every((job) => selectedJobIds.has(job.id))
+                  }
+                  onChange={toggleSelectAllVisible}
+                  className="h-4 w-4 rounded border-zinc-300 text-violet-600"
+                />
+                Select all visible
+              </label>
+            ) : null}
+
+            <div className="space-y-3">
+              {filteredJobs.map((job) => (
+                <div
+                  key={job.id}
+                  className={`flex gap-3 rounded-2xl border p-4 transition ${
                     selectedJobId === job.id
                       ? "border-violet-300 bg-violet-50/50"
                       : "border-zinc-200 bg-white hover:border-violet-200"
                   }`}
                 >
+                  <input
+                    type="checkbox"
+                    checked={selectedJobIds.has(job.id)}
+                    onChange={() => toggleJobSelection(job.id)}
+                    className="mt-1 h-4 w-4 shrink-0 rounded border-zinc-300 text-violet-600"
+                    aria-label={`Select ${job.title}`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setSelectedJobId(job.id)}
+                    className="min-w-0 flex-1 text-left"
+                  >
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div>
                       <p className="font-semibold text-zinc-900">{job.title}</p>
@@ -362,8 +582,12 @@ export function AdminCareersDashboard() {
                     {job.views} views · Posted{" "}
                     {formatDateTime(job.postedAt)}
                   </p>
-                </button>
+                  </button>
+                </div>
               ))}
+              {filteredJobs.length === 0 ? (
+                <p className="text-sm text-zinc-500">No jobs in this filter.</p>
+              ) : null}
             </div>
           </div>
 
@@ -383,17 +607,21 @@ export function AdminCareersDashboard() {
                   <button
                     type="button"
                     onClick={() => openEditJob(selectedJob)}
-                    className="rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-700"
+                    disabled={selectedJob.status === "deleted"}
+                    className="rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-700 disabled:opacity-50"
                   >
                     Edit
                   </button>
-                  <Link
-                    href={`/careers/${selectedJob.slug}`}
-                    target="_blank"
-                    className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-semibold text-violet-700 hover:bg-violet-50"
-                  >
-                    Preview
-                  </Link>
+                  {selectedJob.status !== "deleted" &&
+                  selectedJob.status !== "draft" ? (
+                    <Link
+                      href={`/careers/${selectedJob.slug}`}
+                      target="_blank"
+                      className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-semibold text-violet-700 hover:bg-violet-50"
+                    >
+                      Preview
+                    </Link>
+                  ) : null}
                   {selectedJob.status === "open" ? (
                     <button
                       type="button"
@@ -416,8 +644,20 @@ export function AdminCareersDashboard() {
                     >
                       Reopen
                     </button>
+                  ) : selectedJob.status === "draft" ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCareerJobStatus(selectedJob.id, "open");
+                        refresh();
+                      }}
+                      className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-50"
+                    >
+                      Publish
+                    </button>
                   ) : null}
-                  {selectedJob.status !== "archived" ? (
+                  {selectedJob.status !== "archived" &&
+                  selectedJob.status !== "deleted" ? (
                     <button
                       type="button"
                       onClick={() => {
@@ -429,17 +669,52 @@ export function AdminCareersDashboard() {
                       Archive
                     </button>
                   ) : null}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      duplicateCareerJob(selectedJob.id);
-                      refresh();
-                    }}
-                    className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-semibold text-zinc-700 hover:bg-zinc-50"
-                  >
-                    Duplicate
-                  </button>
+                  {selectedJob.status !== "deleted" ? (
+                    <button
+                      type="button"
+                      onClick={() => openDeleteModal(selectedJob)}
+                      className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50"
+                    >
+                      Delete
+                    </button>
+                  ) : null}
+                  {selectedJob.status !== "deleted" ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        duplicateCareerJob(selectedJob.id);
+                        refresh();
+                      }}
+                      className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-semibold text-zinc-700 hover:bg-zinc-50"
+                    >
+                      Duplicate
+                    </button>
+                  ) : null}
                 </div>
+                {selectedJob.status === "deleted" &&
+                selectedJob.deletedAt &&
+                selectedJob.deletedByName ? (
+                  <p className="mt-3 text-xs text-red-700">
+                    Deleted by {selectedJob.deletedByName} on{" "}
+                    {formatDateTime(selectedJob.deletedAt)}
+                  </p>
+                ) : null}
+                {jobAuditLog.length > 0 ? (
+                  <section className="mt-4 border-t border-zinc-100 pt-4">
+                    <h4 className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                      Audit log
+                    </h4>
+                    <ul className="mt-2 max-h-32 space-y-1 overflow-y-auto">
+                      {jobAuditLog.map((entry) => (
+                        <li key={entry.id} className="text-xs text-zinc-600">
+                          {entry.actorName} · {formatDateTime(entry.createdAt)}
+                          {entry.details ? ` — ${entry.details}` : null}
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                ) : null}
+                {selectedJob.status !== "deleted" ? (
                 <label className="mt-4 flex items-center gap-2 text-sm">
                   <input
                     type="checkbox"
@@ -454,6 +729,7 @@ export function AdminCareersDashboard() {
                   />
                   Feature on homepage
                 </label>
+                ) : null}
               </div>
             ) : (
               <p className="text-sm text-zinc-500">Select a job to manage.</p>
@@ -826,7 +1102,11 @@ export function AdminCareersDashboard() {
                     }))
                   }
                 >
-                  {Object.entries(JOB_STATUS_LABELS).map(([k, v]) => (
+                  {Object.entries(JOB_STATUS_LABELS)
+                    .filter(([k]) =>
+                      EDITABLE_JOB_STATUSES.includes(k as JobStatus),
+                    )
+                    .map(([k, v]) => (
                     <option key={k} value={k}>
                       {v}
                     </option>
@@ -922,6 +1202,50 @@ export function AdminCareersDashboard() {
               </button>
             </div>
           </form>
+        </div>
+      ) : null}
+
+      {deleteTarget ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div
+            className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-job-title"
+          >
+            <h3
+              id="delete-job-title"
+              className="text-lg font-bold text-zinc-900"
+            >
+              Delete this job permanently?
+            </h3>
+            <p className="mt-2 text-sm text-zinc-600">
+              {deleteTarget.title}. Applications can optionally be retained.
+            </p>
+            <div className="mt-6 flex flex-wrap justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setDeleteTarget(null)}
+                className="rounded-xl border border-zinc-200 px-4 py-2 text-sm font-semibold text-zinc-700"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => handleConfirmDelete(true)}
+                className="rounded-xl border border-red-200 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-50"
+              >
+                Delete job
+              </button>
+              <button
+                type="button"
+                onClick={() => handleConfirmDelete(false)}
+                className="rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
+              >
+                Delete job + applications
+              </button>
+            </div>
+          </div>
         </div>
       ) : null}
     </div>

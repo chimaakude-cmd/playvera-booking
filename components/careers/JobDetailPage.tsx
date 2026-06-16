@@ -9,7 +9,7 @@ import { LazySupportLauncher } from "@/components/support/LazySupportLauncher";
 import { ApplyForm } from "@/components/careers/ApplyForm";
 import {
   CONTRACT_TYPE_LABELS,
-  getCareerJobBySlugOrId,
+  getPublicCareerJobBySlugOrId,
   incrementJobViews,
   JOB_DEPARTMENT_LABELS,
   WORK_LOCATION_LABELS,
@@ -25,7 +25,7 @@ export function JobDetailPage({ slug }: JobDetailPageProps) {
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    const found = getCareerJobBySlugOrId(slug);
+    const found = getPublicCareerJobBySlugOrId(slug);
     setJob(found);
     setLoaded(true);
     if (found) {
