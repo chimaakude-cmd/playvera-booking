@@ -10,7 +10,8 @@ export type AdminRole =
   | "super_admin"
   | "support_admin"
   | "finance_admin"
-  | "content_admin";
+  | "content_admin"
+  | "read_only";
 
 export type AdminNavSection =
   | "dashboard"
@@ -178,7 +179,7 @@ export type AdminProviderDetail = AdminProvider & {
 
 export type AdminProvidersListResult = {
   providers: AdminProvider[];
-  dataSource: "supabase" | "unavailable";
+  dataSource: "supabase" | "env_missing";
 };
 
 export type AdminSession = {

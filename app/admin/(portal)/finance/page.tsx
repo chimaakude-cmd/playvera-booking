@@ -1,16 +1,9 @@
-"use client";
+import { AdminFinanceSection } from "@/components/admin/AdminFinanceSection";
+import { fetchAdminFinanceData } from "@/lib/admin/finance-data";
 
-import dynamic from "next/dynamic";
-import { SectionSkeleton } from "@/components/ui/SectionSkeleton";
+export const dynamic = "force-dynamic";
 
-const AdminFinanceSection = dynamic(
-  () =>
-    import("@/components/admin/AdminFinanceSection").then(
-      (m) => m.AdminFinanceSection,
-    ),
-  { loading: () => <SectionSkeleton rows={6} /> },
-);
-
-export default function AdminFinancePage() {
-  return <AdminFinanceSection />;
+export default async function AdminFinancePage() {
+  const data = await fetchAdminFinanceData();
+  return <AdminFinanceSection data={data} />;
 }

@@ -18,6 +18,7 @@ import type {
 } from "@/lib/admin/types";
 import { GOCARDLESS_STATUS_LABELS } from "@/lib/gocardless/types";
 import { STRIPE_CONNECT_STATUS_LABELS } from "@/lib/stripe-connect/types";
+import { adminListDataSource } from "@/lib/admin/data-source";
 import {
   createSupabaseServerClient,
   isSupabaseConfigured,
@@ -145,7 +146,7 @@ export const PAYMENT_PROVIDER_MODE_LABELS: Record<AdminPaymentProviderMode, stri
     stripe_only: "Stripe only",
     gocardless_only: "GoCardless only",
     both: "Stripe + GoCardless",
-    not_connected: "Not connected",
+    not_connected: "No payment provider yet",
   };
 
 function formatPaymentMethods(row: ProviderRow): string {
@@ -390,8 +391,8 @@ function emptyRevenueStats(): RevenueStats {
 }
 
 export async function fetchAdminProvidersList(): Promise<AdminProvidersListResult> {
-  if (!isSupabaseConfigured()) {
-    return { providers: [], dataSource: "unavailable" };
+  if (adminListDataSource() === "env_missing") {
+    return { providers: [], dataSource: "env_missing" };
   }
 
   const [rows, revenueMap, childClubCounts] = await Promise.all([
@@ -400,18 +401,12 @@ export async function fetchAdminProvidersList(): Promise<AdminProvidersListResul
     fetchChildClubCounts(),
   ]);
 
-  if (rows === null) {
-    return { providers: [], dataSource: "unavailable" };
-  }
-
-  const providers = rows.map((row) => {
-    const revenue = revenueMap?.get(row.id) ?? emptyRevenueStats();
-    const clubsCount = childClubCounts?.get(row.id) ?? 0;
-    return mapProviderRow(row, revenue, clubsCount);
-  });
-
   return {
-    providers,
+    providers: (rows ?? []).map((row) => {
+      const revenue = revenueMap?.get(row.id) ?? emptyRevenueStats();
+      const clubsCount = childClubCounts?.get(row.id) ?? 0;
+      return mapProviderRow(row, revenue, clubsCount);
+    }),
     dataSource: "supabase",
   };
 }

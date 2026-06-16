@@ -584,6 +584,8 @@ After env vars are set, run migrations in the Supabase SQL Editor (minimum for p
 2. `supabase/migrations/00002_storage_buckets.sql`
 3. `supabase/migrations/00004_session_location.sql`
 4. `supabase/migrations/00005_dev_anon_access.sql` (anon read access for staging/dev)
+5. `supabase/migrations/00035_admin_users.sql` — platform admin users + audit log
+6. `supabase/migrations/00036_admin_invites.sql` — admin invite tokens (required for **Admin → Invite admin user** on Vercel; replaces filesystem `.data/admin-users.json`)
 
 Seed or create sessions via the club portal once Supabase is connected.
 
@@ -611,6 +613,7 @@ Only for **local dev demos** on a single browser. Set `NEXT_PUBLIC_DATA_PROVIDER
 | Stripe webhook 400 | `STRIPE_WEBHOOK_SECRET` matches the endpoint; URL is exact |
 | Maps blank (token set) | Token valid and not restricted; sessions have venue coordinates in Supabase |
 | Supabase errors | `NEXT_PUBLIC_SUPABASE_URL` / `ANON_KEY`; RLS policies / migrations in Supabase |
+| Admin invite ENOENT `.data` | Run migrations `00035_admin_users.sql` and `00036_admin_invites.sql`; redeploy after env vars set |
 | Address lookup fails | `GETADDRESS_API_KEY` on server; domain allowlist in getAddress.io dashboard |
 
 ---

@@ -6,6 +6,11 @@ import { ProviderRowActions } from "@/components/admin/AdminProviderActions";
 import { PageHeader } from "@/components/club/PageHeader";
 import { PaginationControls } from "@/components/ui/PaginationControls";
 import {
+  adminEnvMissingLabel,
+  adminLiveDataLabel,
+} from "@/lib/admin/data-source";
+import { buildPublicOnboardingLink } from "@/lib/admin/provider-onboarding";
+import {
   PAYMENT_PROVIDER_MODE_LABELS,
   PROVIDER_ACCOUNT_STATUS_LABELS,
   PROVIDER_ORGANISATION_EMPTY_MESSAGES,
@@ -17,7 +22,7 @@ import { paginateItems } from "@/lib/pagination";
 
 type Props = {
   providers: AdminProvider[];
-  dataSource: "supabase" | "unavailable";
+  dataSource: "supabase" | "env_missing";
 };
 
 type StatusFilter = AdminProvider["accountStatus"] | "all";
@@ -241,6 +246,7 @@ export function AdminProvidersSection({ providers, dataSource }: Props) {
   const [verificationFilter, setVerificationFilter] =
     useState<VerificationFilter>("all");
   const [search, setSearch] = useState("");
+  const [copiedOnboarding, setCopiedOnboarding] = useState(false);
 
   const counts = useMemo(() => {
     const tally: Record<ProviderOrganisationType, number> = {
@@ -308,10 +314,16 @@ export function AdminProvidersSection({ providers, dataSource }: Props) {
   );
 
   const headings = TABLE_HEADINGS[activeTab];
-  const emptyMessage =
-    providers.length === 0
-      ? "No providers signed up yet."
-      : PROVIDER_ORGANISATION_EMPTY_MESSAGES[activeTab];
+  const isGlobalEmpty = providers.length === 0;
+  const emptyMessage = isGlobalEmpty
+    ? "No providers have signed up yet"
+    : PROVIDER_ORGANISATION_EMPTY_MESSAGES[activeTab];
+
+  async function handleCopyOnboardingLink() {
+    await navigator.clipboard.writeText(buildPublicOnboardingLink());
+    setCopiedOnboarding(true);
+    setTimeout(() => setCopiedOnboarding(false), 2000);
+  }
 
   function handleTabChange(tab: ProviderOrganisationType) {
     setActiveTab(tab);
@@ -324,14 +336,22 @@ export function AdminProvidersSection({ providers, dataSource }: Props) {
         title="Providers"
         description="Manage clubs, franchises, and enterprise accounts — verify providers and monitor payment setup."
         action={
-          dataSource === "unavailable" ? (
+          dataSource === "env_missing" ? (
             <span className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs font-medium text-amber-800">
-              Supabase not connected
+              {adminEnvMissingLabel()}
             </span>
           ) : (
-            <span className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-xs font-medium text-emerald-800">
-              Live data
-            </span>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-xs font-medium text-emerald-800">
+                {adminLiveDataLabel()}
+              </span>
+              <Link
+                href="/admin/providers/invite"
+                className="rounded-xl bg-violet-700 px-4 py-2.5 text-xs font-semibold text-white hover:bg-violet-800"
+              >
+                Invite provider
+              </Link>
+            </div>
           )
         }
       />
@@ -387,7 +407,7 @@ export function AdminProvidersSection({ providers, dataSource }: Props) {
             <option value="stripe_only">Stripe only</option>
             <option value="gocardless_only">GoCardless only</option>
             <option value="both">Stripe + GoCardless</option>
-            <option value="not_connected">Not connected</option>
+            <option value="not_connected">No payment provider yet</option>
           </select>
         </label>
 
@@ -445,11 +465,25 @@ export function AdminProvidersSection({ providers, dataSource }: Props) {
             <tbody className="divide-y divide-zinc-100">
               {pagination.items.length === 0 ? (
                 <tr>
-                  <td
-                    colSpan={headings.length}
-                    className="px-4 py-12 text-center text-sm text-zinc-500"
-                  >
-                    {emptyMessage}
+                  <td colSpan={headings.length} className="px-4 py-12 text-center">
+                    <p className="text-sm text-zinc-500">{emptyMessage}</p>
+                    {isGlobalEmpty && dataSource === "supabase" ? (
+                      <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
+                        <Link
+                          href="/admin/providers/invite"
+                          className="rounded-xl bg-violet-700 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-800"
+                        >
+                          Invite provider
+                        </Link>
+                        <button
+                          type="button"
+                          onClick={() => void handleCopyOnboardingLink()}
+                          className="rounded-xl border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+                        >
+                          {copiedOnboarding ? "Link copied" : "Copy onboarding link"}
+                        </button>
+                      </div>
+                    ) : null}
                   </td>
                 </tr>
               ) : activeTab === "club" ? (

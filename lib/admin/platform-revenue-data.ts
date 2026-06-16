@@ -159,7 +159,11 @@ export async function fetchPlatformRevenueSummary(): Promise<PlatformRevenueSumm
         sessionsResult.error?.message ??
         bookingsResult.error?.message,
     );
-    return emptyPlatformRevenueSummary();
+    return {
+      ...emptyPlatformRevenueSummary(),
+      status: "live",
+      hasLivePaymentData: false,
+    };
   }
 
   const providerTierById = new Map<string, PlatformRevenueTierId>();

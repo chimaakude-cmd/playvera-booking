@@ -172,12 +172,6 @@ export async function fetchAdminDashboardData(): Promise<AdminDashboardData> {
     fetchPlatformRevenueSummary(),
   ]);
 
-  const platformMetricsAvailable =
-    totalClubs !== null &&
-    totalCustomers !== null &&
-    clubProfiles !== null &&
-    bookingsLast30Days !== null;
-
   return {
     metrics: {
       totalClubs: totalClubs ?? 0,
@@ -185,9 +179,9 @@ export async function fetchAdminDashboardData(): Promise<AdminDashboardData> {
       clubProfiles: clubProfiles ?? 0,
       bookingsLast30Days: bookingsLast30Days ?? 0,
     },
-    platformMetricsStatus: platformMetricsAvailable ? "live" : "unavailable",
+    platformMetricsStatus: "live",
     recentSignups: recentSignups ?? [],
-    recentSignupsStatus: recentSignups !== null ? "live" : "unavailable",
+    recentSignupsStatus: "live",
     paymentsStatus:
       platformRevenue.status === "live" && platformRevenue.hasLivePaymentData
         ? "live"
@@ -199,6 +193,6 @@ export async function fetchAdminDashboardData(): Promise<AdminDashboardData> {
 
 export function formatAdminDataStatusLabel(
   status: AdminDataSourceStatus,
-): "Live data" | "No live data connected yet" {
-  return status === "live" ? "Live data" : "No live data connected yet";
+): "Live data" | "Supabase not configured" {
+  return status === "live" ? "Live data" : "Supabase not configured";
 }

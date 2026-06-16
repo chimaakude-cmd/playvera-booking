@@ -5,6 +5,7 @@ import {
   isStripeConnected,
   type StripeConnectStatus,
 } from "@/lib/stripe-connect/types";
+import { adminListDataSource } from "@/lib/admin/data-source";
 import {
   createSupabaseServerClient,
   isSupabaseConfigured,
@@ -21,7 +22,7 @@ export type AdminPaymentProviderRow = {
 
 export type AdminPaymentProvidersResult = {
   providers: AdminPaymentProviderRow[];
-  dataSource: "supabase" | "unavailable";
+  dataSource: "supabase" | "env_missing";
 };
 
 type ProviderRow = {
@@ -192,8 +193,8 @@ function mapProviderRow(
 }
 
 export async function fetchAdminPaymentProviders(): Promise<AdminPaymentProvidersResult> {
-  if (!isSupabaseConfigured()) {
-    return { providers: [], dataSource: "unavailable" };
+  if (adminListDataSource() === "env_missing") {
+    return { providers: [], dataSource: "env_missing" };
   }
 
   const [rows, failedProviderIds] = await Promise.all([
@@ -201,12 +202,8 @@ export async function fetchAdminPaymentProviders(): Promise<AdminPaymentProvider
     fetchFailedPaymentProviderIds(),
   ]);
 
-  if (rows === null) {
-    return { providers: [], dataSource: "unavailable" };
-  }
-
   return {
-    providers: rows.map((row) => mapProviderRow(row, failedProviderIds)),
+    providers: (rows ?? []).map((row) => mapProviderRow(row, failedProviderIds)),
     dataSource: "supabase",
   };
 }
