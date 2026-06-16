@@ -1,3 +1,8 @@
+import {
+  ACTIVITY_CATALOG,
+  getActivitiesByPopularity,
+} from "@/lib/home/activity-catalog";
+
 /** Activora Premium Homepage design tokens */
 export const ACTIVORA_PRIMARY = "#0F172A";
 export const ACTIVORA_ACTION = "#2563EB";
@@ -10,22 +15,12 @@ export const ACTIVORA_BLUE = ACTIVORA_ACTION;
 export const ACTIVORA_ORANGE = ACTIVORA_ACTION;
 export const ACTIVORA_NAVY = ACTIVORA_PRIMARY;
 
-export const ACTIVITY_SUGGESTIONS = [
-  { label: "Football", icon: "⚽" },
-  { label: "Dance", icon: "💃" },
-  { label: "Gymnastics", icon: "🤸" },
-  { label: "Fencing", icon: "🤺" },
-  { label: "Swimming", icon: "🏊" },
-] as const;
+export const ACTIVITY_SUGGESTIONS = getActivitiesByPopularity()
+  .slice(0, 16)
+  .map(({ label, icon }) => ({ label, icon }));
 
-export const ACTIVITY_CHIPS = [
-  { label: "Football", icon: "⚽", query: "Football" },
-  { label: "Arts", icon: "🎨", query: "arts" },
-  { label: "Camps", icon: "🏕", query: "camps" },
-  { label: "Swimming", icon: "🏊", query: "Swimming" },
-  { label: "Martial Arts", icon: "🥋", query: "martial arts" },
-  { label: "Performing Arts", icon: "🎭", query: "performing arts" },
-] as const;
+/** @deprecated Use ACTIVITY_CATALOG from activity-catalog.ts */
+export const ACTIVITY_CHIPS = ACTIVITY_CATALOG;
 
 export const HERO_CAROUSEL = [
   {

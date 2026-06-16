@@ -108,6 +108,13 @@ export const DISCOVERY_CATEGORY_CHIPS = DISCOVERY_CATEGORY_CARDS.map(
   ({ label, icon, query }) => ({ label, icon, query }),
 );
 
+/** Chip labels/icons aligned with homepage activity catalog — see lib/home/activity-catalog.ts */
+export {
+  ACTIVITY_CATALOG,
+  getActivitiesByPopularity,
+  filterActivities,
+} from "@/lib/home/activity-catalog";
+
 export const SMART_SEARCH_SUGGESTIONS = [
   { label: "Football", icon: "⚽" },
   { label: "Futsal", icon: "⚽" },

@@ -33,7 +33,13 @@
     "heroImageAlt": "Children participating in sports activities"
   },
   "chips": {
-    "title": "Browse by activity"
+    "title": "Browse by activity",
+    "searchLabel": "Search activities",
+    "searchPlaceholder": "Search activities…",
+    "more": "More",
+    "panelTitle": "Browse all activities",
+    "panelClose": "Close activity browser",
+    "noResults": "No activities match your search."
   },
   "trustBar": {
     "parentRating": "Parent rating",
