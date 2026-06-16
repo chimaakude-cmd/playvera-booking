@@ -1,8 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { getStripeConnectState } from "@/lib/stripe-connect/storage";
-import { getGoCardlessConnection } from "@/lib/gocardless/storage";
+import type { AdminPaymentProviderRow } from "@/lib/admin/payment-providers-data";
+import {
+  isProviderGoCardlessConnected,
+  isProviderStripeConnected,
+} from "@/lib/admin/payment-providers-data";
 import {
   GOCARDLESS_STATUS_LABELS,
   type GoCardlessConnectionStatus,
@@ -12,14 +15,7 @@ import {
   type StripeConnectStatus,
 } from "@/lib/stripe-connect/types";
 
-type ProviderRow = {
-  providerId: string;
-  clubName: string;
-  stripeStatus: StripeConnectStatus;
-  gocardlessStatus: GoCardlessConnectionStatus;
-  needsSetup: boolean;
-  hasFailedPayments: boolean;
-};
+type ProviderRow = AdminPaymentProviderRow;
 
 function StatusPill({
   label,
@@ -46,69 +42,76 @@ function StatusPill({
 
 export function AdminPaymentProvidersSection() {
   const [rows, setRows] = useState<ProviderRow[]>([]);
+  const [dataSource, setDataSource] = useState<"supabase" | "unavailable" | "loading">(
+    "loading",
+  );
 
-  const load = useCallback(() => {
-    const stripe = getStripeConnectState();
-    const gocardless = getGoCardlessConnection();
+  const load = useCallback(async () => {
+    setDataSource("loading");
 
-    const demoRow: ProviderRow = {
-      providerId: stripe.providerId,
-      clubName: "Demo Activora Club",
-      stripeStatus: stripe.status,
-      gocardlessStatus: gocardless.status,
-      needsSetup:
-        stripe.status === "not_connected" ||
-        stripe.status === "action_required" ||
-        gocardless.status === "pending_setup",
-      hasFailedPayments: false,
-    };
+    try {
+      const response = await fetch("/api/admin/payment-providers");
+      if (!response.ok) {
+        setRows([]);
+        setDataSource("unavailable");
+        return;
+      }
 
-  const mockRows: ProviderRow[] = [
-    demoRow,
-    {
-      providerId: "provider-2",
-      clubName: "Northside Juniors FC",
-      stripeStatus: "connected",
-      gocardlessStatus: "not_connected",
-      needsSetup: false,
-      hasFailedPayments: true,
-    },
-    {
-      providerId: "provider-3",
-      clubName: "Riverside Dance Academy",
-      stripeStatus: "action_required",
-      gocardlessStatus: "connected",
-      needsSetup: true,
-      hasFailedPayments: false,
-    },
-  ];
+      const result = (await response.json()) as {
+        providers: ProviderRow[];
+        dataSource: "supabase" | "unavailable";
+      };
 
-    setRows(mockRows);
+      setRows(result.providers);
+      setDataSource(result.dataSource);
+    } catch {
+      setRows([]);
+      setDataSource("unavailable");
+    }
   }, []);
 
   useEffect(() => {
-    load();
+    void load();
   }, [load]);
 
-  const stripeProviders = rows.filter(
-    (r) => r.stripeStatus !== "not_connected",
+  const stripeProviders = rows.filter((row) =>
+    isProviderStripeConnected(row.stripeStatus),
   );
-  const gocardlessProviders = rows.filter(
-    (r) => r.gocardlessStatus === "connected",
+  const gocardlessProviders = rows.filter((row) =>
+    isProviderGoCardlessConnected(row.gocardlessStatus),
   );
-  const failedProviders = rows.filter((r) => r.hasFailedPayments);
-  const setupNeeded = rows.filter((r) => r.needsSetup);
+  const failedProviders = rows.filter((row) => row.hasFailedPayments);
+  const setupNeeded = rows.filter((row) => row.needsSetup);
+  const hasAnyConnection =
+    stripeProviders.length > 0 ||
+    gocardlessProviders.length > 0 ||
+    setupNeeded.length > 0 ||
+    failedProviders.length > 0;
 
   return (
     <div className="space-y-6">
       <article className="rounded-2xl border border-zinc-200/80 bg-white shadow-sm">
         <div className="border-b border-zinc-100 px-6 py-5">
-          <h2 className="text-lg font-semibold text-zinc-900">
-            Payment providers
-          </h2>
-          <p className="mt-1 text-sm text-zinc-500">
-            Platform-wide Stripe and GoCardless connection status by provider.
-          </p>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold text-zinc-900">
+                Payment providers
+              </h2>
+              <p className="mt-1 text-sm text-zinc-500">
+                Platform-wide Stripe and GoCardless connection status by provider.
+              </p>
+            </div>
+            {dataSource === "supabase" ? (
+              <span className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-800">
+                Live data
+              </span>
+            ) : null}
+            {dataSource === "unavailable" ? (
+              <span className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-800">
+                Supabase not connected
+              </span>
+            ) : null}
+          </div>
         </div>
         <div className="grid gap-4 p-6 sm:grid-cols-2 xl:grid-cols-4">
           <SummaryCard label="Stripe connected" value={stripeProviders.length} />
@@ -127,12 +130,18 @@ export function AdminPaymentProvidersSection() {
             accent="rose"
           />
         </div>
+        {dataSource !== "loading" && !hasAnyConnection ? (
+          <p className="border-t border-zinc-100 px-6 py-6 text-sm text-zinc-500">
+            No payment providers connected yet.
+          </p>
+        ) : null}
       </article>
 
       <ProviderTable
         title="Stripe providers"
         description="Clubs with Stripe Connect accounts."
         rows={stripeProviders}
+        emptyMessage="No Stripe-connected providers yet."
         showStripe
       />
 
@@ -140,6 +149,7 @@ export function AdminPaymentProvidersSection() {
         title="GoCardless providers"
         description="Clubs using Direct Debit backup."
         rows={gocardlessProviders}
+        emptyMessage="No GoCardless-connected providers yet."
         showGocardless
       />
 
@@ -147,6 +157,7 @@ export function AdminPaymentProvidersSection() {
         title="Providers needing setup"
         description="Incomplete Stripe or GoCardless onboarding."
         rows={setupNeeded}
+        emptyMessage="No providers need payment setup."
         showStripe
         showGocardless
       />
@@ -155,6 +166,7 @@ export function AdminPaymentProvidersSection() {
         title="Failed payment providers"
         description="Providers with recent payment failures."
         rows={failedProviders}
+        emptyMessage="No providers with failed payments."
         showStripe
         showGocardless
         showFailed
@@ -191,6 +203,7 @@ function ProviderTable({
   title,
   description,
   rows,
+  emptyMessage,
   showStripe = false,
   showGocardless = false,
   showFailed = false,
@@ -198,6 +211,7 @@ function ProviderTable({
   title: string;
   description: string;
   rows: ProviderRow[];
+  emptyMessage: string;
   showStripe?: boolean;
   showGocardless?: boolean;
   showFailed?: boolean;
@@ -209,7 +223,7 @@ function ProviderTable({
         <p className="mt-1 text-sm text-zinc-500">{description}</p>
       </div>
       {rows.length === 0 ? (
-        <p className="px-6 py-8 text-sm text-zinc-500">No providers in this list.</p>
+        <p className="px-6 py-8 text-sm text-zinc-500">{emptyMessage}</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-zinc-100">
@@ -246,31 +260,41 @@ function ProviderTable({
                   </td>
                   {showStripe ? (
                     <td className="whitespace-nowrap px-6 py-4">
-                      <StatusPill
-                        label={STRIPE_CONNECT_STATUS_LABELS[row.stripeStatus]}
-                        tone={
-                          row.stripeStatus === "connected" ||
-                          row.stripeStatus === "payouts_enabled"
-                            ? "ok"
-                            : row.stripeStatus === "action_required"
-                              ? "warn"
-                              : "neutral"
-                        }
-                      />
+                      {isProviderStripeConnected(row.stripeStatus) ? (
+                        <StatusPill
+                          label={
+                            STRIPE_CONNECT_STATUS_LABELS[
+                              row.stripeStatus as StripeConnectStatus
+                            ]
+                          }
+                          tone={
+                            row.stripeStatus === "connected" ||
+                            row.stripeStatus === "payouts_enabled"
+                              ? "ok"
+                              : row.stripeStatus === "action_required"
+                                ? "warn"
+                                : "neutral"
+                          }
+                        />
+                      ) : (
+                        <span className="text-sm text-zinc-400">—</span>
+                      )}
                     </td>
                   ) : null}
                   {showGocardless ? (
                     <td className="whitespace-nowrap px-6 py-4">
-                      <StatusPill
-                        label={
-                          GOCARDLESS_STATUS_LABELS[row.gocardlessStatus]
-                        }
-                        tone={
-                          row.gocardlessStatus === "connected"
-                            ? "ok"
-                            : "neutral"
-                        }
-                      />
+                      {isProviderGoCardlessConnected(row.gocardlessStatus) ? (
+                        <StatusPill
+                          label={
+                            GOCARDLESS_STATUS_LABELS[
+                              row.gocardlessStatus as GoCardlessConnectionStatus
+                            ]
+                          }
+                          tone="ok"
+                        />
+                      ) : (
+                        <span className="text-sm text-zinc-400">—</span>
+                      )}
                     </td>
                   ) : null}
                   {showFailed ? (
