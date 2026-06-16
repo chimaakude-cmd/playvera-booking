@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { PageHeader } from "@/components/club/PageHeader";
 import { PaginationControls } from "@/components/ui/PaginationControls";
 import { paginateItems } from "@/lib/pagination";
+import { adminEnvMissingLabel } from "@/lib/admin/data-source";
 import {
   BOOKING_PAYMENT_STATUS_LABELS,
   type AdminBooking,
@@ -11,7 +12,7 @@ import {
 
 type Props = {
   bookings: AdminBooking[];
-  dataSource: "supabase" | "unavailable";
+  dataSource: "supabase" | "env_missing";
 };
 
 function formatCurrency(value: number): string {
@@ -86,9 +87,9 @@ export function AdminBookingsSection({ bookings, dataSource }: Props) {
         title="Bookings"
         description="All bookings across the platform — search by parent, child, activity, or provider."
         action={
-          dataSource === "unavailable" ? (
+          dataSource === "env_missing" ? (
             <span className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs font-medium text-amber-800">
-              Supabase not connected
+              {adminEnvMissingLabel()}
             </span>
           ) : undefined
         }

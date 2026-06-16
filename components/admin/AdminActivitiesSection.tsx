@@ -4,12 +4,13 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { PageHeader } from "@/components/club/PageHeader";
 import { PaginationControls } from "@/components/ui/PaginationControls";
-import { paginateItems } from "@/lib/pagination";
+import { adminEnvMissingLabel } from "@/lib/admin/data-source";
 import { ACTIVITY_STATUS_LABELS, type AdminActivity } from "@/lib/admin";
+import { paginateItems } from "@/lib/pagination";
 
 type Props = {
   activities: AdminActivity[];
-  dataSource: "supabase" | "unavailable";
+  dataSource: "supabase" | "env_missing";
 };
 
 function formatCurrency(value: number): string {
@@ -50,9 +51,9 @@ export function AdminActivitiesSection({ activities, dataSource }: Props) {
         title="Activities"
         description="All sessions and activities across providers on the Activora marketplace."
         action={
-          dataSource === "unavailable" ? (
+          dataSource === "env_missing" ? (
             <span className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs font-medium text-amber-800">
-              Supabase not connected
+              {adminEnvMissingLabel()}
             </span>
           ) : undefined
         }
@@ -90,7 +91,7 @@ export function AdminActivitiesSection({ activities, dataSource }: Props) {
                     colSpan={8}
                     className="px-4 py-12 text-center text-sm text-zinc-500"
                   >
-                    No activities yet.
+                    No activities created yet.
                   </td>
                 </tr>
               ) : (

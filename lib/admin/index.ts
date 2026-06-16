@@ -2,6 +2,7 @@ export * from "./types";
 export * from "./permissions";
 export * from "./mock-data";
 export * from "./settings";
+export * from "./data-source";
 export * from "./platform-revenue-data";
 export * from "./dashboard-data";
 export * from "./providers-data";

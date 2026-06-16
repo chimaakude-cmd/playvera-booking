@@ -1,7 +1,7 @@
 import type { ActivityStatus, ActivityVisibility, AdminActivity } from "@/lib/admin/types";
 import { formatDay } from "@/lib/sessions";
 import { adminListDataSource } from "@/lib/admin/data-source";
-import { createSupabaseServerClient, isSupabaseConfigured } from "@/lib/supabase";
+import { createSupabaseServerClient } from "@/lib/supabase";
 
 export type AdminActivitiesListResult = {
   activities: AdminActivity[];
@@ -124,7 +124,7 @@ export async function fetchAdminActivitiesList(): Promise<AdminActivitiesListRes
 export async function fetchAdminActivityById(
   id: string,
 ): Promise<AdminActivity | null> {
-  if (!isSupabaseConfigured()) {
+  if (adminListDataSource() === "env_missing") {
     return null;
   }
 
