@@ -5,5 +5,11 @@ export const metadata = {
 };
 
 export default function AdminLoginRoute() {
-  return <StaffAccessPage backHref="/login" backLabel="← Back to login options" />;
+  return (
+    <StaffAccessPage
+      useServerTestLogin
+      backHref="/login"
+      backLabel="← Back to login options"
+    />
+  );
 }

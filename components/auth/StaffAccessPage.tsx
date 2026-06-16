@@ -5,11 +5,13 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Logo } from "@/components/branding";
 import { TEST_ACCOUNTS } from "@/lib/auth/accounts";
+import { writeAuthSession } from "@/lib/auth/session";
 import {
   getStaffAccessLockoutRemainingMs,
   isStaffAccessLocked,
   staffAccessLogin,
 } from "@/lib/auth/staff-access";
+import type { AuthUser } from "@/lib/auth/types";
 
 function formatLockoutRemaining(ms: number): string {
   const minutes = Math.ceil(ms / 60_000);
@@ -19,22 +21,57 @@ function formatLockoutRemaining(ms: number): string {
 export function StaffAccessPage({
   backHref,
   backLabel,
+  useServerTestLogin = false,
 }: {
   backHref?: string;
   backLabel?: string;
+  useServerTestLogin?: boolean;
 } = {}) {
   const router = useRouter();
   const [email, setEmail] = useState(
-    process.env.NODE_ENV !== "production" ? TEST_ACCOUNTS.admin.email : "",
+    !useServerTestLogin && process.env.NODE_ENV !== "production"
+      ? TEST_ACCOUNTS.admin.email
+      : "",
   );
   const [password, setPassword] = useState("");
   const [twoFactorCode, setTwoFactorCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [locked, setLocked] = useState(isStaffAccessLocked());
+  const [submitting, setSubmitting] = useState(false);
+
+  async function handleServerTestLogin() {
+    setSubmitting(true);
+
+    try {
+      const response = await fetch("/api/admin/test-login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password, twoFactorCode }),
+      });
+
+      if (!response.ok) {
+        setError("Invalid admin credentials");
+        return;
+      }
+
+      const payload = (await response.json()) as { ok: true; user: AuthUser };
+      writeAuthSession(payload.user);
+      router.push("/admin/dashboard");
+    } catch {
+      setError("Invalid admin credentials");
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     setError(null);
+
+    if (useServerTestLogin) {
+      void handleServerTestLogin();
+      return;
+    }
 
     if (isStaffAccessLocked()) {
       setLocked(true);
@@ -55,6 +92,7 @@ export function StaffAccessPage({
   }
 
   const lockoutMs = locked ? getStaffAccessLockoutRemainingMs() : 0;
+  const formDisabled = locked || submitting;
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-violet-950 via-zinc-950 to-zinc-950 px-4 py-12">
@@ -64,10 +102,12 @@ export function StaffAccessPage({
             <Logo size="desktop" />
           </div>
           <h1 className="mt-6 text-2xl font-bold tracking-tight text-white">
-            Activora Staff Access
+            {useServerTestLogin ? "Admin Login" : "Activora Staff Access"}
           </h1>
           <p className="mt-2 text-sm text-violet-200/70">
-            Authorised personnel only
+            {useServerTestLogin
+              ? "Temporary test access — credentials validated server-side"
+              : "Authorised personnel only"}
           </p>
         </div>
 
@@ -82,7 +122,7 @@ export function StaffAccessPage({
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               autoComplete="username"
-              disabled={locked}
+              disabled={formDisabled}
               className="mt-1.5 w-full rounded-xl border border-violet-500/20 bg-zinc-950/60 px-4 py-2.5 text-sm text-white outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-500/30 disabled:opacity-50"
               required
             />
@@ -95,7 +135,7 @@ export function StaffAccessPage({
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               autoComplete="current-password"
-              disabled={locked}
+              disabled={formDisabled}
               className="mt-1.5 w-full rounded-xl border border-violet-500/20 bg-zinc-950/60 px-4 py-2.5 text-sm text-white outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-500/30 disabled:opacity-50"
               required
             />
@@ -109,13 +149,18 @@ export function StaffAccessPage({
               type="text"
               value={twoFactorCode}
               onChange={(event) => setTwoFactorCode(event.target.value)}
-              placeholder="Coming soon"
-              disabled
-              className="mt-1.5 w-full rounded-xl border border-violet-500/10 bg-zinc-950/40 px-4 py-2.5 text-sm text-zinc-500 outline-none"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              placeholder={useServerTestLogin ? "Enter 2FA code" : "Coming soon"}
+              disabled={!useServerTestLogin || formDisabled}
+              required={useServerTestLogin}
+              className="mt-1.5 w-full rounded-xl border border-violet-500/20 bg-zinc-950/60 px-4 py-2.5 text-sm text-white outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-500/30 disabled:opacity-50"
             />
-            <p className="mt-1 text-xs text-violet-300/50">
-              Two-factor authentication will be required in production.
-            </p>
+            {!useServerTestLogin ? (
+              <p className="mt-1 text-xs text-violet-300/50">
+                Two-factor authentication will be required in production.
+              </p>
+            ) : null}
           </label>
 
           {error ? (
@@ -132,10 +177,10 @@ export function StaffAccessPage({
 
           <button
             type="submit"
-            disabled={locked}
+            disabled={formDisabled}
             className="mt-6 w-full rounded-xl bg-violet-600 py-3 text-sm font-semibold text-white transition-colors hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            Sign in
+            {submitting ? "Signing in…" : "Sign in"}
           </button>
         </form>
 

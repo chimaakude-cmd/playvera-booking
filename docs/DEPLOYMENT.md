@@ -1,8 +1,8 @@
-# Deployment guide — Playvera Booking (Next.js 16)
+# Deployment guide ? Playvera Booking (Next.js 16)
 
 This app is designed to run on **Vercel** with Supabase, Stripe Connect, and GoCardless. Use a **staging subdomain first** so your existing live website at the apex domain is not affected.
 
-**Example domain for this project:** `activora.uk` (DNS hosted on **Fasthosts Advanced DNS**). Generic placeholders `mydomain.co.uk` still appear in some tables — substitute your domain if different.
+**Example domain for this project:** `activora.uk` (DNS hosted on **Fasthosts Advanced DNS**). Generic placeholders `mydomain.co.uk` still appear in some tables ? substitute your domain if different.
 
 ---
 
@@ -16,7 +16,7 @@ This app is designed to run on **Vercel** with Supabase, Stripe Connect, and GoC
 | Stripe / GoCardless webhooks | Raw body via Route Handlers works reliably | Possible, but more configuration |
 | Deploy UX for this stack | Zero config for standard Next.js | Extra plugin + redirects config often needed |
 
-**Verdict:** Use **Vercel**. No `vercel.json` is required — Next.js 16 is auto-detected (`next build`, Node serverless functions, Edge proxy).
+**Verdict:** Use **Vercel**. No `vercel.json` is required ? Next.js 16 is auto-detected (`next build`, Node serverless functions, Edge proxy).
 
 ---
 
@@ -30,7 +30,7 @@ npm run build
 npm run start   # optional smoke test on http://localhost:3000
 ```
 
-**Expected:** `next build` completes with `✓ Compiled successfully` and lists App + API routes. The build also reports `ƒ Proxy (Middleware)` from root `proxy.ts` (portal auth redirects).
+**Expected:** `next build` completes with `? Compiled successfully` and lists App + API routes. The build also reports `? Proxy (Middleware)` from root `proxy.ts` (portal auth redirects).
 
 **Stripe env sanity check (optional):**
 
@@ -50,24 +50,24 @@ Use this when you deploy from your machine instead of (or before) connecting Git
 # 1. Authenticate (browser device flow)
 npx vercel login
 
-# 2. From the repo root — link or create the project (writes .vercel/project.json)
+# 2. From the repo root ? link or create the project (writes .vercel/project.json)
 npx vercel link
 
-# 3. Set env vars in the dashboard (Project → Settings → Environment Variables)
-#    Copy from .env.local.example — especially NEXT_PUBLIC_APP_URL=https://app.activora.uk for staging.
+# 3. Set env vars in the dashboard (Project ? Settings ? Environment Variables)
+#    Copy from .env.local.example ? especially NEXT_PUBLIC_APP_URL=https://app.activora.uk for staging.
 
 # 4. Production deploy
 npx vercel --prod
 `
 
-**Non-interactive link/deploy** (CI or scripted): set `VERCEL_TOKEN` from [Account → Tokens](https://vercel.com/account/tokens), then:
+**Non-interactive link/deploy** (CI or scripted): set `VERCEL_TOKEN` from [Account ? Tokens](https://vercel.com/account/tokens), then:
 
 `ash
 npx vercel link --yes
 npx vercel --prod --yes
 `
 
-**After deploy:** note the production alias (e.g. `https://playvera-booking.vercel.app`). Add custom domain `app.activora.uk` under **Project → Settings → Domains**, then redeploy if you changed env vars.
+**After deploy:** note the production alias (e.g. `https://playvera-booking.vercel.app`). Add custom domain `app.activora.uk` under **Project ? Settings ? Domains**, then redeploy if you changed env vars.
 
 **Optional:** connect the Git repo in the dashboard for automatic deploys on push to `main`.
 ---
@@ -99,7 +99,7 @@ Vercel builds with **`npm install`** and **`npm run build`** (`next build`) and 
 
 - **`app.activora.uk`** ? CNAME **`cname.vercel-dns.com`** (Fasthosts Advanced DNS; keep Automatic DNS Updates **OFF**).
 - Add **`app.activora.uk`** under **Project ? Settings ? Domains** if it is not listed yet.
-- Apex **`activora.uk`** cutover steps remain in [Fasthosts + Vercel � production cutover checklist](#fasthosts--vercel--production-cutover-checklist).
+- Apex **`activora.uk`** cutover steps remain in [Fasthosts + Vercel ? production cutover checklist](#fasthosts--vercel--production-cutover-checklist).
 
 
 ---
@@ -112,12 +112,12 @@ Your current marketing site can stay live on the apex. Deploy the booking app to
 
 | Phase | Hostname | Purpose |
 |-------|----------|---------|
-| **1 — Staging** | `app.mydomain.co.uk` | Test deploy, env vars, Stripe/GoCardless webhooks, auth flows |
-| **2 — Production cutover** (later) | `mydomain.co.uk` + `www` | Only after sign-off on staging |
+| **1 ? Staging** | `app.mydomain.co.uk` | Test deploy, env vars, Stripe/GoCardless webhooks, auth flows |
+| **2 ? Production cutover** (later) | `mydomain.co.uk` + `www` | Only after sign-off on staging |
 
-**Recommended staging subdomain:** `app.mydomain.co.uk` — clearly separates the booking product from a marketing site and avoids collision with `www`.
+**Recommended staging subdomain:** `app.mydomain.co.uk` ? clearly separates the booking product from a marketing site and avoids collision with `www`.
 
-Alternative: `beta.mydomain.co.uk` if you prefer a “preview” label.
+Alternative: `beta.mydomain.co.uk` if you prefer a ?preview? label.
 
 ---
 
@@ -131,15 +131,15 @@ Alternative: `beta.mydomain.co.uk` if you prefer a “preview” label.
 4. **Framework Preset:** Next.js (auto-detected).
 5. **Root Directory:** `.` (repo root).
 6. **Build Command:** `next build` (default).
-7. **Output Directory:** leave empty (default — do **not** set `out`; this is not a static export).
+7. **Output Directory:** leave empty (default ? do **not** set `out`; this is not a static export).
 8. **Install Command:** `npm install` (default).
-9. **Do not deploy yet** — add environment variables first (next section).
+9. **Do not deploy yet** ? add environment variables first (next section).
 
 ### 2. Environment variables
 
-In Vercel: **Project → Settings → Environment Variables**.
+In Vercel: **Project ? Settings ? Environment Variables**.
 
-Add each variable for **Production** (and **Preview** if you want PR previews to work with real services — usually use test keys for Preview).
+Add each variable for **Production** (and **Preview** if you want PR previews to work with real services ? usually use test keys for Preview).
 
 See [Production environment variables](#production-environment-variables) below.
 
@@ -159,11 +159,11 @@ Update to `https://activora.uk` only when you cut over the apex domain.
 
 ### 4. Add staging custom domain
 
-1. **Project → Settings → Domains → Add**
+1. **Project ? Settings ? Domains ? Add**
 2. Enter: `app.activora.uk` (or `app.mydomain.co.uk` for other domains)
 3. Vercel shows the DNS record(s) to add (see [DNS records](#dns-records) and [Fasthosts Advanced DNS](#fasthosts-advanced-dns--activorauk)).
 4. Add the record at your domain registrar/DNS host.
-5. Wait for **Valid Configuration** and **SSL Certificate: Active** (usually 5–30 minutes).
+5. Wait for **Valid Configuration** and **SSL Certificate: Active** (usually 5?30 minutes).
 
 ### 5. Validate staging
 
@@ -172,7 +172,7 @@ Update to `https://activora.uk` only when you cut over the apex domain.
 - [ ] Supabase reads/writes (sessions, bookings)
 - [ ] Mapbox maps render (`NEXT_PUBLIC_MAPBOX_TOKEN`)
 - [ ] Stripe Connect onboarding redirect returns to `/club/finance?tab=stripe&connected=1`
-- [ ] Stripe webhook receives test events (Dashboard → Webhooks → Send test event)
+- [ ] Stripe webhook receives test events (Dashboard ? Webhooks ? Send test event)
 - [ ] GoCardless webhook endpoint responds (if configured)
 - [ ] Address lookup works (if `GETADDRESS_API_KEY` set)
 
@@ -190,13 +190,13 @@ Update to `https://activora.uk` only when you cut over the apex domain.
 
 ## Production environment variables
 
-Copy from `.env.local.example`. Set in **Vercel → Settings → Environment Variables**.
+Copy from `.env.local.example`. Set in **Vercel ? Settings ? Environment Variables**.
 
 ### Required for core app
 
 | Variable | Example / notes | Exposed to browser |
 |----------|-----------------|-------------------|
-| `NEXT_PUBLIC_APP_URL` | `https://app.mydomain.co.uk` (staging) → `https://mydomain.co.uk` (prod) | Yes |
+| `NEXT_PUBLIC_APP_URL` | `https://app.mydomain.co.uk` (staging) ? `https://mydomain.co.uk` (prod) | Yes |
 | `NEXT_PUBLIC_SUPABASE_URL` | `https://xxxx.supabase.co` | Yes |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon/public key | Yes |
 | `NEXT_PUBLIC_DATA_PROVIDER` | `supabase` | Yes |
@@ -229,7 +229,7 @@ Keys must match mode (all live or all test). Run `npm run check:stripe-env` loca
 |----------|-----------------|-------------------|
 | `NEXT_PUBLIC_MAPBOX_TOKEN` | Mapbox public token | Yes |
 
-### Address lookup (UK postcodes — club session wizard)
+### Address lookup (UK postcodes ? club session wizard)
 
 | Variable | Example / notes | Exposed to browser |
 |----------|-----------------|-------------------|
@@ -237,6 +237,16 @@ Keys must match mode (all live or all test). Run `npm run check:stripe-env` loca
 | `NEXT_PUBLIC_GETADDRESS_API_KEY` | Alternative; exposes key to client bundle | Yes |
 
 The `/api/addresses/[postcode]` route prefers `GETADDRESS_API_KEY` on the server.
+
+### Temporary test admin login (staging/dev only)
+
+| Variable | Example / notes | Exposed to browser |
+|----------|-----------------|-------------------|
+| `ADMIN_TEST_EMAIL` | Test admin email for `/admin-login` | No |
+| `ADMIN_TEST_PASSWORD` | Test admin password (server-validated) | No |
+| `ADMIN_TEST_2FA_CODE` | Test 2FA code for `/admin-login` | No |
+
+Remove or replace with production auth before go-live. Credentials are never bundled in the client.
 
 ### Optional
 
@@ -255,19 +265,19 @@ These are **not** referenced in application code and do not need to be set unles
 
 ## DNS records
 
-Add these at your DNS provider. TTL: 300–3600 seconds (Fasthosts default is fine).
+Add these at your DNS provider. TTL: 300?3600 seconds (Fasthosts default is fine).
 
-### Staging — `app.activora.uk` (do this first)
+### Staging ? `app.activora.uk` (do this first)
 
 | Type | Name / Host | Value | Notes |
 |------|-------------|-------|-------|
-| **CNAME** | `app` | `cname.vercel-dns.com` | Resolves to `app.activora.uk` → Vercel |
+| **CNAME** | `app` | `cname.vercel-dns.com` | Resolves to `app.activora.uk` ? Vercel |
 
-Alternative staging hostname: `beta.activora.uk` — use Host `beta` instead of `app`.
+Alternative staging hostname: `beta.activora.uk` ? use Host `beta` instead of `app`.
 
 After propagation, Vercel issues HTTPS automatically.
 
-### Production — apex `activora.uk` (only after staging validated)
+### Production ? apex `activora.uk` (only after staging validated)
 
 | Type | Name / Host | Value | Notes |
 |------|-------------|-------|-------|
@@ -280,9 +290,9 @@ If Fasthosts **Advanced DNS** offers an **ALIAS** record at the apex, you may us
 |------|-------------|-------|
 | **ALIAS** | `@` (or blank) | `cname.vercel-dns.com` |
 
-Follow whatever Vercel shows in **Project → Settings → Domains** for your domain — it may recommend one IP or both.
+Follow whatever Vercel shows in **Project ? Settings ? Domains** for your domain ? it may recommend one IP or both.
 
-### Production — `www.activora.uk`
+### Production ? `www.activora.uk`
 
 | Type | Name / Host | Value |
 |------|-------------|-------|
@@ -295,7 +305,7 @@ Follow whatever Vercel shows in **Project → Settings → Domains** for your do
 
 ---
 
-## Fasthosts Advanced DNS — `activora.uk`
+## Fasthosts Advanced DNS ? `activora.uk`
 
 Use this section if your domain is on **Fasthosts** with **Advanced DNS** (empty A/CNAME/ALIAS/MX/TXT tables, **Automatic DNS Updates** visible).
 
@@ -312,9 +322,9 @@ Do **not** change apex (`@`) or `www` DNS until staging is fully tested and you 
 
 ### Exact DNS records (Fasthosts field names)
 
-Fasthosts labels the two CNAME fields **HOST NAME** and **POINTS TO**. Do not include `activora.uk` in HOST NAME — only the subdomain label.
+Fasthosts labels the two CNAME fields **HOST NAME** and **POINTS TO**. Do not include `activora.uk` in HOST NAME ? only the subdomain label.
 
-#### Phase 1 — Staging only (safe; apex unchanged)
+#### Phase 1 ? Staging only (safe; apex unchanged)
 
 | Record type | HOST NAME | POINTS TO / Value | Resolves to |
 |-------------|-----------|-------------------|-------------|
@@ -322,7 +332,7 @@ Fasthosts labels the two CNAME fields **HOST NAME** and **POINTS TO**. Do not in
 
 *(If using `beta` instead: HOST NAME = `beta`, POINTS TO = `cname.vercel-dns.com`.)*
 
-#### Phase 2 — Production cutover (after staging sign-off)
+#### Phase 2 ? Production cutover (after staging sign-off)
 
 | Record type | HOST NAME | POINTS TO / Value | Resolves to |
 |-------------|-----------|-------------------|-------------|
@@ -337,9 +347,9 @@ Fasthosts labels the two CNAME fields **HOST NAME** and **POINTS TO**. Do not in
 | **ALIAS** | *(blank / `@`)* | `cname.vercel-dns.com` | `activora.uk` |
 | **CNAME** | `www` | `cname.vercel-dns.com` | `www.activora.uk` |
 
-Do not create both ALIAS and A records for the same apex — use one method only.
+Do not create both ALIAS and A records for the same apex ? use one method only.
 
-### Automatic DNS Updates — turn OFF before manual records
+### Automatic DNS Updates ? turn OFF before manual records
 
 If **Automatic DNS Updates** is **ON**, Fasthosts (or a linked hosting product) may overwrite manual DNS when you change hosting settings.
 
@@ -350,13 +360,13 @@ If **Automatic DNS Updates** is **ON**, Fasthosts (or a linked hosting product) 
 3. Save if prompted.
 4. Add your CNAME/A/ALIAS records manually (steps below).
 
-Re-enable automatic updates only if you understand it will replace custom records — generally keep it **OFF** while Vercel hosts the site.
+Re-enable automatic updates only if you understand it will replace custom records ? generally keep it **OFF** while Vercel hosts the site.
 
 ### Fasthosts click checklist (staging)
 
 1. Log in to [Fasthosts Control Panel](https://www.fasthosts.co.uk/).
-2. **Domains** → select **activora.uk**.
-3. Open **Advanced DNS** (or **Manage DNS** → Advanced DNS).
+2. **Domains** ? select **activora.uk**.
+3. Open **Advanced DNS** (or **Manage DNS** ? Advanced DNS).
 4. Confirm **Automatic DNS Updates** is **OFF**.
 5. Click **ADD CNAME RECORD**.
 6. **HOST NAME:** `app` *(not `app.activora.uk`)*.
@@ -366,43 +376,43 @@ Re-enable automatic updates only if you understand it will replace custom record
 
 ### Vercel click checklist (staging)
 
-1. **Project → Settings → Environment Variables** — set `NEXT_PUBLIC_APP_URL` to `https://app.activora.uk`.
+1. **Project ? Settings ? Environment Variables** ? set `NEXT_PUBLIC_APP_URL` to `https://app.activora.uk`.
 2. Deploy (or redeploy after env change).
-3. **Project → Settings → Domains → Add** → enter `app.activora.uk`.
-4. Vercel shows **Invalid Configuration** until DNS propagates — expected for a few minutes up to ~48 hours (usually under 30 minutes).
-5. Click the domain row → confirm Vercel expects a **CNAME** for `app` → `cname.vercel-dns.com` (matches Fasthosts record above).
+3. **Project ? Settings ? Domains ? Add** ? enter `app.activora.uk`.
+4. Vercel shows **Invalid Configuration** until DNS propagates ? expected for a few minutes up to ~48 hours (usually under 30 minutes).
+5. Click the domain row ? confirm Vercel expects a **CNAME** for `app` ? `cname.vercel-dns.com` (matches Fasthosts record above).
 6. Wait until status shows **Valid Configuration** and **SSL Certificate: Active**.
 7. Open `https://app.activora.uk` and run the [staging validation checklist](#5-validate-staging).
 
-### Fasthosts + Vercel — production cutover checklist
+### Fasthosts + Vercel ? production cutover checklist
 
 Only after staging QA passes:
 
 **Fasthosts**
 
-1. **Advanced DNS** → **Automatic DNS Updates** still **OFF**.
+1. **Advanced DNS** ? **Automatic DNS Updates** still **OFF**.
 2. Remove or update old apex/`www` records that pointed to previous hosting (only when ready to move traffic).
-3. **ADD A RECORD** (or **ADD ALIAS RECORD**): apex → `76.76.21.21` (and second A `76.76.19.19` if supported), **or** ALIAS → `cname.vercel-dns.com`.
-4. **ADD CNAME RECORD**: HOST `www` → `cname.vercel-dns.com`.
+3. **ADD A RECORD** (or **ADD ALIAS RECORD**): apex ? `76.76.21.21` (and second A `76.76.19.19` if supported), **or** ALIAS ? `cname.vercel-dns.com`.
+4. **ADD CNAME RECORD**: HOST `www` ? `cname.vercel-dns.com`.
 
 **Vercel**
 
-1. **Domains → Add** `activora.uk` and `www.activora.uk`.
+1. **Domains ? Add** `activora.uk` and `www.activora.uk`.
 2. Set **activora.uk** as **Primary** domain.
-3. Configure redirect: **www.activora.uk** → **activora.uk** (recommended canonical URL).
+3. Configure redirect: **www.activora.uk** ? **activora.uk** (recommended canonical URL).
 4. Update `NEXT_PUBLIC_APP_URL` to `https://activora.uk` and redeploy.
 5. Update Stripe / GoCardless webhook URLs to production endpoints.
 
 ### SSL on Vercel
 
-No certificate upload is required. Once DNS validates, Vercel provisions and renews TLS automatically. Status: **Project → Settings → Domains** → **Valid Configuration** + active certificate.
+No certificate upload is required. Once DNS validates, Vercel provisions and renews TLS automatically. Status: **Project ? Settings ? Domains** ? **Valid Configuration** + active certificate.
 
 ### www redirect (production)
 
-In **Vercel → Domains**, after both apex and www are added:
+In **Vercel ? Domains**, after both apex and www are added:
 
 - Set **activora.uk** as primary.
-- Enable **Redirect www.activora.uk to activora.uk** (or the reverse if you prefer `www` as canonical — but keep `NEXT_PUBLIC_APP_URL` aligned with your choice).
+- Enable **Redirect www.activora.uk to activora.uk** (or the reverse if you prefer `www` as canonical ? but keep `NEXT_PUBLIC_APP_URL` aligned with your choice).
 
 Staging subdomain (`app.activora.uk`) does not need a www redirect.
 
@@ -414,11 +424,11 @@ Staging subdomain (`app.activora.uk`) does not need a www redirect.
 
 1. In Vercel **Domains**, set `mydomain.co.uk` as the **Primary** domain.
 2. Add `www.mydomain.co.uk` as a secondary domain.
-3. Vercel prompts to redirect `www` → apex (or apex → `www`). Choose **redirect www to apex**.
+3. Vercel prompts to redirect `www` ? apex (or apex ? `www`). Choose **redirect www to apex**.
 
 This keeps Stripe/GoCardless redirect URLs and `NEXT_PUBLIC_APP_URL` consistent.
 
-For staging, only `app.mydomain.co.uk` is needed — no www redirect required.
+For staging, only `app.mydomain.co.uk` is needed ? no www redirect required.
 
 ---
 
@@ -429,7 +439,7 @@ Vercel (and Netlify) **automatically provision and renew** TLS certificates once
 - DNS points correctly (no conflicting old A/CNAME records).
 - CAA records (if any) allow Let's Encrypt / Vercel issuance.
 
-Status appears in **Project → Settings → Domains** as “Valid Configuration” and an active certificate.
+Status appears in **Project ? Settings ? Domains** as ?Valid Configuration? and an active certificate.
 
 ---
 
@@ -439,7 +449,7 @@ After the public URL is known, register these endpoints in each provider dashboa
 
 ### Stripe
 
-**Dashboard → Developers → Webhooks → Add endpoint**
+**Dashboard ? Developers ? Webhooks ? Add endpoint**
 
 | Environment | URL |
 |-------------|-----|
@@ -457,7 +467,7 @@ Stripe Connect return URLs are derived from `NEXT_PUBLIC_APP_URL` (see `/api/str
 
 ### GoCardless
 
-**Dashboard → Developers → Webhooks → Create webhook**
+**Dashboard ? Developers ? Webhooks ? Create webhook**
 
 | Environment | URL |
 |-------------|-----|
@@ -472,44 +482,44 @@ Copy the webhook secret into `GOCARDLESS_WEBHOOK_SECRET`. Set `GOCARDLESS_ENVIRO
 
 ### `next.config.ts`
 
-Standard Next.js config — no `output: 'export'`. Image remote patterns include Supabase storage. No changes needed for Vercel.
+Standard Next.js config ? no `output: 'export'`. Image remote patterns include Supabase storage. No changes needed for Vercel.
 
 ### `proxy.ts` (portal authentication)
 
-Root-level `proxy.ts` replaces the deprecated `middleware.ts` in Next.js 16. It guards `/parent`, `/club`, `/admin`, and `/organisation` routes via cookie-based role checks. Vercel deploys this as Edge middleware automatically; the build output shows `ƒ Proxy (Middleware)`.
+Root-level `proxy.ts` replaces the deprecated `middleware.ts` in Next.js 16. It guards `/parent`, `/club`, `/admin`, and `/organisation` routes via cookie-based role checks. Vercel deploys this as Edge middleware automatically; the build output shows `? Proxy (Middleware)`.
 
 ### API routes
 
-All routes under `app/api/**` deploy as serverless functions. Webhook handlers read raw bodies with `request.text()` — compatible with Vercel without extra config.
+All routes under `app/api/**` deploy as serverless functions. Webhook handlers read raw bodies with `request.text()` ? compatible with Vercel without extra config.
 
 ---
 
 ## Personal checklist (hosting + domain)
 
-### Phase A — Staging (safe; does not affect live apex site)
+### Phase A ? Staging (safe; does not affect live apex site)
 
-- [ ] Run `npm run build` locally — passes
+- [ ] Run `npm run build` locally ? passes
 - [ ] Create Vercel project from Git repo
 - [ ] Add all env vars (use **test/sandbox** keys where possible)
 - [ ] Set `NEXT_PUBLIC_APP_URL=https://app.activora.uk`
 - [ ] Deploy to Vercel; confirm `*.vercel.app` URL works
-- [ ] Vercel → Domains → add `app.activora.uk`
-- [ ] Fasthosts → Advanced DNS → **Automatic DNS Updates OFF**
-- [ ] Fasthosts → **ADD CNAME RECORD**: HOST `app` → POINTS TO `cname.vercel-dns.com`
+- [ ] Vercel ? Domains ? add `app.activora.uk`
+- [ ] Fasthosts ? Advanced DNS ? **Automatic DNS Updates OFF**
+- [ ] Fasthosts ? **ADD CNAME RECORD**: HOST `app` ? POINTS TO `cname.vercel-dns.com`
 - [ ] Wait for DNS + SSL active in Vercel
 - [ ] Smoke-test app on `https://app.activora.uk`
-- [ ] Stripe: add staging webhook → `.../api/stripe/webhook`, update `STRIPE_WEBHOOK_SECRET`, redeploy if needed
-- [ ] GoCardless: add staging webhook → `.../api/gocardless/webhook` (if using GoCardless)
+- [ ] Stripe: add staging webhook ? `.../api/stripe/webhook`, update `STRIPE_WEBHOOK_SECRET`, redeploy if needed
+- [ ] GoCardless: add staging webhook ? `.../api/gocardless/webhook` (if using GoCardless)
 - [ ] Full QA on staging
 
-### Phase B — Production cutover (only after Phase A sign-off)
+### Phase B ? Production cutover (only after Phase A sign-off)
 
 - [ ] Switch env vars to **live** Stripe / GoCardless / production Supabase as needed
 - [ ] Set `NEXT_PUBLIC_APP_URL=https://activora.uk`
-- [ ] Vercel → Domains → add `activora.uk` and `www.activora.uk`
-- [ ] Fasthosts → apex A `76.76.21.21` (+ `76.76.19.19` if supported) **or** ALIAS → `cname.vercel-dns.com`
-- [ ] Fasthosts → CNAME `www` → `cname.vercel-dns.com`
-- [ ] Vercel: set primary domain to `activora.uk`; redirect www → apex
+- [ ] Vercel ? Domains ? add `activora.uk` and `www.activora.uk`
+- [ ] Fasthosts ? apex A `76.76.21.21` (+ `76.76.19.19` if supported) **or** ALIAS ? `cname.vercel-dns.com`
+- [ ] Fasthosts ? CNAME `www` ? `cname.vercel-dns.com`
+- [ ] Vercel: set primary domain to `activora.uk`; redirect www ? apex
 - [ ] Redeploy
 - [ ] Stripe / GoCardless: add **production** webhook URLs; update secrets
 - [ ] Final production smoke test
@@ -521,11 +531,11 @@ All routes under `app/api/**` deploy as serverless functions. Webhook handlers r
 
 If `https://app.activora.uk` (or your staging URL) shows:
 
-- An **amber banner**: *"Supabase is not configured. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY…"*
+- An **amber banner**: *"Supabase is not configured. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY?"*
 - **0 activities** on `/sessions`
 - **Map preview unavailable**
 
-the deploy is missing required `NEXT_PUBLIC_*` variables. They are inlined at **build time** — adding them in Vercel without redeploying will not fix the live site.
+the deploy is missing required `NEXT_PUBLIC_*` variables. They are inlined at **build time** ? adding them in Vercel without redeploying will not fix the live site.
 
 ### Root cause
 
@@ -536,7 +546,7 @@ the deploy is missing required `NEXT_PUBLIC_*` variables. They are inlined at **
 
 ### Fix (Vercel dashboard)
 
-**Project → Settings → Environment Variables → Production** (and Preview if you use PR previews). Add:
+**Project ? Settings ? Environment Variables ? Production** (and Preview if you use PR previews). Add:
 
 | Variable | Required for |
 |----------|----------------|
@@ -546,7 +556,7 @@ the deploy is missing required `NEXT_PUBLIC_*` variables. They are inlined at **
 | `NEXT_PUBLIC_DATA_PROVIDER` | Set to `supabase` (default if omitted) |
 | `NEXT_PUBLIC_MAPBOX_TOKEN` | Parent session search map and geocoding |
 
-Values come from your Supabase project (**Settings → API**) and Mapbox account (**Access tokens**). See `.env.local.example` for the full list (Stripe, GoCardless, getAddress, etc.).
+Values come from your Supabase project (**Settings ? API**) and Mapbox account (**Access tokens**). See `.env.local.example` for the full list (Stripe, GoCardless, getAddress, etc.).
 
 ### Supabase project setup
 
@@ -562,13 +572,13 @@ Seed or create sessions via the club portal once Supabase is connected.
 ### Redeploy
 
 1. Save env vars in Vercel.
-2. **Deployments → … → Redeploy** (or push a commit to trigger a new build).
+2. **Deployments ? ? ? Redeploy** (or push a commit to trigger a new build).
 
 `NEXT_PUBLIC_*` changes always require a new build.
 
 ### Can production use localStorage instead?
 
-Only for **local dev demos** on a single browser. Set `NEXT_PUBLIC_DATA_PROVIDER=localStorage` — sessions live in that browser's `localStorage` only; other visitors still see zero activities. **Production should use Supabase.**
+Only for **local dev demos** on a single browser. Set `NEXT_PUBLIC_DATA_PROVIDER=localStorage` ? sessions live in that browser's `localStorage` only; other visitors still see zero activities. **Production should use Supabase.**
 
 ---
 
@@ -589,7 +599,7 @@ Only for **local dev demos** on a single browser. Set `NEXT_PUBLIC_DATA_PROVIDER
 
 ## Related files
 
-- `.env.local.example` — local and production env template
-- `package.json` — `build`: `next build`
-- `next.config.ts` — image domains, no static export
-- `proxy.ts` — portal route protection
+- `.env.local.example` ? local and production env template
+- `package.json` ? `build`: `next build`
+- `next.config.ts` ? image domains, no static export
+- `proxy.ts` ? portal route protection

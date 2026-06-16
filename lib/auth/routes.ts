@@ -31,7 +31,7 @@ export function getLoginPath(role: UserRole): string {
     case "club":
       return "/club/login";
     case "admin":
-      return "/admin/login";
+      return "/admin-login";
     case "organisation":
       return "/organisation/login";
   }
