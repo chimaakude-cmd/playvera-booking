@@ -11,7 +11,7 @@ import { HOME_BUTTON } from "./shared";
 
 const NAV_LINKS = [
   { href: "/sessions", key: "activities" },
-  { href: "/club/onboarding", key: "forClubs" },
+  { href: "/get-started", key: "forClubs" },
   { href: "/pricing", key: "pricing" },
   { href: "/help/faq", key: "faq" },
   { href: "/contact", key: "support" },
@@ -79,7 +79,7 @@ export function HomeHeader() {
           </Link>
 
           <Link
-            href="/club/onboarding"
+            href="/get-started"
             className={`hidden px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 sm:inline-flex ${HOME_BUTTON}`}
             style={{ backgroundColor: ACTIVORA_ACTION }}
           >
@@ -143,7 +143,7 @@ export function HomeHeader() {
               {t("header.bookDemo")}
             </Link>
             <Link
-              href="/club/onboarding"
+              href="/get-started"
               className={`${HOME_BUTTON} px-3 py-2.5 text-sm font-semibold text-white`}
               style={{ backgroundColor: ACTIVORA_ACTION }}
               onClick={() => setMenuOpen(false)}

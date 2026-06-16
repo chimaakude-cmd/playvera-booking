@@ -57,7 +57,7 @@ export default function PricingPage() {
           </p>
           <div className="mt-5 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Link
-              href="/club/onboarding"
+              href="/get-started"
               className="inline-flex rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90"
               style={{ backgroundColor: ACTIVORA_ACTION }}
             >

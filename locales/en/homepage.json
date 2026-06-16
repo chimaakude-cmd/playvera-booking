@@ -96,6 +96,26 @@
     "comingSoon": "Coming soon",
     "votes": "{{count}} votes"
   },
+  "getStarted": {
+    "title": "Get started with Activora",
+    "subtitle": "Choose the account type that best matches your organisation. You can start for free.",
+    "freeBadge": "Start free",
+    "footer": "Already have an account? Sign in from the login page.",
+    "options": {
+      "club": {
+        "title": "Sign up as a Club",
+        "description": "For individual clubs, coaches, tutors and activity providers running sessions day to day."
+      },
+      "franchisor": {
+        "title": "Sign up as a Franchisor",
+        "description": "For franchise brands and head offices managing multiple club locations under one brand."
+      },
+      "enterprise": {
+        "title": "Sign up as Enterprise / Larger Organisation",
+        "description": "For councils, trusts, multi-site operators and larger programmes that need centralised control."
+      }
+    }
+  },
   "quickActions": {
     "open": "Quick actions",
     "search": "Search",

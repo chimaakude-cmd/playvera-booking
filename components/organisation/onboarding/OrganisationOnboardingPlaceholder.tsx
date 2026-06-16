@@ -227,10 +227,10 @@ export function OrganisationOnboardingPlaceholder() {
               Franchisor login (dev)
             </Link>
             <Link
-              href="/signup"
+              href="/get-started"
               className="inline-flex w-full items-center justify-center rounded-xl border border-zinc-200 bg-white px-5 py-2.5 text-sm font-semibold text-zinc-700 transition-colors hover:border-zinc-300 hover:bg-zinc-50 sm:w-auto"
             >
-              Back to sign up
+              Back to account types
             </Link>
           </div>
         </div>

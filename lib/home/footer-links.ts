@@ -52,7 +52,7 @@ export const FOOTER_PARENTS_LINKS: FooterLinkItem[] = [
 ];
 
 export const FOOTER_PROVIDERS_LINKS: FooterLinkItem[] = [
-  { label: "Get started", href: "/club/onboarding" },
+  { label: "Get started", href: "/get-started" },
   { label: "Book a demo", href: "/#book-demo" },
   { label: "Why Activora", href: "/#why-activora" },
   { label: "Report a bug", href: "/report-bug" },
