@@ -121,6 +121,7 @@ function SaveProgressButton({
 }
 
 export function ClubOnboardingWizard() {
+  const router = useRouter();
   const [state, setState] = useState<ClubOnboardingState | null>(null);
   const [imagePreviews, setImagePreviews] = useState<OnboardingImagePreviews>({
     logoUrl: null,
@@ -131,11 +132,15 @@ export function ClubOnboardingWizard() {
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [savingProgress, setSavingProgress] = useState(false);
   const [completing, setCompleting] = useState(false);
+  const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const saveStatusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingCompletionRef = useRef(false);
   const imagePreviewsRef = useRef(imagePreviews);
   const stateRef = useRef(state);
+  const urlInitializedRef = useRef(false);
+  const previousStepRef = useRef<OnboardingStep | null>(null);
+  const leaveConfirmedRef = useRef(false);
 
   useEffect(() => {
     imagePreviewsRef.current = imagePreviews;
@@ -152,6 +157,90 @@ export function ClubOnboardingWizard() {
       logoUrl: draft.profile.logoUrl,
       coverUrl: draft.profile.coverUrl,
     });
+  }, []);
+
+  useEffect(() => {
+    if (!state || urlInitializedRef.current) {
+      return;
+    }
+
+    urlInitializedRef.current = true;
+    const urlStep = parseOnboardingStep(
+      new URLSearchParams(window.location.search).get("step"),
+    );
+
+    if (urlStep && urlStep !== state.currentStep) {
+      setState({ ...state, currentStep: urlStep });
+      syncOnboardingUrl(urlStep, "replace");
+      previousStepRef.current = urlStep;
+      return;
+    }
+
+    syncOnboardingUrl(state.currentStep, "replace");
+    previousStepRef.current = state.currentStep;
+  }, [state]);
+
+  useEffect(() => {
+    if (!state || !urlInitializedRef.current) {
+      return;
+    }
+
+    const currentStep = state.currentStep;
+    if (previousStepRef.current === null) {
+      previousStepRef.current = currentStep;
+      return;
+    }
+
+    if (previousStepRef.current === currentStep) {
+      return;
+    }
+
+    if (currentStep > previousStepRef.current) {
+      syncOnboardingUrl(currentStep, "push");
+    } else {
+      syncOnboardingUrl(currentStep, "replace");
+    }
+
+    previousStepRef.current = currentStep;
+  }, [state?.currentStep]);
+
+  useEffect(() => {
+    function handlePopState() {
+      const current = stateRef.current;
+      if (!current || leaveConfirmedRef.current) {
+        return;
+      }
+
+      const pathname = window.location.pathname;
+      const urlStep = parseOnboardingStep(
+        new URLSearchParams(window.location.search).get("step"),
+      );
+
+      if (pathname.includes(ONBOARDING_PATH) && urlStep) {
+        if (urlStep !== current.currentStep) {
+          setState({ ...current, currentStep: urlStep });
+          setErrors([]);
+          previousStepRef.current = urlStep;
+
+          if (urlStep === 5 && !current.completedAt) {
+            pendingCompletionRef.current = true;
+          } else {
+            pendingCompletionRef.current = false;
+          }
+        }
+        return;
+      }
+
+      if (current.currentStep === 1 && !current.completedAt) {
+        syncOnboardingUrl(1, "replace");
+        setLeaveDialogOpen(true);
+      }
+    }
+
+    window.addEventListener("popstate", handlePopState);
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+    };
   }, []);
 
   const showSaveStatus = useCallback((status: Exclude<SaveStatus, "idle">) => {
@@ -376,7 +465,25 @@ export function ClubOnboardingWizard() {
   }
 
   function handleBack() {
-    if (!state || state.currentStep <= 1 || state.currentStep === 5) {
+    if (!state || completing) {
+      return;
+    }
+
+    if (state.currentStep === 1) {
+      saveDraft(mergeImagePreviews(state, imagePreviews));
+      setLeaveDialogOpen(true);
+      return;
+    }
+
+    if (
+      state.currentStep === 5 &&
+      (completing || (!state.completedAt && errors.length === 0))
+    ) {
+      return;
+    }
+
+    if (window.history.length > 1) {
+      window.history.back();
       return;
     }
 
@@ -387,6 +494,16 @@ export function ClubOnboardingWizard() {
     };
     persist(next);
     setErrors([]);
+  }
+
+  function handleConfirmLeave() {
+    leaveConfirmedRef.current = true;
+    setLeaveDialogOpen(false);
+    router.push("/get-started");
+  }
+
+  function handleCancelLeave() {
+    setLeaveDialogOpen(false);
   }
 
   function handleSkipProfile() {
@@ -429,6 +546,8 @@ export function ClubOnboardingWizard() {
   const isFinishing =
     completing ||
     (isCompleteStep && !state.completedAt && errors.length === 0);
+  const showBack =
+    !isFinishing && !(isCompleteStep && Boolean(state.completedAt));
 
   const saveProgressControls = (
     <div className="flex flex-col items-end gap-1">
@@ -510,14 +629,6 @@ export function ClubOnboardingWizard() {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <button
             type="button"
-            onClick={handleBack}
-            disabled={step === 1 || completing}
-            className="rounded-xl border border-zinc-200 px-5 py-2.5 text-sm font-semibold text-zinc-700 transition-colors hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            Back
-          </button>
-          <button
-            type="button"
             onClick={handleClearDraft}
             disabled={completing}
             className="text-sm font-medium text-zinc-500 underline-offset-2 hover:text-zinc-700 hover:underline disabled:opacity-50"
@@ -557,7 +668,7 @@ export function ClubOnboardingWizard() {
         currentStep={step}
         onStepSelect={goToStep}
         onBack={handleBack}
-        showBack={step > 1 && step < 5 && !completing}
+        showBack={showBack}
         footer={footer}
         allowStepNavigation={!isCompleteStep}
       >
@@ -610,6 +721,15 @@ export function ClubOnboardingWizard() {
           )
         ) : null}
       </OnboardingLayout>
+
+      <ConfirmDialog
+        open={leaveDialogOpen}
+        title="Leave onboarding?"
+        description={LEAVE_ONBOARDING_MESSAGE}
+        confirmLabel="Leave"
+        onConfirm={handleConfirmLeave}
+        onCancel={handleCancelLeave}
+      />
 
       <LazySupportLauncher />
     </>
