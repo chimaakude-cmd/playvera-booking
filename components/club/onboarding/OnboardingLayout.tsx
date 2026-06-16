@@ -2,7 +2,13 @@
 
 import { ReactNode } from "react";
 import { Logo } from "@/components/branding";
-import { ONBOARDING_STEP_COUNT, type OnboardingStep } from "@/lib/club-onboarding";
+import { HOME_BUTTON } from "@/components/home/shared";
+import { ACTIVORA_PRIMARY } from "@/lib/home/constants";
+import {
+  ONBOARDING_AUTOSAVE_MICROCOPY,
+  ONBOARDING_STEP_COUNT,
+  type OnboardingStep,
+} from "@/lib/club-onboarding";
 import { ONBOARDING_STEPS } from "@/lib/club-onboarding/steps";
 import { OnboardingHelp } from "./OnboardingHelp";
 import { OnboardingProgress } from "./OnboardingProgress";
@@ -31,11 +37,28 @@ export function OnboardingLayout({
   return (
     <div className="min-h-full bg-[#f6f7f9] text-zinc-900">
       <header className="border-b border-zinc-200 bg-white">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4 sm:px-6">
-          <Logo size="desktop" />
-          <span className="rounded-full bg-teal-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-teal-700">
-            Club onboarding
-          </span>
+        <div className="mx-auto max-w-5xl px-4 py-3 sm:px-6 sm:py-4">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-4">
+              {onBack && showBack ? (
+                <button
+                  type="button"
+                  onClick={onBack}
+                  className={`inline-flex shrink-0 items-center border border-slate-200 bg-white px-3 py-2 text-sm font-semibold transition-colors hover:border-slate-300 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]/40 focus-visible:ring-offset-2 sm:px-4 ${HOME_BUTTON}`}
+                  style={{ color: ACTIVORA_PRIMARY }}
+                >
+                  ← Back
+                </button>
+              ) : null}
+              <Logo size="desktop" />
+            </div>
+            <span className="shrink-0 rounded-full bg-teal-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-teal-700">
+              Club onboarding
+            </span>
+          </div>
+          {onBack && showBack ? (
+            <p className="mt-2 text-xs text-slate-500">{ONBOARDING_AUTOSAVE_MICROCOPY}</p>
+          ) : null}
         </div>
       </header>
 
@@ -87,18 +110,6 @@ export function OnboardingLayout({
           </aside>
 
           <section className="rounded-2xl border border-zinc-200/80 bg-white p-6 shadow-sm sm:p-8">
-            {onBack && showBack ? (
-              <div className="mb-4">
-                <button
-                  type="button"
-                  onClick={onBack}
-                  className="inline-flex items-center rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-[#0F172A] transition-colors hover:border-slate-300"
-                >
-                  ← Back
-                </button>
-              </div>
-            ) : null}
-
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-teal-600">

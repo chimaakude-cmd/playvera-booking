@@ -30,6 +30,16 @@ export function GetStartedChoice({ className = "" }: { className?: string }) {
 
   return (
     <div className={className}>
+      <div className="mb-6 sm:mb-8">
+        <Link
+          href="/"
+          className={`inline-flex items-center border border-slate-200 bg-white px-4 py-2 text-sm font-semibold transition-colors hover:border-slate-300 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]/40 focus-visible:ring-offset-2 ${HOME_BUTTON}`}
+          style={{ color: ACTIVORA_PRIMARY }}
+        >
+          ← Back
+        </Link>
+      </div>
+
       <div className="mx-auto max-w-2xl text-center">
         <h1 className="text-3xl font-bold tracking-tight text-[#0F172A] sm:text-4xl">
           {t("getStarted.title")}

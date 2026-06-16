@@ -10,6 +10,8 @@ export const SAVE_PROGRESS_FAILURE_MESSAGE =
   "Couldn't save progress. Please try again.";
 export const LEAVE_ONBOARDING_MESSAGE =
   "Leave onboarding? Your progress has been saved and you can continue later.";
+export const ONBOARDING_AUTOSAVE_MICROCOPY =
+  "Your progress is saved automatically.";
 export const CLUB_DEFAULT_BOOKING_QUESTIONS_KEY =
   "activora-club-default-booking-questions";
 
