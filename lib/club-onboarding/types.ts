@@ -1,5 +1,15 @@
 export const CLUB_ONBOARDING_DRAFT_KEY = "activora-club-onboarding-draft";
+/** Legacy single-key draft — migrated on read/write. */
+export const CLUB_ONBOARDING_DRAFT_LEGACY_KEY = CLUB_ONBOARDING_DRAFT_KEY;
+export const CLUB_ONBOARDING_DRAFT_KEY_PREFIX = "activora-club-onboarding-draft";
+export const CLUB_ONBOARDING_DRAFT_SESSION_KEY = `${CLUB_ONBOARDING_DRAFT_KEY_PREFIX}:session`;
 export const CLUB_ONBOARDING_COMPLETE_KEY = "activora-club-onboarding-complete";
+
+export const SAVE_PROGRESS_SUCCESS_MESSAGE = "Progress saved";
+export const SAVE_PROGRESS_FAILURE_MESSAGE =
+  "Couldn't save progress. Please try again.";
+export const LEAVE_ONBOARDING_MESSAGE =
+  "Leave onboarding? Your progress has been saved and you can continue later.";
 export const CLUB_DEFAULT_BOOKING_QUESTIONS_KEY =
   "activora-club-default-booking-questions";
 

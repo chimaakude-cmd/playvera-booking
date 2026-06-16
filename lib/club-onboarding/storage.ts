@@ -1,4 +1,5 @@
 import { writeAuthSession, type AuthUser } from "@/lib/auth";
+import { readAuthSession } from "@/lib/auth/session";
 import { toPersistableImageUrl } from "@/lib/image-urls";
 import { createDefaultBookingQuestions } from "@/lib/booking-questions";
 import { seedSetupProgressAfterOnboarding } from "@/lib/club-setup/storage";
@@ -16,7 +17,9 @@ import {
 } from "@/lib/club-profile/types";
 import {
   CLUB_ONBOARDING_COMPLETE_KEY,
-  CLUB_ONBOARDING_DRAFT_KEY,
+  CLUB_ONBOARDING_DRAFT_KEY_PREFIX,
+  CLUB_ONBOARDING_DRAFT_LEGACY_KEY,
+  CLUB_ONBOARDING_DRAFT_SESSION_KEY,
   CLUB_DEFAULT_BOOKING_QUESTIONS_KEY,
   formatOwnerFullLegalName,
   getClubCategories,
@@ -43,6 +46,50 @@ const MAX_DRAFT_BYTES = 512 * 1024;
 export const DRAFT_SAVE_QUOTA_WARNING =
   "Draft could not be saved locally because the file is too large. Please continue or upload a smaller image.";
 
+function normalizeDraftEmail(email: string): string {
+  return email.trim().toLowerCase();
+}
+
+function isValidDraftEmail(email: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+}
+
+/** Resolve localStorage key: logged-in account, owner email, or anonymous session. */
+export function resolveOnboardingDraftKey(options?: {
+  authEmail?: string | null;
+  ownerEmail?: string | null;
+}): string {
+  const authEmail = options?.authEmail?.trim();
+  if (authEmail && isValidDraftEmail(authEmail)) {
+    return `${CLUB_ONBOARDING_DRAFT_KEY_PREFIX}:account:${normalizeDraftEmail(authEmail)}`;
+  }
+
+  const ownerEmail = options?.ownerEmail?.trim();
+  if (ownerEmail && isValidDraftEmail(ownerEmail)) {
+    return `${CLUB_ONBOARDING_DRAFT_KEY_PREFIX}:email:${normalizeDraftEmail(ownerEmail)}`;
+  }
+
+  return CLUB_ONBOARDING_DRAFT_SESSION_KEY;
+}
+
+function resolveDraftKeyForState(state: ClubOnboardingState): string {
+  const authEmail = readAuthSession()?.email ?? null;
+  return resolveOnboardingDraftKey({
+    authEmail,
+    ownerEmail: state.owner.email,
+  });
+}
+
+/** Never persist passwords — strip before write. */
+function stripSensitiveOwnerFields(
+  owner: ClubOnboardingState["owner"],
+): ClubOnboardingState["owner"] {
+  return {
+    ...owner,
+    password: "",
+  };
+}
+
 export type SaveDraftResult =
   | { ok: true }
   | { ok: false; reason: "quota_exceeded" | "too_large" };
@@ -61,6 +108,7 @@ export function stripImageDataUrls(
 function sanitizeDraftForStorage(state: ClubOnboardingState): ClubOnboardingState {
   return syncDerivedOnboardingFields({
     ...state,
+    owner: stripSensitiveOwnerFields(state.owner),
     profile: stripImageDataUrls(state.profile),
     updatedAt: new Date().toISOString(),
   });
@@ -69,6 +117,7 @@ function sanitizeDraftForStorage(state: ClubOnboardingState): ClubOnboardingStat
 function sanitizeLoadedDraft(state: ClubOnboardingState): ClubOnboardingState {
   return syncDerivedOnboardingFields({
     ...state,
+    owner: stripSensitiveOwnerFields(state.owner),
     profile: stripImageDataUrls(state.profile),
   });
 }
@@ -183,36 +232,96 @@ function migrateLegacyDraft(parsed: LegacyDraft): ClubOnboardingState {
   });
 }
 
-export function loadOnboardingDraft(): ClubOnboardingState {
+function tryLoadDraftFromKey(key: string): ClubOnboardingState | null {
   if (!isBrowser()) {
-    return createInitialOnboardingState();
+    return null;
   }
 
   try {
-    const raw = localStorage.getItem(CLUB_ONBOARDING_DRAFT_KEY);
+    const raw = localStorage.getItem(key);
     if (!raw) {
-      return createInitialOnboardingState();
+      return null;
     }
 
     if (raw.length > MAX_DRAFT_BYTES) {
-      localStorage.removeItem(CLUB_ONBOARDING_DRAFT_KEY);
-      return createInitialOnboardingState();
+      localStorage.removeItem(key);
+      return null;
     }
 
     const migrated = migrateLegacyDraft(JSON.parse(raw) as LegacyDraft);
     return sanitizeLoadedDraft(migrated);
   } catch {
-    localStorage.removeItem(CLUB_ONBOARDING_DRAFT_KEY);
-    return createInitialOnboardingState();
+    localStorage.removeItem(key);
+    return null;
   }
 }
 
-export function safeSaveOnboardingDraft(state: ClubOnboardingState): SaveDraftResult {
-  if (!isBrowser()) {
-    return { ok: true };
+function pickNewestDraft(
+  drafts: Array<ClubOnboardingState | null>,
+): ClubOnboardingState | null {
+  let newest: ClubOnboardingState | null = null;
+
+  for (const draft of drafts) {
+    if (!draft) {
+      continue;
+    }
+    if (
+      !newest ||
+      new Date(draft.updatedAt).getTime() > new Date(newest.updatedAt).getTime()
+    ) {
+      newest = draft;
+    }
   }
 
-  const sanitized = sanitizeDraftForStorage(state);
+  return newest;
+}
+
+function collectDraftLoadKeys(): string[] {
+  const authEmail = readAuthSession()?.email ?? null;
+  const keys = new Set<string>();
+
+  if (authEmail) {
+    keys.add(resolveOnboardingDraftKey({ authEmail }));
+  }
+
+  keys.add(CLUB_ONBOARDING_DRAFT_SESSION_KEY);
+
+  const sessionDraft = tryLoadDraftFromKey(CLUB_ONBOARDING_DRAFT_SESSION_KEY);
+  if (sessionDraft?.owner.email.trim()) {
+    keys.add(
+      resolveOnboardingDraftKey({ ownerEmail: sessionDraft.owner.email }),
+    );
+  }
+
+  if (isBrowser()) {
+    for (let index = 0; index < localStorage.length; index += 1) {
+      const key = localStorage.key(index);
+      if (key?.startsWith(`${CLUB_ONBOARDING_DRAFT_KEY_PREFIX}:email:`)) {
+        keys.add(key);
+      }
+    }
+  }
+
+  keys.add(CLUB_ONBOARDING_DRAFT_LEGACY_KEY);
+
+  return [...keys];
+}
+
+export function loadOnboardingDraft(): ClubOnboardingState {
+  if (!isBrowser()) {
+    return createInitialOnboardingState();
+  }
+
+  const drafts = collectDraftLoadKeys().map((key) => tryLoadDraftFromKey(key));
+  const loaded = pickNewestDraft(drafts);
+
+  return loaded ?? createInitialOnboardingState();
+}
+
+function writeDraftToKey(
+  key: string,
+  sanitized: ClubOnboardingState,
+): SaveDraftResult {
   const serialized = JSON.stringify(sanitized);
 
   if (serialized.length > MAX_DRAFT_BYTES) {
@@ -220,7 +329,7 @@ export function safeSaveOnboardingDraft(state: ClubOnboardingState): SaveDraftRe
   }
 
   try {
-    localStorage.setItem(CLUB_ONBOARDING_DRAFT_KEY, serialized);
+    localStorage.setItem(key, serialized);
     return { ok: true };
   } catch (error) {
     if (
@@ -234,13 +343,58 @@ export function safeSaveOnboardingDraft(state: ClubOnboardingState): SaveDraftRe
   }
 }
 
+export function safeSaveOnboardingDraft(state: ClubOnboardingState): SaveDraftResult {
+  if (!isBrowser()) {
+    return { ok: true };
+  }
+
+  const sanitized = sanitizeDraftForStorage(state);
+  const primaryKey = resolveDraftKeyForState(state);
+  const result = writeDraftToKey(primaryKey, sanitized);
+
+  if (!result.ok) {
+    return result;
+  }
+
+  if (primaryKey !== CLUB_ONBOARDING_DRAFT_SESSION_KEY) {
+    const sessionResult = writeDraftToKey(CLUB_ONBOARDING_DRAFT_SESSION_KEY, sanitized);
+    if (!sessionResult.ok) {
+      return sessionResult;
+    }
+  }
+
+  if (localStorage.getItem(CLUB_ONBOARDING_DRAFT_LEGACY_KEY)) {
+    localStorage.removeItem(CLUB_ONBOARDING_DRAFT_LEGACY_KEY);
+  }
+
+  return { ok: true };
+}
+
 export function saveOnboardingDraft(state: ClubOnboardingState): SaveDraftResult {
   return safeSaveOnboardingDraft(state);
 }
 
-export function clearOnboardingDraft(): void {
-  if (isBrowser()) {
-    localStorage.removeItem(CLUB_ONBOARDING_DRAFT_KEY);
+export function clearOnboardingDraft(state?: ClubOnboardingState): void {
+  if (!isBrowser()) {
+    return;
+  }
+
+  const keys = new Set<string>([
+    CLUB_ONBOARDING_DRAFT_SESSION_KEY,
+    CLUB_ONBOARDING_DRAFT_LEGACY_KEY,
+  ]);
+
+  if (state) {
+    keys.add(resolveDraftKeyForState(state));
+  } else {
+    const authEmail = readAuthSession()?.email ?? null;
+    if (authEmail) {
+      keys.add(resolveOnboardingDraftKey({ authEmail }));
+    }
+  }
+
+  for (const key of keys) {
+    localStorage.removeItem(key);
   }
 }
 

@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { ConfirmDialog } from "@/components/club/ConfirmDialog";
 import { LazySupportLauncher } from "@/components/support/LazySupportLauncher";
 import {
   ONBOARDING_STEP_COUNT,
@@ -9,7 +11,10 @@ import {
   completeClubOnboarding,
   createInitialOnboardingState,
   DRAFT_SAVE_QUOTA_WARNING,
+  LEAVE_ONBOARDING_MESSAGE,
   loadOnboardingDraft,
+  SAVE_PROGRESS_FAILURE_MESSAGE,
+  SAVE_PROGRESS_SUCCESS_MESSAGE,
   saveOnboardingDraft,
   syncDerivedOnboardingFields,
   validateOnboardingStep,
@@ -24,7 +29,41 @@ import { Step2AboutClub } from "./steps/Step2AboutClub";
 import { Step3ClubProfile } from "./steps/Step3ClubProfile";
 import { Step4Complete } from "./steps/Step4Complete";
 
-const AUTOSAVE_MS = 400;
+/** Debounced autosave while typing (10–15 s). */
+const AUTOSAVE_MS = 12_000;
+const ONBOARDING_PATH = "/club/onboarding";
+
+type SaveStatus = "idle" | "saved" | "error";
+
+function onboardingStepUrl(step: OnboardingStep): string {
+  return `${ONBOARDING_PATH}?step=${step}`;
+}
+
+function parseOnboardingStep(value: string | null): OnboardingStep | null {
+  if (!value) {
+    return null;
+  }
+
+  const parsed = Number(value);
+  if (
+    Number.isInteger(parsed) &&
+    parsed >= 1 &&
+    parsed <= ONBOARDING_STEP_COUNT
+  ) {
+    return parsed as OnboardingStep;
+  }
+
+  return null;
+}
+
+function syncOnboardingUrl(step: OnboardingStep, mode: "push" | "replace") {
+  const url = onboardingStepUrl(step);
+  if (mode === "push") {
+    window.history.pushState({ onboardingStep: step }, "", url);
+  } else {
+    window.history.replaceState({ onboardingStep: step }, "", url);
+  }
+}
 
 function mergeImagePreviews(
   state: ClubOnboardingState,
@@ -40,6 +79,47 @@ function mergeImagePreviews(
   };
 }
 
+function SaveProgressStatus({ status }: { status: SaveStatus }) {
+  if (status === "idle") {
+    return null;
+  }
+
+  return (
+    <p
+      className={`text-xs ${
+        status === "saved" ? "text-emerald-600" : "text-red-600"
+      }`}
+      role="status"
+      aria-live="polite"
+    >
+      {status === "saved"
+        ? SAVE_PROGRESS_SUCCESS_MESSAGE
+        : SAVE_PROGRESS_FAILURE_MESSAGE}
+    </p>
+  );
+}
+
+function SaveProgressButton({
+  onClick,
+  disabled,
+  saving,
+}: {
+  onClick: () => void;
+  disabled?: boolean;
+  saving?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled || saving}
+      className="rounded-xl border border-zinc-200 px-5 py-2.5 text-sm font-semibold text-zinc-700 transition-colors hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
+    >
+      {saving ? "Saving…" : "Save progress"}
+    </button>
+  );
+}
+
 export function ClubOnboardingWizard() {
   const [state, setState] = useState<ClubOnboardingState | null>(null);
   const [imagePreviews, setImagePreviews] = useState<OnboardingImagePreviews>({
@@ -48,14 +128,22 @@ export function ClubOnboardingWizard() {
   });
   const [errors, setErrors] = useState<string[]>([]);
   const [draftWarning, setDraftWarning] = useState<string | null>(null);
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
+  const [savingProgress, setSavingProgress] = useState(false);
   const [completing, setCompleting] = useState(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveStatusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingCompletionRef = useRef(false);
   const imagePreviewsRef = useRef(imagePreviews);
+  const stateRef = useRef(state);
 
   useEffect(() => {
     imagePreviewsRef.current = imagePreviews;
   }, [imagePreviews]);
+
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
 
   useEffect(() => {
     const draft = loadOnboardingDraft();
@@ -66,14 +154,50 @@ export function ClubOnboardingWizard() {
     });
   }, []);
 
-  const saveDraft = useCallback((next: ClubOnboardingState) => {
-    const result = saveOnboardingDraft(next);
-    if (!result.ok) {
-      setDraftWarning(DRAFT_SAVE_QUOTA_WARNING);
+  const showSaveStatus = useCallback((status: Exclude<SaveStatus, "idle">) => {
+    setSaveStatus(status);
+    if (saveStatusTimerRef.current) {
+      clearTimeout(saveStatusTimerRef.current);
+    }
+    saveStatusTimerRef.current = setTimeout(() => {
+      setSaveStatus("idle");
+    }, 4000);
+  }, []);
+
+  const saveDraft = useCallback(
+    (
+      next: ClubOnboardingState,
+      options?: { showFeedback?: boolean },
+    ): boolean => {
+      const withImages = mergeImagePreviews(next, imagePreviewsRef.current);
+      const result = saveOnboardingDraft(withImages);
+
+      if (!result.ok) {
+        setDraftWarning(DRAFT_SAVE_QUOTA_WARNING);
+        if (options?.showFeedback) {
+          showSaveStatus("error");
+        }
+        return false;
+      }
+
+      setDraftWarning(null);
+      if (options?.showFeedback) {
+        showSaveStatus("saved");
+      }
+      return true;
+    },
+    [showSaveStatus],
+  );
+
+  const handleSaveProgress = useCallback(async () => {
+    if (!stateRef.current) {
       return;
     }
-    setDraftWarning(null);
-  }, []);
+
+    setSavingProgress(true);
+    saveDraft(stateRef.current, { showFeedback: true });
+    setSavingProgress(false);
+  }, [saveDraft]);
 
   const persist = useCallback(
     (next: ClubOnboardingState) => {
@@ -102,6 +226,34 @@ export function ClubOnboardingWizard() {
       }
     };
   }, [state, saveDraft]);
+
+  useEffect(() => {
+    if (!state || state.completedAt) {
+      return;
+    }
+
+    function handleBeforeUnload(event: BeforeUnloadEvent) {
+      if (stateRef.current) {
+        saveDraft(stateRef.current);
+      }
+      event.preventDefault();
+      event.returnValue = LEAVE_ONBOARDING_MESSAGE;
+      return LEAVE_ONBOARDING_MESSAGE;
+    }
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [state, saveDraft]);
+
+  useEffect(() => {
+    return () => {
+      if (saveStatusTimerRef.current) {
+        clearTimeout(saveStatusTimerRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (!state || state.currentStep !== 5) {
@@ -150,12 +302,13 @@ export function ClubOnboardingWizard() {
   }
 
   function handleClearDraft() {
-    clearOnboardingDraft();
+    clearOnboardingDraft(state ?? undefined);
     const initial = createInitialOnboardingState();
     setState(initial);
     setImagePreviews({ logoUrl: null, coverUrl: null });
     setErrors([]);
     setDraftWarning(null);
+    setSaveStatus("idle");
   }
 
   function goToStep(step: OnboardingStep) {
@@ -202,8 +355,23 @@ export function ClubOnboardingWizard() {
       return;
     }
 
-    if (synced.currentStep < ONBOARDING_STEP_COUNT) {
-      goToStep((synced.currentStep + 1) as OnboardingStep);
+    if (synced.currentStep >= ONBOARDING_STEP_COUNT) {
+      return;
+    }
+
+    const next = {
+      ...synced,
+      currentStep: (synced.currentStep + 1) as OnboardingStep,
+    };
+
+    if (!saveDraft(next, { showFeedback: true })) {
+      return;
+    }
+
+    setState(next);
+    setErrors([]);
+    if (next.currentStep === 5 && !next.completedAt) {
+      pendingCompletionRef.current = true;
     }
   }
 
@@ -211,18 +379,29 @@ export function ClubOnboardingWizard() {
     if (!state || state.currentStep <= 1 || state.currentStep === 5) {
       return;
     }
-    goToStep((state.currentStep - 1) as OnboardingStep);
+
+    const withImages = mergeImagePreviews(state, imagePreviews);
+    const next = {
+      ...syncDerivedOnboardingFields(withImages),
+      currentStep: (state.currentStep - 1) as OnboardingStep,
+    };
+    persist(next);
+    setErrors([]);
   }
 
   function handleSkipProfile() {
     if (!state) {
       return;
     }
-    persist({
+
+    const next = {
       ...state,
       profile: { ...state.profile, skippedProfile: true },
-      currentStep: 5,
-    });
+      currentStep: 5 as const,
+    };
+
+    saveDraft(mergeImagePreviews(next, imagePreviews), { showFeedback: true });
+    persist(next);
     setErrors([]);
     if (!state.completedAt) {
       pendingCompletionRef.current = true;
@@ -251,23 +430,39 @@ export function ClubOnboardingWizard() {
     completing ||
     (isCompleteStep && !state.completedAt && errors.length === 0);
 
-  const completeStepFooter = isFinishing ? null : errors.length > 0 ? (
-    <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <button
-        type="button"
-        onClick={() => goToStep(3)}
-        className="rounded-xl border border-zinc-200 px-5 py-2.5 text-sm font-semibold text-zinc-700 transition-colors hover:bg-zinc-50"
-      >
-        Back to club details
-      </button>
-      <button
-        type="button"
-        onClick={handleRetryCompletion}
+  const saveProgressControls = (
+    <div className="flex flex-col items-end gap-1">
+      <SaveProgressButton
+        onClick={handleSaveProgress}
         disabled={completing}
-        className="rounded-xl bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-50"
-      >
-        Try again
-      </button>
+        saving={savingProgress}
+      />
+      <SaveProgressStatus status={saveStatus} />
+    </div>
+  );
+
+  const completeStepFooter = isFinishing ? null : errors.length > 0 ? (
+    <div className="space-y-4">
+      <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <button
+          type="button"
+          onClick={() => goToStep(3)}
+          className="rounded-xl border border-zinc-200 px-5 py-2.5 text-sm font-semibold text-zinc-700 transition-colors hover:bg-zinc-50"
+        >
+          Back to club details
+        </button>
+        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-start">
+          {saveProgressControls}
+          <button
+            type="button"
+            onClick={handleRetryCompletion}
+            disabled={completing}
+            className="rounded-xl bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Try again
+          </button>
+        </div>
+      </div>
     </div>
   ) : state.completedAt ? (
     <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-end">
@@ -284,7 +479,11 @@ export function ClubOnboardingWizard() {
         Go to dashboard
       </Link>
     </div>
-  ) : null;
+  ) : (
+    <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-start sm:justify-end">
+      {saveProgressControls}
+    </div>
+  );
 
   const footer = isCompleteStep ? completeStepFooter : (
     <>
@@ -307,7 +506,7 @@ export function ClubOnboardingWizard() {
         </div>
       ) : null}
 
-      <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <button
             type="button"
@@ -327,7 +526,7 @@ export function ClubOnboardingWizard() {
           </button>
         </div>
 
-        <div className="flex flex-col gap-3 sm:flex-row">
+        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-start">
           {isProfileStep ? (
             <button
               type="button"
@@ -338,17 +537,14 @@ export function ClubOnboardingWizard() {
               Skip for now
             </button>
           ) : null}
+          {saveProgressControls}
           <button
             type="button"
             onClick={handleNext}
             disabled={completing}
             className="rounded-xl bg-zinc-900 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {completing
-              ? "Creating club…"
-              : isProfileStep
-                ? "Continue"
-                : "Continue"}
+            {completing ? "Creating club…" : "Continue"}
           </button>
         </div>
       </div>
@@ -360,6 +556,8 @@ export function ClubOnboardingWizard() {
       <OnboardingLayout
         currentStep={step}
         onStepSelect={goToStep}
+        onBack={handleBack}
+        showBack={step > 1 && step < 5 && !completing}
         footer={footer}
         allowStepNavigation={!isCompleteStep}
       >
