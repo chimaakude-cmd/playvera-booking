@@ -100,7 +100,8 @@
     "title": "Get started with Activora",
     "subtitle": "Choose the account type that best matches your organisation. You can start for free.",
     "freeBadge": "Start free",
-    "footer": "Already have an account? Sign in from the login page.",
+    "footerText": "Already have an account?",
+    "signInButton": "Sign in",
     "options": {
       "club": {
         "title": "Sign up as a Club",

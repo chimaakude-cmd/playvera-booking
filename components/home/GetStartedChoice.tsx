@@ -84,9 +84,16 @@ export function GetStartedChoice({ className = "" }: { className?: string }) {
         })}
       </div>
 
-      <p className="mx-auto mt-8 max-w-xl text-center text-sm text-slate-500">
-        {t("getStarted.footer")}
-      </p>
+      <div className="mx-auto mt-10 flex max-w-xl flex-col items-center gap-4 px-4 text-center sm:px-0">
+        <p className="text-sm text-slate-600">{t("getStarted.footerText")}</p>
+        <Link
+          href="/login"
+          className={`inline-flex w-full items-center justify-center px-6 py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]/40 focus-visible:ring-offset-2 sm:w-auto ${HOME_BUTTON}`}
+          style={{ backgroundColor: ACTIVORA_ACTION }}
+        >
+          {t("getStarted.signInButton")}
+        </Link>
+      </div>
     </div>
   );
 }
