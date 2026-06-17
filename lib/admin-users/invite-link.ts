@@ -12,14 +12,7 @@ export function buildAdminInviteLink(token: string, baseUrl?: string): string {
   return `${origin.replace(/\/$/, "")}/admin/accept-invite?token=${encodeURIComponent(token)}`;
 }
 
-export const ADMIN_INVITE_EMAIL_CONNECTED = Boolean(
-  process.env.ADMIN_INVITE_EMAIL_PROVIDER,
-);
+export { getInviteDeliveryNote, isAdminInviteEmailConfigured } from "./invite-email";
 
-export function getInviteDeliveryNote(): string {
-  if (ADMIN_INVITE_EMAIL_CONNECTED) {
-    return "An invite email will be sent automatically.";
-  }
-
-  return "Email not configured — copy invite link and share it with the recipient.";
-}
+/** @deprecated Use isAdminInviteEmailConfigured() server-side or API meta.emailConfigured */
+export const ADMIN_INVITE_EMAIL_CONNECTED = false;

@@ -1,4 +1,7 @@
-import { roleHasPermission } from "@/lib/admin/permissions";
+import {
+  canManageActivitiesAdmin,
+  roleHasPermission,
+} from "@/lib/admin/permissions";
 import type { AdminRole } from "@/lib/admin/types";
 import type { AdminUser, AdminUserRole } from "./types";
 
@@ -12,6 +15,10 @@ export const INVITABLE_ADMIN_ROLES: Exclude<AdminUserRole, "owner">[] = [
 
 export function canManageAdminUsers(role: AdminRole): boolean {
   return roleHasPermission(role, "manage_admins");
+}
+
+export function canRemoveAdminActivity(role: AdminRole): boolean {
+  return canManageActivitiesAdmin(role);
 }
 
 export function canAssignAdminRole(

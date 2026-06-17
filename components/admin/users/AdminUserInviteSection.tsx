@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/club/PageHeader";
 import { getAdminSession } from "@/lib/admin";
 import {
@@ -12,7 +12,6 @@ import {
   canManageAdminUsers,
   getInviteDeliveryNote,
   INVITABLE_ADMIN_ROLES,
-  ADMIN_INVITE_EMAIL_CONNECTED,
   type AdminUserRole,
 } from "@/lib/admin-users";
 
@@ -27,7 +26,41 @@ export function AdminUserInviteSection() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [inviteLink, setInviteLink] = useState<string | null>(null);
+  const [emailSent, setEmailSent] = useState(false);
+  const [emailConfigured, setEmailConfigured] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (!session || !canManage) {
+      return;
+    }
+
+    const actor = session;
+
+    async function loadInviteConfig() {
+      try {
+        const response = await fetch("/api/admin/users", {
+          headers: adminActorHeaders({
+            adminId: actor.adminId,
+            email: actor.email,
+            name: actor.name,
+            role: actor.role,
+          }),
+        });
+        const payload = (await response.json()) as {
+          meta?: { emailConfigured?: boolean };
+        };
+
+        if (response.ok) {
+          setEmailConfigured(Boolean(payload.meta?.emailConfigured));
+        }
+      } catch {
+        // Delivery note falls back to manual-copy wording.
+      }
+    }
+
+    void loadInviteConfig();
+  }, [canManage, session]);
 
   if (!canManage || !session) {
     return (
@@ -46,6 +79,7 @@ export function AdminUserInviteSection() {
     setSubmitting(true);
     setError(null);
     setInviteLink(null);
+    setEmailSent(false);
 
     try {
       const response = await fetch("/api/admin/users", {
@@ -64,6 +98,8 @@ export function AdminUserInviteSection() {
 
       const payload = (await response.json()) as {
         inviteLink?: string;
+        emailSent?: boolean;
+        emailConfigured?: boolean;
         error?: string;
       };
 
@@ -72,7 +108,14 @@ export function AdminUserInviteSection() {
         return;
       }
 
-      setInviteLink(payload.inviteLink ?? buildAdminInviteLink("pending"));
+      const configured = Boolean(payload.emailConfigured);
+      setEmailConfigured(configured);
+      setEmailSent(Boolean(payload.emailSent));
+
+      if (!configured) {
+        setInviteLink(payload.inviteLink ?? buildAdminInviteLink("pending"));
+      }
+
       setName("");
       setEmail("");
     } catch {
@@ -115,12 +158,7 @@ export function AdminUserInviteSection() {
         className="max-w-xl space-y-5 rounded-2xl border border-zinc-200/80 bg-white p-6 shadow-sm"
       >
         <p className="text-sm text-zinc-500">
-          {getInviteDeliveryNote()}
-          {!ADMIN_INVITE_EMAIL_CONNECTED ? (
-            <span className="mt-1 block font-medium text-amber-800">
-              Email not configured — copy invite link after sending.
-            </span>
-          ) : null}
+          {getInviteDeliveryNote(emailConfigured)}
         </p>
 
         <label className="block space-y-1.5">
@@ -166,6 +204,12 @@ export function AdminUserInviteSection() {
         {error ? (
           <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
             {error}
+          </div>
+        ) : null}
+
+        {emailSent ? (
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
+            Invite email sent successfully.
           </div>
         ) : null}
 

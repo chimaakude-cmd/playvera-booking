@@ -16,14 +16,27 @@ export async function GET(_request: NextRequest, context: RouteContext) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
 
-  const { id } = await context.params;
-  const user = await getServerAdminUserById(id);
-  if (!user) {
-    return NextResponse.json({ error: "Admin user not found." }, { status: 404 });
-  }
+  try {
+    const { id } = await context.params;
+    const user = await getServerAdminUserById(id);
+    if (!user) {
+      return NextResponse.json({ error: "Admin user not found." }, { status: 404 });
+    }
 
-  const { passwordHash: _passwordHash, inviteToken: _inviteToken, ...publicUser } = user;
-  return NextResponse.json({ user: publicUser });
+    const { passwordHash: _passwordHash, inviteToken: _inviteToken, ...publicUser } = user;
+    return NextResponse.json({ user: publicUser });
+  } catch (error) {
+    console.error("[Admin users] GET /api/admin/users/[id] failed:", error);
+    return NextResponse.json(
+      {
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to load admin user.",
+      },
+      { status: 500 },
+    );
+  }
 }
 
 export async function PATCH(request: NextRequest, context: RouteContext) {
@@ -39,6 +52,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     const user = await updateServerAdminUser(id, body, auth.actor);
     return NextResponse.json({ user });
   } catch (error) {
+    console.error("[Admin users] PATCH /api/admin/users/[id] failed:", error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Failed to update admin user." },
       { status: 400 },
@@ -58,6 +72,7 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
     const user = await disableServerAdminUser(id, auth.actor);
     return NextResponse.json({ user });
   } catch (error) {
+    console.error("[Admin users] PATCH /api/admin/users/[id] failed:", error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Failed to disable admin user." },
       { status: 400 },

@@ -157,50 +157,56 @@ export function AdminUsersSection() {
       ) : null}
 
       <div className="overflow-hidden rounded-2xl border border-zinc-200/80 bg-white shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-zinc-200 text-sm">
-            <thead className="bg-zinc-50">
-              <tr>
-                <th className="px-4 py-3 text-left font-semibold text-zinc-600">Name</th>
-                <th className="px-4 py-3 text-left font-semibold text-zinc-600">Email</th>
-                <th className="px-4 py-3 text-left font-semibold text-zinc-600">Role</th>
-                <th className="px-4 py-3 text-left font-semibold text-zinc-600">Status</th>
-                <th className="px-4 py-3 text-left font-semibold text-zinc-600">Last login</th>
-                <th className="px-4 py-3 text-right font-semibold text-zinc-600">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-100">
-              {users.map((user) => (
-                <tr key={user.id} className="hover:bg-zinc-50/80">
-                  <td className="px-4 py-3 font-medium text-zinc-900">
-                    {user.name}
-                    {user.isOwner ? (
-                      <span className="ml-2 text-xs font-normal text-violet-600">Owner</span>
-                    ) : null}
-                  </td>
-                  <td className="px-4 py-3 text-zinc-600">{user.email}</td>
-                  <td className="px-4 py-3">
-                    <RoleBadge role={user.role} />
-                  </td>
-                  <td className="px-4 py-3">
-                    <StatusBadge status={user.status} />
-                  </td>
-                  <td className="px-4 py-3 text-zinc-600">
-                    {formatAdminLastLogin(user.lastLoginAt)}
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <Link
-                      href={`/admin/users/${user.id}`}
-                      className="font-medium text-violet-700 hover:text-violet-900"
-                    >
-                      Edit
-                    </Link>
-                  </td>
+        {users.length === 0 && !error ? (
+          <div className="px-6 py-12 text-center text-sm text-zinc-500">
+            No admin users found.
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-zinc-200 text-sm">
+              <thead className="bg-zinc-50">
+                <tr>
+                  <th className="px-4 py-3 text-left font-semibold text-zinc-600">Name</th>
+                  <th className="px-4 py-3 text-left font-semibold text-zinc-600">Email</th>
+                  <th className="px-4 py-3 text-left font-semibold text-zinc-600">Role</th>
+                  <th className="px-4 py-3 text-left font-semibold text-zinc-600">Status</th>
+                  <th className="px-4 py-3 text-left font-semibold text-zinc-600">Last login</th>
+                  <th className="px-4 py-3 text-right font-semibold text-zinc-600">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-zinc-100">
+                {users.map((user) => (
+                  <tr key={user.id} className="hover:bg-zinc-50/80">
+                    <td className="px-4 py-3 font-medium text-zinc-900">
+                      {user.name}
+                      {user.isOwner ? (
+                        <span className="ml-2 text-xs font-normal text-violet-600">Owner</span>
+                      ) : null}
+                    </td>
+                    <td className="px-4 py-3 text-zinc-600">{user.email}</td>
+                    <td className="px-4 py-3">
+                      <RoleBadge role={user.role} />
+                    </td>
+                    <td className="px-4 py-3">
+                      <StatusBadge status={user.status} />
+                    </td>
+                    <td className="px-4 py-3 text-zinc-600">
+                      {formatAdminLastLogin(user.lastLoginAt)}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <Link
+                        href={`/admin/users/${user.id}`}
+                        className="font-medium text-violet-700 hover:text-violet-900"
+                      >
+                        Edit
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );

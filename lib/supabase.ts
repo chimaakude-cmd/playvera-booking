@@ -72,6 +72,18 @@ export function getSupabaseBrowserClient(): ActivoraSupabaseClient {
   return browserClient;
 }
 
+function resolveSupabaseServiceRoleKey(): string {
+  return process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() ?? "";
+}
+
+/**
+ * True when the server-only service role key is set.
+ * Required for admin_users writes in production (bypasses RLS).
+ */
+export function isSupabaseServiceRoleConfigured(): boolean {
+  return Boolean(resolveSupabaseUrl() && resolveSupabaseServiceRoleKey());
+}
+
 /**
  * Server-side Supabase client for Server Components and Route Handlers.
  * Uses the public anon key — RLS policies apply.
@@ -87,6 +99,28 @@ export function createSupabaseServerClient(): ActivoraSupabaseClient {
   }
 
   return createClient<Database>(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+  });
+}
+
+/**
+ * Server-only Supabase client with the service role key.
+ * Bypasses RLS — never import from client components.
+ */
+export function createSupabaseServiceRoleClient(): ActivoraSupabaseClient {
+  const supabaseUrl = resolveSupabaseUrl();
+  const serviceRoleKey = resolveSupabaseServiceRoleKey();
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    throw new Error(
+      "Supabase service role is not configured. Add SUPABASE_SERVICE_ROLE_KEY to server env.",
+    );
+  }
+
+  return createClient<Database>(supabaseUrl, serviceRoleKey, {
     auth: {
       persistSession: false,
       autoRefreshToken: false,

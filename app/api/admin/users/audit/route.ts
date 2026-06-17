@@ -8,6 +8,19 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
 
-  const audit = await getServerAuditLog();
-  return NextResponse.json({ audit });
+  try {
+    const audit = await getServerAuditLog();
+    return NextResponse.json({ audit });
+  } catch (error) {
+    console.error("[Admin users] GET /api/admin/users/audit failed:", error);
+    return NextResponse.json(
+      {
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to load admin audit log.",
+      },
+      { status: 500 },
+    );
+  }
 }

@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireManageAdminActor } from "@/lib/admin-users/api-auth";
 import {
+  isAdminInviteEmailConfigured,
+  sendAdminInviteEmail,
+} from "@/lib/admin-users/invite-email";
+import {
   createServerAdminInvite,
   getServerAdminUsersPublic,
 } from "@/lib/admin-users/server-store";
@@ -12,8 +16,24 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
 
-  const users = await getServerAdminUsersPublic();
-  return NextResponse.json({ users });
+  try {
+    const users = await getServerAdminUsersPublic();
+    return NextResponse.json({
+      users,
+      meta: { emailConfigured: isAdminInviteEmailConfigured() },
+    });
+  } catch (error) {
+    console.error("[Admin users] GET /api/admin/users failed:", error);
+    return NextResponse.json(
+      {
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to load admin users.",
+      },
+      { status: 500 },
+    );
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -32,10 +52,41 @@ export async function POST(request: NextRequest) {
     }
 
     const result = await createServerAdminInvite(body, auth.actor);
-    return NextResponse.json(result, { status: 201 });
-  } catch (error) {
+    const emailConfigured = isAdminInviteEmailConfigured();
+    let emailSent = false;
+
+    if (emailConfigured) {
+      const emailResult = await sendAdminInviteEmail({
+        to: body.email.trim(),
+        name: body.name.trim(),
+        role: body.role,
+        inviteLink: result.inviteLink,
+      });
+
+      if (!emailResult.ok) {
+        return NextResponse.json({ error: emailResult.error }, { status: 500 });
+      }
+
+      emailSent = emailResult.sent;
+    }
+
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to invite admin user." },
+      {
+        ...result,
+        emailSent,
+        emailConfigured,
+      },
+      { status: 201 },
+    );
+  } catch (error) {
+    console.error("[Admin users] POST /api/admin/users failed:", error);
+    return NextResponse.json(
+      {
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to invite admin user.",
+      },
       { status: 400 },
     );
   }

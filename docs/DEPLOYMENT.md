@@ -199,6 +199,7 @@ Copy from `.env.local.example`. Set in **Vercel ? Settings ? Environment Variabl
 | `NEXT_PUBLIC_APP_URL` | `https://app.mydomain.co.uk` (staging) ? `https://mydomain.co.uk` (prod) | Yes |
 | `NEXT_PUBLIC_SUPABASE_URL` | `https://xxxx.supabase.co` | Yes |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon/public key | Yes |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key (server-only; required for Admin Users API in production) | No |
 | `NEXT_PUBLIC_DATA_PROVIDER` | `supabase` | Yes |
 | `NEXT_PUBLIC_IMAGE_STORAGE_PROVIDER` | `supabase` (recommended for production) | Yes |
 
@@ -266,6 +267,18 @@ On **Vercel**, the UI/API cannot write project env files. Regeneration updates i
 
 Remove or replace with production auth before go-live.
 
+### Admin user invites (email)
+
+| Variable | Example / notes | Exposed to browser |
+|----------|-----------------|-------------------|
+| `RESEND_API_KEY` | Resend API key for transactional email | No |
+| `EMAIL_FROM` or `RESEND_FROM` | Verified sender, e.g. `Activora <noreply@activora.co.uk>` | No |
+| `ADMIN_INVITE_EMAIL_PROVIDER` | Optional legacy flag; Resend vars above are preferred | No |
+
+When email is configured, admin invites are sent automatically. Otherwise the invite form shows a copy-link UI after Send.
+
+**Never expose `SUPABASE_SERVICE_ROLE_KEY` to the client.** It is used only in server route handlers (`lib/admin-users/server-store.ts`) to read/write `admin_users` and bypass RLS. Run migrations `00035`–`00038` on your Supabase project.
+
 ### Optional
 
 | Variable | Purpose |
@@ -276,7 +289,7 @@ Remove or replace with production auth before go-live.
 
 These are **not** referenced in application code and do not need to be set unless you add features later:
 
-- `SUPABASE_SERVICE_ROLE_KEY` / `SUPABASE_SECRET_KEY`
+- `SUPABASE_SECRET_KEY` (alias only — use `SUPABASE_SERVICE_ROLE_KEY`)
 - `VERCEL_*` (auto-injected by Vercel at runtime)
 
 ---
