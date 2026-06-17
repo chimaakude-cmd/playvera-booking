@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
 import type { AdminRole } from "@/lib/admin/types";
+import { canManageActivitiesAdmin } from "@/lib/admin/permissions";
 import { canManageAdminUsers } from "./permissions";
 import type { AdminUserActor } from "./server-store";
 
@@ -63,6 +64,35 @@ export function requireManageAdminActor(
 
   if (!canManageAdminUsers(actor.role)) {
     return { error: "Only Owner or Super Admin can manage admin users.", status: 403 };
+  }
+
+  return { actor };
+}
+
+export function requireManageActivitiesActor(
+  request: NextRequest,
+): { actor: AdminUserActor } | { error: string; status: number } {
+  const actor = getAdminActorFromRequest(request);
+
+  if (!actor) {
+    if (process.env.NODE_ENV !== "production") {
+      return {
+        actor: {
+          adminId: "dev-admin",
+          email: "admin@test.activeora.co.uk",
+          name: "Dev Admin",
+          role: "super_admin",
+        },
+      };
+    }
+    return { error: "Admin authentication required.", status: 401 };
+  }
+
+  if (!canManageActivitiesAdmin(actor.role)) {
+    return {
+      error: "Only Owner or Super Admin can manage activities.",
+      status: 403,
+    };
   }
 
   return { actor };

@@ -116,7 +116,12 @@ export type PlatformFeeByProvider = {
   platformFees: number;
 };
 
-export type ActivityStatus = "published" | "paused" | "cancelled" | "draft";
+export type ActivityStatus =
+  | "published"
+  | "paused"
+  | "cancelled"
+  | "draft"
+  | "unpublished";
 
 export type ActivityVisibility = "public" | "hidden";
 
@@ -127,6 +132,7 @@ export type AdminActivity = {
   providerName: string;
   venue: string;
   day: string;
+  dayRaw: string;
   startTime: string;
   endTime: string;
   capacity: number;

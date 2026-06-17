@@ -287,6 +287,11 @@ export function roleHasPermission(
   return ROLE_PERMISSIONS[role].includes(permission);
 }
 
+/** Owner and Super Admin can edit/delete activities platform-wide. */
+export function canManageActivitiesAdmin(role: AdminRole): boolean {
+  return role === "owner" || role === "super_admin";
+}
+
 export function canAccessNavSection(
   role: AdminRole,
   section: AdminNavSection,

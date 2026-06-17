@@ -201,6 +201,7 @@ export const ACTIVITY_STATUS_LABELS: Record<
   paused: "Paused",
   cancelled: "Cancelled",
   draft: "Draft",
+  unpublished: "Unpublished",
 };
 
 export const BOOKING_PAYMENT_STATUS_LABELS: Record<

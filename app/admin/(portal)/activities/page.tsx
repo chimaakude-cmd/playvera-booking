@@ -1,12 +1,22 @@
 import { AdminActivitiesSection } from "@/components/admin/AdminActivitiesSection";
-import { fetchAdminActivitiesList } from "@/lib/admin/activities-data";
+import {
+  fetchAdminActivitiesList,
+  fetchAdminActivityProviders,
+} from "@/lib/admin/activities-data";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminActivitiesPage() {
-  const { activities, dataSource } = await fetchAdminActivitiesList();
+  const [{ activities, dataSource }, providers] = await Promise.all([
+    fetchAdminActivitiesList(),
+    fetchAdminActivityProviders(),
+  ]);
 
   return (
-    <AdminActivitiesSection activities={activities} dataSource={dataSource} />
+    <AdminActivitiesSection
+      activities={activities}
+      providers={providers}
+      dataSource={dataSource}
+    />
   );
 }
