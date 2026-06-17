@@ -5,6 +5,7 @@ import {
   sendAdminInviteEmail,
 } from "@/lib/admin-users/invite-email";
 import { resendServerAdminInvite } from "@/lib/admin-users/server-store";
+import { adminUsersErrorMessage, adminUsersErrorStatus } from "@/lib/admin-users/errors";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -43,14 +44,12 @@ export async function POST(request: NextRequest, context: RouteContext) {
     });
   } catch (error) {
     console.error("[Admin users] POST /api/admin/users/[id]/resend-invite failed:", error);
+    const status = adminUsersErrorStatus(error);
     return NextResponse.json(
       {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to resend invite.",
+        error: adminUsersErrorMessage(error, "Failed to resend invite."),
       },
-      { status: 400 },
+      { status: status === 503 ? status : 400 },
     );
   }
 }

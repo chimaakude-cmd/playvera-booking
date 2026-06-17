@@ -13,6 +13,7 @@ import { rowToAdminUser, rowToAuditEntry, type AdminUserAuditRow, type AdminUser
 import type { AdminUser, AdminUserAuditEntry, InviteAdminUserInput, UpdateAdminUserInput } from "./types";
 import { toPublicAdminUser } from "./types";
 import type { ActivoraSupabaseClient } from "@/lib/supabase";
+import { toAdminUsersFriendlyError } from "./errors";
 
 const INVITE_EXPIRY_DAYS = 7;
 
@@ -70,7 +71,7 @@ async function appendServerAuditEntry(
 
   if (error) {
     logSupabaseError("appendServerAuditEntry", error);
-    throw new Error(error.message);
+    throw toAdminUsersFriendlyError(error);
   }
 }
 
@@ -83,7 +84,7 @@ export async function ensureDefaultOwnerAdmin(): Promise<void> {
 
   if (countError) {
     logSupabaseError("ensureDefaultOwnerAdmin count", countError);
-    throw new Error(countError.message);
+    throw toAdminUsersFriendlyError(countError);
   }
 
   if (count && count > 0) {
@@ -113,7 +114,7 @@ export async function ensureDefaultOwnerAdmin(): Promise<void> {
 
   if (insertError) {
     logSupabaseError("ensureDefaultOwnerAdmin insert", insertError);
-    throw new Error(insertError.message);
+    throw toAdminUsersFriendlyError(insertError);
   }
 }
 
@@ -128,7 +129,7 @@ export async function getServerAdminUsers(): Promise<AdminUser[]> {
 
   if (error) {
     logSupabaseError("getServerAdminUsers", error);
-    throw new Error(error.message);
+    throw toAdminUsersFriendlyError(error);
   }
 
   return (data as AdminUserRow[]).map(rowToAdminUser);
@@ -144,7 +145,7 @@ export async function getServerAdminUserById(id: string): Promise<AdminUser | nu
 
   if (error) {
     logSupabaseError("getServerAdminUserById", error);
-    throw new Error(error.message);
+    throw toAdminUsersFriendlyError(error);
   }
 
   return data ? rowToAdminUser(data as AdminUserRow) : null;
@@ -161,7 +162,7 @@ export async function getServerAdminUserByEmail(email: string): Promise<AdminUse
 
   if (error) {
     logSupabaseError("getServerAdminUserByEmail", error);
-    throw new Error(error.message);
+    throw toAdminUsersFriendlyError(error);
   }
 
   return data ? rowToAdminUser(data as AdminUserRow) : null;
@@ -176,7 +177,7 @@ export async function getServerAuditLog(): Promise<AdminUserAuditEntry[]> {
 
   if (error) {
     logSupabaseError("getServerAuditLog", error);
-    throw new Error(error.message);
+    throw toAdminUsersFriendlyError(error);
   }
 
   return (data as AdminUserAuditRow[]).map(rowToAuditEntry);
@@ -234,7 +235,9 @@ export async function createServerAdminInvite(
     if (userError) {
       logSupabaseError("createServerAdminInvite insert user", userError);
     }
-    throw new Error(userError?.message ?? "Failed to create admin user.");
+    throw userError
+      ? toAdminUsersFriendlyError(userError)
+      : new Error("Failed to create admin user.");
   }
 
   const { error: inviteError } = await supabase.from("admin_invites").insert({
@@ -250,7 +253,7 @@ export async function createServerAdminInvite(
   if (inviteError) {
     logSupabaseError("createServerAdminInvite insert invite", inviteError);
     await supabase.from("admin_users").delete().eq("id", userRow.id);
-    throw new Error(inviteError.message);
+    throw toAdminUsersFriendlyError(inviteError);
   }
 
   const user = rowToAdminUser(userRow as AdminUserRow);
@@ -303,7 +306,9 @@ export async function resendServerAdminInvite(
     if (userError) {
       logSupabaseError("resendServerAdminInvite update user", userError);
     }
-    throw new Error(userError?.message ?? "Failed to update admin user.");
+    throw userError
+      ? toAdminUsersFriendlyError(userError)
+      : new Error("Failed to update admin user.");
   }
 
   await supabase
@@ -324,7 +329,7 @@ export async function resendServerAdminInvite(
 
   if (inviteError) {
     logSupabaseError("resendServerAdminInvite insert invite", inviteError);
-    throw new Error(inviteError.message);
+    throw toAdminUsersFriendlyError(inviteError);
   }
 
   const updated = rowToAdminUser(userRow as AdminUserRow);
@@ -467,7 +472,9 @@ export async function updateServerAdminUser(
     if (error) {
       logSupabaseError("updateServerAdminUser", error);
     }
-    throw new Error(error?.message ?? "Failed to update admin user.");
+    throw error
+      ? toAdminUsersFriendlyError(error)
+      : new Error("Failed to update admin user.");
   }
 
   if (input.status === "disabled") {
@@ -515,7 +522,7 @@ export async function getServerAdminInviteByToken(
 
   if (error) {
     logSupabaseError("getServerAdminInviteByToken", error);
-    throw new Error(error.message);
+    throw toAdminUsersFriendlyError(error);
   }
 
   if (!data) {
@@ -565,7 +572,7 @@ export async function acceptServerAdminInvite(
 
   if (userError) {
     logSupabaseError("acceptServerAdminInvite update user", userError);
-    return { ok: false, error: userError.message };
+    return { ok: false, error: toAdminUsersFriendlyError(userError).message };
   }
 
   const { error: inviteError } = await supabase
@@ -575,7 +582,7 @@ export async function acceptServerAdminInvite(
 
   if (inviteError) {
     logSupabaseError("acceptServerAdminInvite update invite", inviteError);
-    return { ok: false, error: inviteError.message };
+    return { ok: false, error: toAdminUsersFriendlyError(inviteError).message };
   }
 
   await appendServerAuditEntry({

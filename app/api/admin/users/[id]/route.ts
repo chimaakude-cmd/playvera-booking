@@ -6,6 +6,7 @@ import {
   resendServerAdminInvite,
   updateServerAdminUser,
 } from "@/lib/admin-users/server-store";
+import { adminUsersErrorMessage, adminUsersErrorStatus } from "@/lib/admin-users/errors";
 import type { UpdateAdminUserInput } from "@/lib/admin-users/types";
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -29,12 +30,9 @@ export async function GET(_request: NextRequest, context: RouteContext) {
     console.error("[Admin users] GET /api/admin/users/[id] failed:", error);
     return NextResponse.json(
       {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to load admin user.",
+        error: adminUsersErrorMessage(error, "Failed to load admin user."),
       },
-      { status: 500 },
+      { status: adminUsersErrorStatus(error) },
     );
   }
 }
@@ -53,9 +51,10 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     return NextResponse.json({ user });
   } catch (error) {
     console.error("[Admin users] PATCH /api/admin/users/[id] failed:", error);
+    const status = adminUsersErrorStatus(error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to update admin user." },
-      { status: 400 },
+      { error: adminUsersErrorMessage(error, "Failed to update admin user.") },
+      { status: status === 503 ? status : 400 },
     );
   }
 }
@@ -72,10 +71,11 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
     const user = await disableServerAdminUser(id, auth.actor);
     return NextResponse.json({ user });
   } catch (error) {
-    console.error("[Admin users] PATCH /api/admin/users/[id] failed:", error);
+    console.error("[Admin users] DELETE /api/admin/users/[id] failed:", error);
+    const status = adminUsersErrorStatus(error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to disable admin user." },
-      { status: 400 },
+      { error: adminUsersErrorMessage(error, "Failed to disable admin user.") },
+      { status: status === 503 ? status : 400 },
     );
   }
 }

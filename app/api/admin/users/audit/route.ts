@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireManageAdminActor } from "@/lib/admin-users/api-auth";
 import { getServerAuditLog } from "@/lib/admin-users/server-store";
+import { adminUsersErrorMessage, adminUsersErrorStatus } from "@/lib/admin-users/errors";
 
 export async function GET(request: NextRequest) {
   const auth = requireManageAdminActor(request);
@@ -15,12 +16,9 @@ export async function GET(request: NextRequest) {
     console.error("[Admin users] GET /api/admin/users/audit failed:", error);
     return NextResponse.json(
       {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to load admin audit log.",
+        error: adminUsersErrorMessage(error, "Failed to load admin audit log."),
       },
-      { status: 500 },
+      { status: adminUsersErrorStatus(error) },
     );
   }
 }

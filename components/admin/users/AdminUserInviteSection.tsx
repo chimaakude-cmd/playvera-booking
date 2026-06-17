@@ -112,8 +112,10 @@ export function AdminUserInviteSection() {
       setEmailConfigured(configured);
       setEmailSent(Boolean(payload.emailSent));
 
-      if (!configured) {
-        setInviteLink(payload.inviteLink ?? buildAdminInviteLink("pending"));
+      if (payload.inviteLink) {
+        setInviteLink(payload.inviteLink);
+      } else if (!configured) {
+        setInviteLink(buildAdminInviteLink("pending"));
       }
 
       setName("");

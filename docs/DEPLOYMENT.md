@@ -277,7 +277,9 @@ Remove or replace with production auth before go-live.
 
 When email is configured, admin invites are sent automatically. Otherwise the invite form shows a copy-link UI after Send.
 
-**Never expose `SUPABASE_SERVICE_ROLE_KEY` to the client.** It is used only in server route handlers (`lib/admin-users/server-store.ts`) to read/write `admin_users` and bypass RLS. Run migrations `00035`–`00038` on your Supabase project.
+**Never expose `SUPABASE_SERVICE_ROLE_KEY` to the client.** It is used only in server route handlers (`lib/admin-users/server-store.ts`) via `createSupabaseServiceRoleClient()` to read/write `admin_users` / `admin_invites` and bypass RLS.
+
+**Production fix (table missing / PGRST205):** paste the full contents of `scripts/apply-admin-users-migration.sql` into **Supabase → SQL Editor → Run**. This is idempotent and safe if `00035`–`00038` were never applied. Then redeploy Vercel so `SUPABASE_SERVICE_ROLE_KEY` is available at runtime.
 
 ### Optional
 
@@ -599,6 +601,7 @@ After env vars are set, run migrations in the Supabase SQL Editor (minimum for p
 4. `supabase/migrations/00005_dev_anon_access.sql` (anon read access for staging/dev)
 5. `supabase/migrations/00035_admin_users.sql` — platform admin users + audit log
 6. `supabase/migrations/00036_admin_invites.sql` — admin invite tokens (required for **Admin → Invite admin user** on Vercel; replaces filesystem `.data/admin-users.json`)
+7. **`scripts/apply-admin-users-migration.sql`** — **one-shot production fix** (consolidates 00035–00039; run this if you see `Could not find table public.admin_users`)
 
 Seed or create sessions via the club portal once Supabase is connected.
 
@@ -627,7 +630,7 @@ Only for **local dev demos** on a single browser. Set `NEXT_PUBLIC_DATA_PROVIDER
 | Stripe webhook 400 | `STRIPE_WEBHOOK_SECRET` matches the endpoint; URL is exact |
 | Maps blank (token set) | Token valid and not restricted; sessions have venue coordinates in Supabase |
 | Supabase errors | `NEXT_PUBLIC_SUPABASE_URL` / `ANON_KEY`; RLS policies / migrations in Supabase |
-| Admin invite ENOENT `.data` | Run migrations `00035_admin_users.sql` and `00036_admin_invites.sql`; redeploy after env vars set |
+| Admin invite ENOENT `.data` / `Could not find table public.admin_users` | Run `scripts/apply-admin-users-migration.sql` in Supabase SQL Editor; set `SUPABASE_SERVICE_ROLE_KEY` on Vercel; redeploy |
 | Address lookup fails | `GETADDRESS_API_KEY` on server; domain allowlist in getAddress.io dashboard |
 
 ---

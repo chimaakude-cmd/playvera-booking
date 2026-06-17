@@ -8,6 +8,7 @@ import {
   createServerAdminInvite,
   getServerAdminUsersPublic,
 } from "@/lib/admin-users/server-store";
+import { adminUsersErrorMessage, adminUsersErrorStatus } from "@/lib/admin-users/errors";
 import type { InviteAdminUserInput } from "@/lib/admin-users/types";
 
 export async function GET(request: NextRequest) {
@@ -26,12 +27,9 @@ export async function GET(request: NextRequest) {
     console.error("[Admin users] GET /api/admin/users failed:", error);
     return NextResponse.json(
       {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to load admin users.",
+        error: adminUsersErrorMessage(error, "Failed to load admin users."),
       },
-      { status: 500 },
+      { status: adminUsersErrorStatus(error) },
     );
   }
 }
@@ -80,14 +78,12 @@ export async function POST(request: NextRequest) {
     );
   } catch (error) {
     console.error("[Admin users] POST /api/admin/users failed:", error);
+    const status = adminUsersErrorStatus(error);
     return NextResponse.json(
       {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to invite admin user.",
+        error: adminUsersErrorMessage(error, "Failed to invite admin user."),
       },
-      { status: 400 },
+      { status: status === 503 ? status : 400 },
     );
   }
 }
