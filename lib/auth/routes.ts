@@ -3,7 +3,12 @@ import type { UserRole } from "./types";
 export const AUTH_EXEMPT_PATHS: Record<UserRole, string[]> = {
   parent: ["/parent/login", "/parent/signup"],
   club: ["/club/login", "/club/onboarding"],
-  admin: ["/admin/login", "/admin/signup"],
+  admin: [
+    "/admin/login",
+    "/admin/signup",
+    "/admin/auth/callback",
+    "/admin/auth/complete",
+  ],
   organisation: [
     "/organisation/login",
     "/organisation/signup",

@@ -280,6 +280,19 @@ When email is configured, admin invites are sent automatically. Otherwise the in
 
 **Never expose `SUPABASE_SERVICE_ROLE_KEY` to the client.** It is used only in server route handlers (`lib/admin-users/server-store.ts`) via `createSupabaseServiceRoleClient()` to read/write `admin_users` / `admin_invites` and bypass RLS.
 
+### Supabase Auth (admin magic-link sign-in)
+
+Configure in **Supabase Dashboard → Authentication → URL Configuration**:
+
+| Setting | Value |
+|---------|-------|
+| **Site URL** | `https://activora.uk` |
+| **Redirect URLs** | `https://activora.uk/**`, `https://www.activora.uk/**` |
+
+Admin staff magic links redirect to `https://activora.uk/admin/auth/callback` (derived from `NEXT_PUBLIC_APP_URL` via `lib/app-url.ts`).
+
+**Email templates:** Supabase → Authentication → Email Templates → Magic Link. The default template works; ensure the link uses `{{ .ConfirmationURL }}` so Supabase appends the auth code to your `emailRedirectTo` callback.
+
 **Production fix (table missing / PGRST205):** paste the full contents of `scripts/apply-admin-users-migration.sql` into **Supabase → SQL Editor → Run**. This is idempotent and safe if `00035`–`00038` were never applied. Then redeploy Vercel so `SUPABASE_SERVICE_ROLE_KEY` is available at runtime.
 
 ### Optional

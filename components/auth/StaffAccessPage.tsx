@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Logo } from "@/components/branding";
 import { TEST_ACCOUNTS } from "@/lib/auth/accounts";
@@ -14,6 +14,8 @@ import {
   type StaffAccessLoginFailureCode,
 } from "@/lib/auth/staff-access";
 import type { AuthUser } from "@/lib/auth/types";
+
+type SignInMode = "magic-link" | "password";
 
 function formatLockoutRemaining(ms: number): string {
   const minutes = Math.ceil(ms / 60_000);
@@ -43,6 +45,7 @@ export function StaffAccessPage({
   useServerTestLogin?: boolean;
 } = {}) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState(
     !useServerTestLogin && process.env.NODE_ENV !== "production"
       ? TEST_ACCOUNTS.admin.email
@@ -56,6 +59,16 @@ export function StaffAccessPage({
   const [useEmergencyPin, setUseEmergencyPin] = useState(false);
   const [pin, setPin] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [signInMode, setSignInMode] = useState<SignInMode>("magic-link");
+  const [magicLinkSent, setMagicLinkSent] = useState(false);
+  const [magicLinkMessage, setMagicLinkMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    const urlError = searchParams.get("error");
+    if (urlError) {
+      setError(urlError);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (useServerTestLogin) {
@@ -102,6 +115,41 @@ export function StaffAccessPage({
     writeAuthSession(user);
     router.push("/admin/dashboard");
     setSubmitting(false);
+  }
+
+  async function handleMagicLinkRequest() {
+    setSubmitting(true);
+    setMagicLinkSent(false);
+    setMagicLinkMessage(null);
+
+    try {
+      const response = await fetch("/api/admin/auth/magic-link", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim() }),
+      });
+
+      const payload = (await response.json()) as {
+        ok?: boolean;
+        message?: string;
+        error?: string;
+      };
+
+      if (!response.ok || !payload.ok) {
+        setError(payload.error ?? "Unable to send sign-in link.");
+        return;
+      }
+
+      setError(null);
+      setMagicLinkSent(true);
+      setMagicLinkMessage(
+        payload.message ?? "Check your email for the sign-in link",
+      );
+    } catch {
+      setError("Unable to send sign-in link right now. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   async function handleEmergencyLogin() {
@@ -180,6 +228,8 @@ export function StaffAccessPage({
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     setError(null);
+    setMagicLinkSent(false);
+    setMagicLinkMessage(null);
 
     if (useServerTestLogin) {
       void handleServerTestLogin();
@@ -197,11 +247,18 @@ export function StaffAccessPage({
       return;
     }
 
+    if (signInMode === "magic-link") {
+      void handleMagicLinkRequest();
+      return;
+    }
+
     void handleProductionLogin();
   }
 
   const lockoutMs = locked ? getStaffAccessLockoutRemainingMs() : 0;
   const formDisabled = locked || submitting;
+  const showPasswordFields =
+    !useServerTestLogin && (useEmergencyPin || signInMode === "password");
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-violet-950 via-zinc-950 to-zinc-950 px-4 py-12">
@@ -231,6 +288,43 @@ export function StaffAccessPage({
           onSubmit={handleSubmit}
           className="rounded-2xl border border-violet-500/20 bg-zinc-900/80 p-6 shadow-2xl shadow-violet-950/40 backdrop-blur sm:p-8"
         >
+          {!useServerTestLogin && !useEmergencyPin ? (
+            <div className="mb-5 flex rounded-xl bg-zinc-950/60 p-1 ring-1 ring-violet-500/20">
+              <button
+                type="button"
+                onClick={() => {
+                  setSignInMode("magic-link");
+                  setError(null);
+                  setMagicLinkSent(false);
+                  setMagicLinkMessage(null);
+                }}
+                className={`flex-1 rounded-lg px-3 py-2 text-xs font-semibold transition ${
+                  signInMode === "magic-link"
+                    ? "bg-violet-600 text-white"
+                    : "text-violet-200/70 hover:text-white"
+                }`}
+              >
+                Email link
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setSignInMode("password");
+                  setError(null);
+                  setMagicLinkSent(false);
+                  setMagicLinkMessage(null);
+                }}
+                className={`flex-1 rounded-lg px-3 py-2 text-xs font-semibold transition ${
+                  signInMode === "password"
+                    ? "bg-violet-600 text-white"
+                    : "text-violet-200/70 hover:text-white"
+                }`}
+              >
+                Password
+              </button>
+            </div>
+          ) : null}
+
           <label className="block">
             <span className="text-sm font-medium text-violet-100">Email</span>
             <input
@@ -244,7 +338,7 @@ export function StaffAccessPage({
             />
           </label>
 
-          {!useServerTestLogin ? (
+          {showPasswordFields ? (
             useEmergencyPin ? (
               <>
                 <label className="mt-4 block">
@@ -295,6 +389,12 @@ export function StaffAccessPage({
             )
           ) : null}
 
+          {magicLinkSent && magicLinkMessage ? (
+            <p className="mt-4 rounded-xl bg-emerald-950/40 px-3 py-2 text-sm text-emerald-300 ring-1 ring-emerald-500/20">
+              {magicLinkMessage}
+            </p>
+          ) : null}
+
           {error ? (
             <p className="mt-4 rounded-xl bg-red-950/50 px-3 py-2 text-sm text-red-300 ring-1 ring-red-500/20">
               {error}
@@ -315,10 +415,14 @@ export function StaffAccessPage({
             {submitting
               ? useEmergencyPin
                 ? "Recovering access…"
-                : "Signing in…"
+                : signInMode === "magic-link"
+                  ? "Sending link…"
+                  : "Signing in…"
               : useEmergencyPin
                 ? "Recover access"
-                : "Sign in"}
+                : signInMode === "magic-link"
+                  ? "Sign in with email link"
+                  : "Sign in"}
           </button>
 
           {!useServerTestLogin && emergencyAvailable ? (
@@ -331,6 +435,8 @@ export function StaffAccessPage({
                   setPassword("");
                   setPin("");
                   setNewPassword("");
+                  setMagicLinkSent(false);
+                  setMagicLinkMessage(null);
                 }}
                 className="text-xs font-medium text-violet-300/80 underline-offset-2 hover:text-violet-100 hover:underline"
               >

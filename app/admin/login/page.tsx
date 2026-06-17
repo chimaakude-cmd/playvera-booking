@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { StaffAccessPage } from "@/components/auth/StaffAccessPage";
 
 export const metadata = {
@@ -6,9 +7,11 @@ export const metadata = {
 
 export default function AdminLoginRoute() {
   return (
-    <StaffAccessPage
-      backHref="/login"
-      backLabel="← Back to login options"
-    />
+    <Suspense fallback={null}>
+      <StaffAccessPage
+        backHref="/login"
+        backLabel="← Back to login options"
+      />
+    </Suspense>
   );
 }
