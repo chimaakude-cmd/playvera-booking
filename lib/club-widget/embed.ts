@@ -1,16 +1,8 @@
+import { resolveClientAppBaseUrl } from "@/lib/app-url";
 import type { ClubWidgetSettings } from "./types";
 
 export function getClientAppBaseUrl(): string {
-  const envUrl = process.env.NEXT_PUBLIC_APP_URL?.trim();
-  if (envUrl) {
-    return envUrl.replace(/\/$/, "");
-  }
-
-  if (typeof window !== "undefined") {
-    return window.location.origin;
-  }
-
-  return "http://localhost:3000";
+  return resolveClientAppBaseUrl();
 }
 
 export function buildWidgetQueryParams(

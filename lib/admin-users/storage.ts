@@ -99,6 +99,7 @@ export function inviteAdminUser(
     passwordHash: null,
     inviteToken,
     inviteSentAt: now,
+    acceptedAt: null,
     lastLoginAt: null,
     isOwner: false,
     createdAt: now,

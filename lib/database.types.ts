@@ -891,6 +891,7 @@ export type Database = {
           password_hash: string | null;
           invite_token: string | null;
           invite_sent_at: string | null;
+          accepted_at: string | null;
           last_login_at: string | null;
           is_owner: boolean;
           created_at: string;
@@ -907,6 +908,7 @@ export type Database = {
           password_hash?: string | null;
           invite_token?: string | null;
           invite_sent_at?: string | null;
+          accepted_at?: string | null;
           last_login_at?: string | null;
           is_owner?: boolean;
           created_at?: string;
@@ -923,6 +925,7 @@ export type Database = {
           password_hash?: string | null;
           invite_token?: string | null;
           invite_sent_at?: string | null;
+          accepted_at?: string | null;
           last_login_at?: string | null;
           is_owner?: boolean;
           created_at?: string;

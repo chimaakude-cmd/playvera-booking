@@ -156,6 +156,39 @@ on public.admin_invites for all to anon, authenticated using (true) with check (
 -- Replace DEV policies with auth.uid()-based rules when platform auth ships.
 
 -- ---------------------------------------------------------------------------
+-- auth_user_id link (Supabase Auth)
+-- ---------------------------------------------------------------------------
+
+alter table public.admin_users
+  add column if not exists auth_user_id uuid;
+
+create unique index if not exists admin_users_auth_user_id_idx
+  on public.admin_users (auth_user_id)
+  where auth_user_id is not null;
+
+do $$
+begin
+  alter table public.admin_users
+    add constraint admin_users_auth_user_id_fkey
+    foreign key (auth_user_id) references auth.users (id) on delete set null;
+exception
+  when duplicate_object then null;
+end $$;
+
+comment on column public.admin_users.auth_user_id is
+  'Supabase Auth user id (auth.users.id) used for staff sign-in.';
+
+-- ---------------------------------------------------------------------------
+-- accepted_at (invite activation timestamp)
+-- ---------------------------------------------------------------------------
+
+alter table public.admin_users
+  add column if not exists accepted_at timestamptz;
+
+comment on column public.admin_users.accepted_at is
+  'When the admin accepted their invite and activated their account.';
+
+-- ---------------------------------------------------------------------------
 -- Verify (optional — results appear in SQL Editor output)
 -- ---------------------------------------------------------------------------
 

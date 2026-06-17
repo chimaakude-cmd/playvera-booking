@@ -1,3 +1,8 @@
+import {
+  resolveClientAppBaseUrl,
+  resolveServerAppBaseUrl,
+} from "@/lib/app-url";
+
 export function generateInviteToken(): string {
   return crypto.randomUUID().replace(/-/g, "");
 }
@@ -6,8 +11,8 @@ export function buildAdminInviteLink(token: string, baseUrl?: string): string {
   const origin =
     baseUrl ??
     (typeof window !== "undefined"
-      ? window.location.origin
-      : process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000");
+      ? resolveClientAppBaseUrl()
+      : resolveServerAppBaseUrl());
 
   return `${origin.replace(/\/$/, "")}/admin/accept-invite?token=${encodeURIComponent(token)}`;
 }

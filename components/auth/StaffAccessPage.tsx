@@ -7,9 +7,10 @@ import { Logo } from "@/components/branding";
 import { TEST_ACCOUNTS } from "@/lib/auth/accounts";
 import { writeAuthSession } from "@/lib/auth/session";
 import {
+  clearStaffAccessAttempts,
   getStaffAccessLockoutRemainingMs,
   isStaffAccessLocked,
-  staffAccessLogin,
+  recordStaffAccessFailure,
 } from "@/lib/auth/staff-access";
 import type { AuthUser } from "@/lib/auth/types";
 
@@ -77,6 +78,44 @@ export function StaffAccessPage({
     setSubmitting(false);
   }
 
+  async function handleProductionLogin() {
+    setSubmitting(true);
+
+    try {
+      const response = await fetch("/api/admin/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim(), password }),
+      });
+
+      const payload = (await response.json()) as {
+        ok?: boolean;
+        user?: AuthUser;
+        redirectTo?: string;
+        error?: string;
+      };
+
+      if (!response.ok || !payload.ok || !payload.user) {
+        setError(payload.error ?? "Login failed");
+        if (response.status === 401) {
+          recordStaffAccessFailure();
+          if (isStaffAccessLocked()) {
+            setLocked(true);
+          }
+        }
+        return;
+      }
+
+      writeAuthSession(payload.user);
+      clearStaffAccessAttempts();
+      router.push(payload.redirectTo ?? "/admin/dashboard");
+    } catch {
+      setError("Unable to sign in right now. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     setError(null);
@@ -88,20 +127,11 @@ export function StaffAccessPage({
 
     if (isStaffAccessLocked()) {
       setLocked(true);
-      setError("Login failed");
+      setError("Too many failed attempts. Try again later.");
       return;
     }
 
-    const result = staffAccessLogin(email, password);
-    if (!result.ok) {
-      if (result.error === "locked") {
-        setLocked(true);
-      }
-      setError("Login failed");
-      return;
-    }
-
-    router.push(result.redirectTo);
+    void handleProductionLogin();
   }
 
   const lockoutMs = locked ? getStaffAccessLockoutRemainingMs() : 0;

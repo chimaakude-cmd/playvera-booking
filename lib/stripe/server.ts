@@ -21,15 +21,7 @@ export function getStripe(): Stripe {
   return stripeClient;
 }
 
-export function getAppBaseUrl(request: Request): string {
-  const envUrl = process.env.NEXT_PUBLIC_APP_URL?.trim();
-  if (envUrl) {
-    return envUrl.replace(/\/$/, "");
-  }
-
-  const url = new URL(request.url);
-  return `${url.protocol}//${url.host}`;
-}
+export { getAppBaseUrl } from "@/lib/app-url";
 
 export function getStripeSecretKey(): string | null {
   return isSecretKeyConfigured() ? resolveStripeSecretKey() : null;

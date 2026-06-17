@@ -24,11 +24,10 @@ const ONBOARDING_PATHS: Record<ProviderOrganisationType, string> = {
   enterprise: "/enterprise/onboarding",
 };
 
+import { resolveServerAppBaseUrl } from "@/lib/app-url";
+
 function appOrigin(): string {
-  return (
-    process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ??
-    "http://localhost:3000"
-  );
+  return resolveServerAppBaseUrl();
 }
 
 export function buildPublicOnboardingLink(): string {

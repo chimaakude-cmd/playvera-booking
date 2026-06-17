@@ -11,6 +11,7 @@ export type AdminUserRow = {
   password_hash: string | null;
   invite_token: string | null;
   invite_sent_at: string | null;
+  accepted_at: string | null;
   last_login_at: string | null;
   is_owner: boolean;
   created_at: string;
@@ -40,6 +41,7 @@ export function rowToAdminUser(row: AdminUserRow): AdminUser {
     passwordHash: row.password_hash,
     inviteToken: row.invite_token,
     inviteSentAt: row.invite_sent_at,
+    acceptedAt: row.accepted_at,
     lastLoginAt: row.last_login_at,
     isOwner: row.is_owner,
     createdAt: row.created_at,

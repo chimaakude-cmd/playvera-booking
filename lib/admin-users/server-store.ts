@@ -14,6 +14,7 @@ import type { AdminUser, AdminUserAuditEntry, InviteAdminUserInput, UpdateAdminU
 import { toPublicAdminUser } from "./types";
 import type { ActivoraSupabaseClient } from "@/lib/supabase";
 import { toAdminUsersFriendlyError } from "./errors";
+import { ensureSupabaseAuthUserForAdmin } from "./supabase-auth";
 
 const INVITE_EXPIRY_DAYS = 7;
 
@@ -555,17 +556,28 @@ export async function acceptServerAdminInvite(
     return { ok: false, error: "Admin user not found for this invite." };
   }
 
-  const passwordHash = await hashAdminPassword(password.trim());
+  const authResult = await ensureSupabaseAuthUserForAdmin(
+    invite.email,
+    password.trim(),
+    invite.role,
+  );
+
+  if ("error" in authResult) {
+    return { ok: false, error: authResult.error };
+  }
+
   const now = nowIso();
   const supabase = getSupabase();
 
   const { error: userError } = await supabase
     .from("admin_users")
     .update({
-      password_hash: passwordHash,
+      auth_user_id: authResult.authUserId,
+      password_hash: null,
       status: "active",
       email_verified: true,
       invite_token: null,
+      accepted_at: now,
       updated_at: now,
     })
     .eq("id", user.id);

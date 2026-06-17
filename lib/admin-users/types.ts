@@ -16,6 +16,7 @@ export type AdminUser = {
   passwordHash: string | null;
   inviteToken: string | null;
   inviteSentAt: string | null;
+  acceptedAt: string | null;
   lastLoginAt: string | null;
   isOwner: boolean;
   createdAt: string;

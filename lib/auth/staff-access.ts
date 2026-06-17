@@ -77,6 +77,10 @@ function recordFailure(): void {
   writeAttempts({ failures, lockedUntil: null });
 }
 
+export function recordStaffAccessFailure(): void {
+  recordFailure();
+}
+
 export function clearStaffAccessAttempts(): void {
   if (!isBrowser()) {
     return;
@@ -104,7 +108,8 @@ export type StaffLoginResult =
   | { ok: false; error: "locked" | "invalid" };
 
 /**
- * Staff-only login — accepts admin accounts only; rejects parent/club/organisation.
+ * Local test-account login for development demos.
+ * Production staff sign-in uses POST /api/admin/auth/login (Supabase Auth).
  */
 export function staffAccessLogin(
   email: string,

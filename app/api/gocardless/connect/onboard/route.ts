@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getAppBaseUrl } from "@/lib/app-url";
 import { getGoCardlessEnv } from "@/lib/gocardless/env";
 
 type OnboardBody = {
@@ -10,9 +11,7 @@ export async function POST(request: Request) {
   const providerId = body.providerId ?? "demo-provider-1";
   const env = getGoCardlessEnv();
 
-  const baseUrl =
-    process.env.NEXT_PUBLIC_APP_URL?.trim() ||
-    new URL(request.url).origin;
+  const baseUrl = getAppBaseUrl(request);
 
   const returnUrl = `${baseUrl}/club/finance?tab=payment-providers&gocardless=connected`;
 

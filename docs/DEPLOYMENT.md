@@ -54,7 +54,7 @@ npx vercel login
 npx vercel link
 
 # 3. Set env vars in the dashboard (Project ? Settings ? Environment Variables)
-#    Copy from .env.local.example ? especially NEXT_PUBLIC_APP_URL=https://app.activora.uk for staging.
+#    Copy from .env.local.example — especially NEXT_PUBLIC_APP_URL=https://activora.uk for production.
 
 # 4. Production deploy
 npx vercel --prod
@@ -67,7 +67,7 @@ npx vercel link --yes
 npx vercel --prod --yes
 `
 
-**After deploy:** note the production alias (e.g. `https://playvera-booking.vercel.app`). Add custom domain `app.activora.uk` under **Project ? Settings ? Domains**, then redeploy if you changed env vars.
+**After deploy:** note the production alias (e.g. `https://playvera-booking.vercel.app`). Add custom domain `activora.uk` under **Project → Settings → Domains**, then redeploy if you changed env vars (required for `NEXT_PUBLIC_*` changes).
 
 **Optional:** connect the Git repo in the dashboard for automatic deploys on push to `main`.
 ---
@@ -95,11 +95,12 @@ git push origin main
 
 Vercel builds with **`npm install`** and **`npm run build`** (`next build`) and promotes the result to Production. No manual `vercel --prod` is required unless you are deploying from CLI only.
 
-### DNS reminder (staging)
+### DNS reminder (production)
 
-- **`app.activora.uk`** ? CNAME **`cname.vercel-dns.com`** (Fasthosts Advanced DNS; keep Automatic DNS Updates **OFF**).
-- Add **`app.activora.uk`** under **Project ? Settings ? Domains** if it is not listed yet.
-- Apex **`activora.uk`** cutover steps remain in [Fasthosts + Vercel ? production cutover checklist](#fasthosts--vercel--production-cutover-checklist).
+- **`activora.uk`** — apex A `76.76.21.21` (and optional second A `76.76.19.19`) or ALIAS → `cname.vercel-dns.com` (Fasthosts Advanced DNS; keep Automatic DNS Updates **OFF**).
+- **`www.activora.uk`** — CNAME → `cname.vercel-dns.com`; redirect to apex in Vercel.
+- Add **`activora.uk`** and **`www.activora.uk`** under **Project → Settings → Domains**.
+- **Do not use `app.activora.uk`** — that subdomain is not served; invite links and redirects must use `https://activora.uk`.
 
 
 ---
@@ -143,13 +144,13 @@ Add each variable for **Production** (and **Preview** if you want PR previews to
 
 See [Production environment variables](#production-environment-variables) below.
 
-Set `NEXT_PUBLIC_APP_URL` to your **staging URL first**:
+Set `NEXT_PUBLIC_APP_URL` to your production URL:
 
 ```
-https://app.activora.uk
+https://activora.uk
 ```
 
-Update to `https://activora.uk` only when you cut over the apex domain.
+`NEXT_PUBLIC_*` variables are inlined at **build time** — update the value in Vercel and **redeploy** for admin invite links, Stripe/GoCardless return URLs, and email assets to pick up the change.
 
 ### 3. Deploy
 
@@ -196,7 +197,7 @@ Copy from `.env.local.example`. Set in **Vercel ? Settings ? Environment Variabl
 
 | Variable | Example / notes | Exposed to browser |
 |----------|-----------------|-------------------|
-| `NEXT_PUBLIC_APP_URL` | `https://app.mydomain.co.uk` (staging) ? `https://mydomain.co.uk` (prod) | Yes |
+| `NEXT_PUBLIC_APP_URL` | `https://activora.uk` (production) | Yes |
 | `NEXT_PUBLIC_SUPABASE_URL` | `https://xxxx.supabase.co` | Yes |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon/public key | Yes |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key (server-only; required for Admin Users API in production) | No |
@@ -534,13 +535,13 @@ All routes under `app/api/**` deploy as serverless functions. Webhook handlers r
 - [ ] Run `npm run build` locally ? passes
 - [ ] Create Vercel project from Git repo
 - [ ] Add all env vars (use **test/sandbox** keys where possible)
-- [ ] Set `NEXT_PUBLIC_APP_URL=https://app.activora.uk`
+- [ ] Set `NEXT_PUBLIC_APP_URL=https://activora.uk`
 - [ ] Deploy to Vercel; confirm `*.vercel.app` URL works
-- [ ] Vercel ? Domains ? add `app.activora.uk`
+- [ ] Vercel → Domains → add `activora.uk` and `www.activora.uk`
 - [ ] Fasthosts ? Advanced DNS ? **Automatic DNS Updates OFF**
 - [ ] Fasthosts ? **ADD CNAME RECORD**: HOST `app` ? POINTS TO `cname.vercel-dns.com`
 - [ ] Wait for DNS + SSL active in Vercel
-- [ ] Smoke-test app on `https://app.activora.uk`
+- [ ] Smoke-test app on `https://activora.uk`
 - [ ] Stripe: add staging webhook ? `.../api/stripe/webhook`, update `STRIPE_WEBHOOK_SECRET`, redeploy if needed
 - [ ] GoCardless: add staging webhook ? `.../api/gocardless/webhook` (if using GoCardless)
 - [ ] Full QA on staging
@@ -583,7 +584,7 @@ the deploy is missing required `NEXT_PUBLIC_*` variables. They are inlined at **
 
 | Variable | Required for |
 |----------|----------------|
-| `NEXT_PUBLIC_APP_URL` | Correct redirects and Stripe/GoCardless return URLs (`https://app.activora.uk` for staging) |
+| `NEXT_PUBLIC_APP_URL` | Correct redirects, admin invite links, and Stripe/GoCardless return URLs (`https://activora.uk`) |
 | `NEXT_PUBLIC_SUPABASE_URL` | Session listing, auth, storage |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Session listing, auth, storage |
 | `NEXT_PUBLIC_DATA_PROVIDER` | Set to `supabase` (default if omitted) |

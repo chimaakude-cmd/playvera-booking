@@ -1,3 +1,4 @@
+import { resolveServerAppBaseUrl } from "@/lib/app-url";
 import { BRAND_LOGO_COMPACT } from "@/lib/branding/constants";
 import { BRAND_NAME } from "@/lib/brand";
 
@@ -5,8 +6,7 @@ import { BRAND_NAME } from "@/lib/brand";
  * Absolute logo URL for HTML emails. Set NEXT_PUBLIC_APP_URL in production.
  */
 export function getBrandLogoEmailUrl(): string {
-  const base =
-    process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? "https://activora.com";
+  const base = resolveServerAppBaseUrl();
   return `${base}${BRAND_LOGO_COMPACT}`;
 }
 
