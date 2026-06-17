@@ -2,7 +2,11 @@ import { DashboardStatCard } from "@/components/club/dashboard/DashboardCards";
 import { EstimatedPlatformRevenueSection } from "@/components/admin/EstimatedPlatformRevenueSection";
 import { PageHeader } from "@/components/club/PageHeader";
 import type { AdminDashboardData } from "@/lib/admin/dashboard-data";
-import { formatAdminDataStatusLabel } from "@/lib/admin/dashboard-data";
+import {
+  formatPaymentsStatusLabel,
+  formatSupabaseMetricsStatusLabel,
+  type AdminStatusBadgeLabel,
+} from "@/lib/admin/data-source";
 import { formatMoney } from "@/lib/payments";
 
 type Props = {
@@ -13,12 +17,8 @@ function formatCount(value: number): string {
   return new Intl.NumberFormat("en-GB").format(value);
 }
 
-function DataStatusBadge({
-  status,
-}: {
-  status: AdminDashboardData["platformMetricsStatus"];
-}) {
-  const isLive = status === "live";
+function DataStatusBadge({ label }: { label: AdminStatusBadgeLabel }) {
+  const isLive = label === "Live data";
 
   return (
     <span
@@ -28,7 +28,7 @@ function DataStatusBadge({
           : "bg-zinc-100 text-zinc-600 ring-1 ring-zinc-200"
       }`}
     >
-      {formatAdminDataStatusLabel(status)}
+      {label}
     </span>
   );
 }
@@ -36,11 +36,11 @@ function DataStatusBadge({
 function SectionHeader({
   title,
   description,
-  status,
+  label,
 }: {
   title: string;
   description: string;
-  status: AdminDashboardData["platformMetricsStatus"];
+  label: AdminStatusBadgeLabel;
 }) {
   return (
     <div className="flex flex-wrap items-start justify-between gap-3">
@@ -48,15 +48,42 @@ function SectionHeader({
         <h2 className="text-lg font-semibold text-zinc-900">{title}</h2>
         <p className="mt-1 text-sm text-zinc-500">{description}</p>
       </div>
-      <DataStatusBadge status={status} />
+      <DataStatusBadge label={label} />
     </div>
   );
+}
+
+function paymentsOverviewDescription(data: AdminDashboardData): string {
+  if (!data.supabaseConfigured) {
+    return "Add Supabase env vars and redeploy to surface booking and payment metrics.";
+  }
+
+  if (!data.stripeConfigured) {
+    return "Connect Stripe to surface payment volume and platform fees.";
+  }
+
+  if (data.platformRevenue.hasLivePaymentData) {
+    return "Live booking and payment metrics from Supabase.";
+  }
+
+  return "Stripe and Supabase are configured — metrics will appear once bookings are recorded.";
 }
 
 export function AdminTestDashboardContent({ data }: Props) {
   const { metrics, platformRevenue } = data;
   const showPaymentVolume =
-    platformRevenue.status === "live" && platformRevenue.hasLivePaymentData;
+    data.supabaseConfigured &&
+    data.stripeConfigured &&
+    platformRevenue.hasLivePaymentData;
+  const metricsStatusLabel = formatSupabaseMetricsStatusLabel(
+    data.supabaseConfigured,
+  );
+  const paymentsStatusLabel = formatPaymentsStatusLabel({
+    supabaseConfigured: data.supabaseConfigured,
+    stripeConfigured: data.stripeConfigured,
+    hasLivePaymentData: platformRevenue.hasLivePaymentData,
+  });
+  const showBookingsCount = data.supabaseConfigured;
 
   return (
     <div className="space-y-8">
@@ -72,7 +99,7 @@ export function AdminTestDashboardContent({ data }: Props) {
 
       <section className="space-y-4">
         <div className="flex justify-end">
-          <DataStatusBadge status={data.platformMetricsStatus} />
+          <DataStatusBadge label={metricsStatusLabel} />
         </div>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           <DashboardStatCard
@@ -101,7 +128,7 @@ export function AdminTestDashboardContent({ data }: Props) {
           <SectionHeader
             title="Recent signups"
             description="Latest clubs joining Activora."
-            status={data.recentSignupsStatus}
+            label={metricsStatusLabel}
           />
           {data.recentSignups.length > 0 ? (
             <ul className="mt-4 space-y-3">
@@ -117,7 +144,7 @@ export function AdminTestDashboardContent({ data }: Props) {
             </ul>
           ) : (
             <p className="mt-4 rounded-xl border border-dashed border-zinc-200 bg-zinc-50 px-4 py-6 text-center text-sm text-zinc-500">
-              No data yet
+              {data.supabaseConfigured ? "No data yet" : "Supabase not configured"}
             </p>
           )}
         </article>
@@ -125,12 +152,8 @@ export function AdminTestDashboardContent({ data }: Props) {
         <article className="rounded-2xl border border-zinc-200/80 bg-white p-6 shadow-sm">
           <SectionHeader
             title="Payments &amp; bookings overview"
-            description={
-              data.stripeConfigured
-                ? "Stripe is configured — aggregate payment metrics will appear once the dashboard API is wired."
-                : "Connect Stripe to surface payment volume and platform fees."
-            }
-            status={data.paymentsStatus}
+            description={paymentsOverviewDescription(data)}
+            label={paymentsStatusLabel}
           />
           <dl className="mt-4 grid gap-3 sm:grid-cols-2">
             <div className="rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-3">
@@ -138,7 +161,7 @@ export function AdminTestDashboardContent({ data }: Props) {
                 Bookings (30d)
               </dt>
               <dd className="mt-1 text-2xl font-semibold text-zinc-900">
-                {data.platformMetricsStatus === "live"
+                {showBookingsCount
                   ? formatCount(metrics.bookingsLast30Days)
                   : "No data yet"}
               </dd>
@@ -157,7 +180,10 @@ export function AdminTestDashboardContent({ data }: Props) {
         </article>
       </section>
 
-      <EstimatedPlatformRevenueSection summary={platformRevenue} />
+      <EstimatedPlatformRevenueSection
+        summary={platformRevenue}
+        supabaseConfigured={data.supabaseConfigured}
+      />
 
       <article className="rounded-2xl border border-zinc-200/80 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-semibold text-zinc-900">Admin controls</h2>

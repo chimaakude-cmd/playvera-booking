@@ -114,12 +114,14 @@ function emptyTierRows(): PlatformRevenueTierRow[] {
   }));
 }
 
-export function emptyPlatformRevenueSummary(): PlatformRevenueSummary {
+export function emptyPlatformRevenueSummary(
+  supabaseConfigured = isSupabaseConfigured(),
+): PlatformRevenueSummary {
   return {
     tiers: emptyTierRows(),
     totalEstimatedRevenue: 0,
     totalMonthlyVolume: 0,
-    status: "unavailable",
+    status: supabaseConfigured ? "no_data" : "env_missing",
     hasLivePaymentData: false,
   };
 }
@@ -160,8 +162,8 @@ export async function fetchPlatformRevenueSummary(): Promise<PlatformRevenueSumm
         bookingsResult.error?.message,
     );
     return {
-      ...emptyPlatformRevenueSummary(),
-      status: "live",
+      ...emptyPlatformRevenueSummary(true),
+      status: "no_data",
       hasLivePaymentData: false,
     };
   }

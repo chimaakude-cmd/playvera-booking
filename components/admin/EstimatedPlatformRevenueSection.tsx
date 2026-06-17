@@ -1,9 +1,10 @@
 import type { PlatformRevenueSummary } from "@/lib/admin/platform-revenue-data";
-import { formatAdminDataStatusLabel } from "@/lib/admin/dashboard-data";
+import { formatPlatformRevenueStatusLabel } from "@/lib/admin/data-source";
 import { formatMoney } from "@/lib/payments";
 
 type Props = {
   summary: PlatformRevenueSummary;
+  supabaseConfigured: boolean;
 };
 
 function formatCount(value: number): string {
@@ -17,13 +18,17 @@ function formatPercent(value: number): string {
   })}%`;
 }
 
-export function EstimatedPlatformRevenueSection({ summary }: Props) {
-  const showLiveData = summary.status === "live" && summary.hasLivePaymentData;
-  const statusLabel = showLiveData
-    ? "Live data"
-    : summary.status === "live"
-      ? "No live payment data yet"
-      : formatAdminDataStatusLabel(summary.status);
+export function EstimatedPlatformRevenueSection({
+  summary,
+  supabaseConfigured,
+}: Props) {
+  const showLiveData =
+    supabaseConfigured && summary.status === "live" && summary.hasLivePaymentData;
+  const statusLabel = formatPlatformRevenueStatusLabel({
+    supabaseConfigured,
+    status: summary.status,
+    hasLivePaymentData: summary.hasLivePaymentData,
+  });
 
   return (
     <article className="rounded-2xl border border-zinc-200/80 bg-white p-6 shadow-sm">
@@ -104,7 +109,7 @@ export function EstimatedPlatformRevenueSection({ summary }: Props) {
         </table>
       </div>
 
-      {!showLiveData ? (
+      {!showLiveData && supabaseConfigured ? (
         <p className="mt-4 rounded-xl border border-dashed border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-500">
           No live payment data yet.
         </p>

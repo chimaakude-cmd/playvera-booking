@@ -607,6 +607,7 @@ Only for **local dev demos** on a single browser. Set `NEXT_PUBLIC_DATA_PROVIDER
 | Symptom | Check |
 |---------|-------|
 | Build fails on Vercel | Compare Node version (Vercel uses 20.x by default); run `npm run build` locally |
+| Admin dashboard shows "Supabase not configured" but Stripe works | `paymentsStatus` treated no-data as env-missing; fix deployed — also verify `NEXT_PUBLIC_SUPABASE_URL` / `ANON_KEY` were set **before** last Vercel build (redeploy if added after) |
 | Amber Supabase banner + 0 sessions | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`; redeploy after adding |
 | Map preview unavailable | `NEXT_PUBLIC_MAPBOX_TOKEN` (`pk.` prefix); redeploy after adding |
 | 401/redirect loops on portals | `proxy.ts` matcher paths; auth cookies set after login |

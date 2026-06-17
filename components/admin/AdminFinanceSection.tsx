@@ -82,7 +82,10 @@ export function AdminFinanceSection({ data }: Props) {
         />
       </section>
 
-      <EstimatedPlatformRevenueSection summary={platformRevenue} />
+      <EstimatedPlatformRevenueSection
+        summary={platformRevenue}
+        supabaseConfigured={dataSource !== "env_missing"}
+      />
       <AdminStripePlatformCard />
       <AdminPaymentProvidersSection />
 

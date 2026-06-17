@@ -9,7 +9,7 @@ import {
   isSupabaseConfigured,
 } from "@/lib/supabase";
 
-export type AdminDataSourceStatus = "live" | "unavailable";
+export type AdminDataSourceStatus = "live" | "no_data" | "env_missing";
 
 export type AdminDashboardSignup = {
   id: string;
@@ -29,8 +29,8 @@ export type AdminDashboardData = {
   platformMetricsStatus: AdminDataSourceStatus;
   recentSignups: AdminDashboardSignup[];
   recentSignupsStatus: AdminDataSourceStatus;
-  paymentsStatus: AdminDataSourceStatus;
   platformRevenue: PlatformRevenueSummary;
+  supabaseConfigured: boolean;
   stripeConfigured: boolean;
 };
 
@@ -127,6 +127,9 @@ async function countPublishedClubProfiles(): Promise<number | null> {
 }
 
 function emptyDashboardData(): AdminDashboardData {
+  const supabaseConfigured = isSupabaseConfigured();
+  const stripeConfigured = isSecretKeyConfigured();
+
   return {
     metrics: {
       totalClubs: 0,
@@ -134,19 +137,20 @@ function emptyDashboardData(): AdminDashboardData {
       clubProfiles: 0,
       bookingsLast30Days: 0,
     },
-    platformMetricsStatus: "unavailable",
+    platformMetricsStatus: supabaseConfigured ? "no_data" : "env_missing",
     recentSignups: [],
-    recentSignupsStatus: "unavailable",
-    paymentsStatus: "unavailable",
-    platformRevenue: emptyPlatformRevenueSummary(),
-    stripeConfigured: isSecretKeyConfigured(),
+    recentSignupsStatus: supabaseConfigured ? "no_data" : "env_missing",
+    platformRevenue: emptyPlatformRevenueSummary(supabaseConfigured),
+    supabaseConfigured,
+    stripeConfigured,
   };
 }
 
 export async function fetchAdminDashboardData(): Promise<AdminDashboardData> {
+  const supabaseConfigured = isSupabaseConfigured();
   const stripeConfigured = isSecretKeyConfigured();
 
-  if (!isSupabaseConfigured()) {
+  if (!supabaseConfigured) {
     return emptyDashboardData();
   }
 
@@ -172,6 +176,12 @@ export async function fetchAdminDashboardData(): Promise<AdminDashboardData> {
     fetchPlatformRevenueSummary(),
   ]);
 
+  const metricsLoaded =
+    totalClubs !== null &&
+    totalCustomers !== null &&
+    clubProfiles !== null &&
+    bookingsLast30Days !== null;
+
   return {
     metrics: {
       totalClubs: totalClubs ?? 0,
@@ -179,20 +189,11 @@ export async function fetchAdminDashboardData(): Promise<AdminDashboardData> {
       clubProfiles: clubProfiles ?? 0,
       bookingsLast30Days: bookingsLast30Days ?? 0,
     },
-    platformMetricsStatus: "live",
+    platformMetricsStatus: metricsLoaded ? "live" : "no_data",
     recentSignups: recentSignups ?? [],
-    recentSignupsStatus: "live",
-    paymentsStatus:
-      platformRevenue.status === "live" && platformRevenue.hasLivePaymentData
-        ? "live"
-        : "unavailable",
+    recentSignupsStatus: recentSignups !== null ? "live" : "no_data",
     platformRevenue,
+    supabaseConfigured,
     stripeConfigured,
   };
-}
-
-export function formatAdminDataStatusLabel(
-  status: AdminDataSourceStatus,
-): "Live data" | "Supabase not configured" {
-  return status === "live" ? "Live data" : "Supabase not configured";
 }
