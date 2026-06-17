@@ -44,13 +44,13 @@ function AcceptInviteForm() {
       const response = await fetch("/api/admin/accept-invite", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token, password }) });
       const payload = (await response.json()) as { error?: string };
       if (!response.ok) { setError(payload.error ?? "Failed to accept invite."); return; }
-      setSuccess(true); setTimeout(() => router.push("/staff-access"), 2000);
+      setSuccess(true); setTimeout(() => router.push("/admin/login"), 2000);
     } catch { setError("Failed to accept invite."); } finally { setSubmitting(false); }
   }
 
   if (loading) return <LoadingState message="Loading invite…" />;
-  if (success) return <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6 text-center text-sm text-emerald-900"><p className="font-semibold">Account activated</p><p className="mt-2">Redirecting to staff sign-in…</p></div>;
-  if (!invite) return <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-center text-sm text-red-800">{error ?? "Invite link is invalid or has expired."}<p className="mt-4"><Link href="/staff-access" className="font-medium text-violet-700 hover:text-violet-900">Go to staff sign-in</Link></p></div>;
+  if (success) return <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6 text-center text-sm text-emerald-900"><p className="font-semibold">Account activated</p><p className="mt-2">Redirecting to admin sign-in…</p></div>;
+  if (!invite) return <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-center text-sm text-red-800">{error ?? "Invite link is invalid or has expired."}<p className="mt-4"><Link href="/admin/login" className="font-medium text-violet-700 hover:text-violet-900">Go to admin sign-in</Link></p></div>;
   const roleLabel = invite.role in ADMIN_ROLE_LABELS ? ADMIN_ROLE_LABELS[invite.role as AdminUserRole] : invite.role;
   return (
     <form onSubmit={(event) => void handleSubmit(event)} className="rounded-2xl border border-violet-500/20 bg-zinc-900/80 p-6 shadow-2xl shadow-violet-950/40 backdrop-blur sm:p-8">
