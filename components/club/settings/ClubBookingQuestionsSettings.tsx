@@ -8,6 +8,7 @@ import {
 import { getClubDefaultBookingQuestions } from "@/lib/club-onboarding";
 import { CLUB_DEFAULT_BOOKING_QUESTIONS_KEY } from "@/lib/club-onboarding/types";
 import { adminQuestionsToClubConfig } from "@/lib/admin-booking-questions";
+import { hydratePlatformPublicSettings } from "@/lib/platform-settings/client-cache";
 
 function mergeWithAdminDefaults(
   clubQuestions: BookingQuestionConfig[],
@@ -29,8 +30,21 @@ export function ClubBookingQuestionsSettings() {
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    const clubStored = getClubDefaultBookingQuestions();
-    setQuestions(mergeWithAdminDefaults(clubStored));
+    let cancelled = false;
+
+    async function load() {
+      await hydratePlatformPublicSettings();
+      if (cancelled) {
+        return;
+      }
+      const clubStored = getClubDefaultBookingQuestions();
+      setQuestions(mergeWithAdminDefaults(clubStored));
+    }
+
+    void load();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   function persist(next: BookingQuestionConfig[]) {

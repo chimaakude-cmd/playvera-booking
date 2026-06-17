@@ -1,4 +1,4 @@
-import type { AdminBookingQuestion } from "@/lib/admin-booking-questions";
+import type { AdminBookingQuestion } from "@/lib/admin-booking-questions/defaults";
 import type { PlatformSettings } from "@/lib/admin/types";
 import type { PlatformFeeMatrix } from "@/lib/fee-settings";
 

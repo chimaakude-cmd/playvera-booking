@@ -1,7 +1,5 @@
 import type { BookingQuestionAnswerType } from "../booking-questions/types";
 
-export const ADMIN_BOOKING_QUESTIONS_KEY = "activora-admin-booking-questions";
-
 export type BookingQuestionCategory =
   | "CHILD"
   | "CONTACT"

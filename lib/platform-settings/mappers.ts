@@ -1,5 +1,5 @@
-import { SEED_ADMIN_BOOKING_QUESTIONS } from "@/lib/admin-booking-questions";
-import type { AdminBookingQuestion } from "@/lib/admin-booking-questions";
+import { SEED_ADMIN_BOOKING_QUESTIONS } from "@/lib/admin-booking-questions/defaults";
+import type { AdminBookingQuestion } from "@/lib/admin-booking-questions/defaults";
 import {
   DEFAULT_PLATFORM_FEE_MATRIX,
   validatePlatformFeeMatrix,

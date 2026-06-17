@@ -1,12 +1,18 @@
 import {
   SEED_ADMIN_BOOKING_QUESTIONS,
   type AdminBookingQuestion,
-} from "@/lib/admin-booking-questions";
-import {
-  DEFAULT_PLATFORM_FEE_MATRIX,
-  type PlatformFeeMatrix,
-} from "@/lib/fee-settings";
+} from "@/lib/admin-booking-questions/defaults";
+import { getAllPlans, type PlanId } from "@/src/config/pricing";
+import type { PlatformFeeMatrix } from "@/lib/fee-settings";
 import type { PlatformPublicSettings } from "./types";
+
+function buildFallbackFeeMatrix(): PlatformFeeMatrix {
+  const matrix = {} as PlatformFeeMatrix;
+  for (const plan of getAllPlans()) {
+    matrix[plan.id as PlanId] = plan.platformFeePercent;
+  }
+  return matrix;
+}
 
 let cachedPublicSettings: PlatformPublicSettings | null = null;
 let hydratePromise: Promise<PlatformPublicSettings> | null = null;
@@ -16,7 +22,7 @@ export function getCachedPlatformPublicSettings(): PlatformPublicSettings | null
 }
 
 export function getCachedPlatformFeeMatrix(): PlatformFeeMatrix {
-  return cachedPublicSettings?.defaultFees ?? DEFAULT_PLATFORM_FEE_MATRIX;
+  return cachedPublicSettings?.defaultFees ?? buildFallbackFeeMatrix();
 }
 
 export function getCachedBookingQuestionDefaults(): AdminBookingQuestion[] | null {
@@ -51,7 +57,7 @@ export async function hydratePlatformPublicSettings(): Promise<PlatformPublicSet
         marketplaceEnabled: true,
         marketplaceFooterText: "Powered by Activora",
         aiSearchAssistantEnabled: false,
-        defaultFees: DEFAULT_PLATFORM_FEE_MATRIX,
+        defaultFees: buildFallbackFeeMatrix(),
         bookingQuestionDefaults: SEED_ADMIN_BOOKING_QUESTIONS,
       };
       cachedPublicSettings = fallback;
