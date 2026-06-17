@@ -64,6 +64,22 @@ async function findAuthUserIdByEmail(email: string): Promise<string | null> {
   return null;
 }
 
+function formatAuthAdminError(error: AuthError | null, fallback: string): string {
+  if (!error) {
+    return fallback;
+  }
+
+  const parts = [error.message];
+  if (error.code) {
+    parts.push(`(${error.code})`);
+  }
+  if (error.status) {
+    parts.push(`[status ${error.status}]`);
+  }
+
+  return parts.join(" ");
+}
+
 /**
  * Creates or updates a Supabase Auth user for an invited admin.
  * Requires SUPABASE_SERVICE_ROLE_KEY on the server.
@@ -74,6 +90,9 @@ export async function ensureSupabaseAuthUserForAdmin(
   role: string,
 ): Promise<{ authUserId: string } | { error: string }> {
   if (!isSupabaseServiceRoleConfigured()) {
+    console.error(
+      "[accept-invite] SUPABASE_SERVICE_ROLE_KEY is not configured — cannot create auth user.",
+    );
     return {
       error:
         "Supabase service role is not configured. Set SUPABASE_SERVICE_ROLE_KEY on the server.",
@@ -83,40 +102,75 @@ export async function ensureSupabaseAuthUserForAdmin(
   const normalizedEmail = email.trim().toLowerCase();
   const supabase = createSupabaseServiceRoleClient();
 
-  const { data: created, error: createError } = await supabase.auth.admin.createUser({
-    email: normalizedEmail,
-    password,
-    email_confirm: true,
-    user_metadata: { role },
-  });
+  try {
+    const { data: created, error: createError } = await supabase.auth.admin.createUser({
+      email: normalizedEmail,
+      password,
+      email_confirm: true,
+      user_metadata: { role },
+      app_metadata: { role, provider: "email" },
+    });
 
-  if (!createError && created.user) {
-    return { authUserId: created.user.id };
-  }
-
-  if (createError && isEmailAlreadyRegisteredError(createError)) {
-    const existingId = await findAuthUserIdByEmail(normalizedEmail);
-    if (!existingId) {
-      return { error: "Failed to link existing auth account for this email." };
+    if (!createError && created.user) {
+      console.info("[accept-invite] Created Supabase Auth user:", {
+        email: normalizedEmail,
+        authUserId: created.user.id,
+      });
+      return { authUserId: created.user.id };
     }
 
-    const { error: updateError } = await supabase.auth.admin.updateUserById(
-      existingId,
-      {
-        password,
-        email_confirm: true,
-        user_metadata: { role },
-      },
-    );
+    if (createError && isEmailAlreadyRegisteredError(createError)) {
+      console.info("[accept-invite] Auth user already exists, updating password:", {
+        email: normalizedEmail,
+      });
 
-    if (updateError) {
-      return { error: updateError.message };
+      const existingId = await findAuthUserIdByEmail(normalizedEmail);
+      if (!existingId) {
+        console.error("[accept-invite] Email exists in Auth but listUsers could not find it:", {
+          email: normalizedEmail,
+        });
+        return { error: "Failed to link existing auth account for this email." };
+      }
+
+      const { error: updateError } = await supabase.auth.admin.updateUserById(
+        existingId,
+        {
+          password,
+          email_confirm: true,
+          user_metadata: { role },
+          app_metadata: { role, provider: "email" },
+        },
+      );
+
+      if (updateError) {
+        console.error("[accept-invite] updateUserById failed:", {
+          email: normalizedEmail,
+          authUserId: existingId,
+          message: updateError.message,
+          code: updateError.code,
+        });
+        return { error: formatAuthAdminError(updateError, "Failed to update auth account.") };
+      }
+
+      return { authUserId: existingId };
     }
 
-    return { authUserId: existingId };
+    console.error("[accept-invite] auth.admin.createUser failed:", {
+      email: normalizedEmail,
+      message: createError?.message,
+      code: createError?.code,
+      status: createError?.status,
+    });
+    return {
+      error: formatAuthAdminError(createError, "Failed to create auth account."),
+    };
+  } catch (error) {
+    console.error("[accept-invite] ensureSupabaseAuthUserForAdmin threw:", error);
+    return {
+      error:
+        error instanceof Error ? error.message : "Failed to create auth account.",
+    };
   }
-
-  return { error: createError?.message ?? "Failed to create auth account." };
 }
 
 async function getAdminUserByEmail(email: string) {

@@ -17,8 +17,9 @@ function accountToUser(account: TestAccount): AuthUser {
 
 export const STAFF_ACCESS_ATTEMPTS_KEY = "activora-staff-access-attempts";
 
-const MAX_FAILURES = 5;
-const LOCKOUT_MS = 15 * 60 * 1000;
+const IS_PRODUCTION = process.env.NODE_ENV === "production";
+const MAX_FAILURES = IS_PRODUCTION ? 5 : 999;
+const LOCKOUT_MS = IS_PRODUCTION ? 15 * 60 * 1000 : 0;
 
 type AttemptState = {
   failures: number;
@@ -79,6 +80,30 @@ function recordFailure(): void {
 
 export function recordStaffAccessFailure(): void {
   recordFailure();
+}
+
+export type StaffAccessLoginFailureCode =
+  | "account_not_found"
+  | "password_incorrect"
+  | "access_not_active"
+  | "auth_not_configured";
+
+/**
+ * Updates client-side lockout state from /api/admin/auth/login responses.
+ * Only wrong-password attempts count toward lockout.
+ */
+export function handleStaffAccessLoginFailure(
+  status: number,
+  code?: StaffAccessLoginFailureCode,
+): void {
+  if (code === "password_incorrect" || (status === 401 && !code)) {
+    recordStaffAccessFailure();
+    return;
+  }
+
+  if (code === "account_not_found" || code === "access_not_active") {
+    clearStaffAccessAttempts();
+  }
 }
 
 export function clearStaffAccessAttempts(): void {

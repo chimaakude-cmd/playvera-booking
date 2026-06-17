@@ -9,8 +9,9 @@ import { writeAuthSession } from "@/lib/auth/session";
 import {
   clearStaffAccessAttempts,
   getStaffAccessLockoutRemainingMs,
+  handleStaffAccessLoginFailure,
   isStaffAccessLocked,
-  recordStaffAccessFailure,
+  type StaffAccessLoginFailureCode,
 } from "@/lib/auth/staff-access";
 import type { AuthUser } from "@/lib/auth/types";
 
@@ -93,15 +94,14 @@ export function StaffAccessPage({
         user?: AuthUser;
         redirectTo?: string;
         error?: string;
+        code?: StaffAccessLoginFailureCode;
       };
 
       if (!response.ok || !payload.ok || !payload.user) {
         setError(payload.error ?? "Login failed");
-        if (response.status === 401) {
-          recordStaffAccessFailure();
-          if (isStaffAccessLocked()) {
-            setLocked(true);
-          }
+        handleStaffAccessLoginFailure(response.status, payload.code);
+        if (isStaffAccessLocked()) {
+          setLocked(true);
         }
         return;
       }

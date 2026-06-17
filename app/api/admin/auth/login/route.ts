@@ -62,14 +62,17 @@ export async function POST(request: Request) {
 
     if (!result.ok) {
       const status =
-        result.error === "access_not_active"
-          ? 403
+        result.error === "password_incorrect"
+          ? 401
           : result.error === "auth_not_configured"
             ? 503
-            : 401;
+            : 403;
 
       return NextResponse.json(
-        { error: adminAuthLoginErrorMessage(result.error) },
+        {
+          error: adminAuthLoginErrorMessage(result.error),
+          code: result.error,
+        },
         { status },
       );
     }

@@ -542,6 +542,17 @@ export async function acceptServerAdminInvite(
   token: string,
   password: string,
 ): Promise<AcceptInviteResult> {
+  if (!isSupabaseServiceRoleConfigured()) {
+    console.error(
+      "[accept-invite] SUPABASE_SERVICE_ROLE_KEY is not configured — invite accept blocked.",
+    );
+    return {
+      ok: false,
+      error:
+        "Supabase service role is not configured. Set SUPABASE_SERVICE_ROLE_KEY on the server.",
+    };
+  }
+
   if (password.trim().length < 8) {
     return { ok: false, error: "Password must be at least 8 characters." };
   }
@@ -553,8 +564,17 @@ export async function acceptServerAdminInvite(
 
   const user = await getServerAdminUserByEmail(invite.email);
   if (!user || user.status !== "invited") {
+    console.error("[accept-invite] Admin user missing or not invited:", {
+      email: invite.email,
+      status: user?.status ?? null,
+    });
     return { ok: false, error: "Admin user not found for this invite." };
   }
+
+  console.info("[accept-invite] Creating Supabase Auth user for invite:", {
+    email: invite.email,
+    adminUserId: user.id,
+  });
 
   const authResult = await ensureSupabaseAuthUserForAdmin(
     invite.email,
@@ -567,9 +587,9 @@ export async function acceptServerAdminInvite(
   }
 
   const now = nowIso();
-  const supabase = getSupabase();
+  const supabase = createSupabaseServiceRoleClient();
 
-  const { error: userError } = await supabase
+  const { data: updatedUser, error: userError } = await supabase
     .from("admin_users")
     .update({
       auth_user_id: authResult.authUserId,
@@ -580,11 +600,23 @@ export async function acceptServerAdminInvite(
       accepted_at: now,
       updated_at: now,
     })
-    .eq("id", user.id);
+    .eq("id", user.id)
+    .select("id, email, auth_user_id, status, accepted_at")
+    .single();
 
-  if (userError) {
-    logSupabaseError("acceptServerAdminInvite update user", userError);
-    return { ok: false, error: toAdminUsersFriendlyError(userError).message };
+  if (userError || !updatedUser) {
+    console.error("[accept-invite] admin_users update failed after auth user created:", {
+      adminUserId: user.id,
+      authUserId: authResult.authUserId,
+      message: userError?.message,
+      code: userError?.code,
+    });
+    return {
+      ok: false,
+      error: userError
+        ? toAdminUsersFriendlyError(userError).message
+        : "Failed to activate admin user.",
+    };
   }
 
   const { error: inviteError } = await supabase
@@ -593,18 +625,33 @@ export async function acceptServerAdminInvite(
     .eq("token", token);
 
   if (inviteError) {
-    logSupabaseError("acceptServerAdminInvite update invite", inviteError);
+    console.error("[accept-invite] admin_invites update failed:", {
+      token,
+      message: inviteError.message,
+      code: inviteError.code,
+    });
     return { ok: false, error: toAdminUsersFriendlyError(inviteError).message };
   }
 
-  await appendServerAuditEntry({
-    action: "password_changed",
-    targetUserId: user.id,
-    targetEmail: user.email,
-    actorId: user.id,
-    actorName: user.name,
-    actorEmail: user.email,
-    details: "Invite accepted — password set",
+  try {
+    await appendServerAuditEntry({
+      action: "password_changed",
+      targetUserId: user.id,
+      targetEmail: user.email,
+      actorId: user.id,
+      actorName: user.name,
+      actorEmail: user.email,
+      details: "Invite accepted — password set",
+    });
+  } catch (auditError) {
+    console.error("[accept-invite] Audit log failed after successful activation:", auditError);
+  }
+
+  console.info("[accept-invite] Invite accepted:", {
+    email: updatedUser.email,
+    authUserId: updatedUser.auth_user_id,
+    status: updatedUser.status,
+    acceptedAt: updatedUser.accepted_at,
   });
 
   return { ok: true, email: user.email, name: user.name };
