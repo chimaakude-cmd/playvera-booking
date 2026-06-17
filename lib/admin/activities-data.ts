@@ -53,24 +53,6 @@ export type AdminActivitiesListResult = {
   dataSource: "supabase" | "env_missing";
 };
 
-export type AdminActivityProviderOption = {
-  id: string;
-  name: string;
-};
-
-export type AdminActivityUpdatePayload = {
-  title?: string;
-  providerId?: string;
-  day?: string;
-  startTime?: string;
-  endTime?: string;
-  venue?: string;
-  capacity?: number;
-  price?: number;
-  status?: "draft" | "published" | "unpublished";
-  visibility?: ActivityVisibility;
-};
-
 type ScheduleConfig = {
   admin_status?: ActivityStatus;
   visibility?: ActivityVisibility;
@@ -132,22 +114,6 @@ function formatTime(value: string): string {
 
   const match = trimmed.match(/^(\d{1,2}:\d{2})/);
   return match?.[1] ?? trimmed;
-}
-
-function normalizeTimeForDb(value: string): string {
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return "00:00";
-  }
-
-  const match = trimmed.match(/^(\d{1,2}):(\d{2})/);
-  if (!match) {
-    return trimmed;
-  }
-
-  const hours = match[1].padStart(2, "0");
-  const minutes = match[2];
-  return `${hours}:${minutes}`;
 }
 
 function parseScheduleConfig(value: unknown): ScheduleConfig {
@@ -259,40 +225,6 @@ async function fetchSessionRows(): Promise<SessionRow[] | null> {
     ) as unknown as SessionRow[];
 }
 
-export async function fetchAdminActivityProviders(): Promise<
-  AdminActivityProviderOption[]
-> {
-  if (adminListDataSource() === "env_missing") {
-    return [];
-  }
-
-  const supabase = createSupabaseServerClient();
-  const { data, error } = await supabase
-    .from("providers")
-    .select("id, name, slug")
-    .order("name", { ascending: true });
-
-  if (error) {
-    console.error("[Admin activities] Failed to load providers:", error.message);
-    return [];
-  }
-
-  return (data ?? [])
-    .filter(
-      (row) =>
-        row.id !== DEMO_PROVIDER_ID &&
-        !isDemoProviderRecord({
-          id: row.id,
-          name: row.name,
-          slug: row.slug,
-        }),
-    )
-    .map((row) => ({
-      id: row.id,
-      name: row.name?.trim() || "Unnamed provider",
-    }));
-}
-
 export async function fetchAdminActivitiesList(): Promise<AdminActivitiesListResult> {
   const dataSource = adminListDataSource();
   if (dataSource === "env_missing") {
@@ -334,148 +266,12 @@ export async function fetchAdminActivityById(
     return null;
   }
 
-  return mapSessionRow(data as unknown as SessionRow);
-}
-
-export async function updateAdminActivity(
-  id: string,
-  payload: AdminActivityUpdatePayload,
-): Promise<{ ok: true; activity: AdminActivity } | { ok: false; error: string }> {
-  if (adminListDataSource() === "env_missing") {
-    return { ok: false, error: "Supabase is not configured." };
+  const row = data as unknown as SessionRow;
+  if (isRemovedActivityRow(row) || isDemoActivityRow(row)) {
+    return null;
   }
 
-  const existing = await fetchAdminActivityById(id);
-  if (!existing) {
-    return { ok: false, error: "Activity not found." };
-  }
-
-  const supabase = createSupabaseServerClient();
-
-  const { data: existingRow, error: existingError } = await supabase
-    .from("sessions")
-    .select("schedule_config")
-    .eq("id", id)
-    .maybeSingle();
-
-  if (existingError || !existingRow) {
-    return { ok: false, error: "Activity not found." };
-  }
-
-  const scheduleConfig = parseScheduleConfig(existingRow.schedule_config);
-  const nextStatus = payload.status ?? existing.status;
-  const nextVisibility = payload.visibility ?? existing.visibility;
-
-  const published =
-    nextStatus === "published" && nextVisibility === "public";
-
-  const nextScheduleConfig: ScheduleConfig = {
-    ...scheduleConfig,
-    admin_status: nextStatus,
-    visibility: nextVisibility,
-  };
-
-  const updates: Record<string, unknown> = {
-    updated_at: new Date().toISOString(),
-    published,
-    schedule_config: nextScheduleConfig,
-  };
-
-  if (payload.title !== undefined) {
-    updates.session_title = payload.title.trim();
-  }
-
-  if (payload.providerId !== undefined) {
-    updates.provider_id = payload.providerId;
-  }
-
-  if (payload.day !== undefined) {
-    updates.day = payload.day.trim().toLowerCase();
-  }
-
-  if (payload.startTime !== undefined) {
-    updates.start_time = normalizeTimeForDb(payload.startTime);
-  }
-
-  if (payload.endTime !== undefined) {
-    updates.end_time = normalizeTimeForDb(payload.endTime);
-  }
-
-  if (payload.venue !== undefined) {
-    updates.venue_name = payload.venue.trim();
-    updates.location = payload.venue.trim();
-  }
-
-  if (payload.capacity !== undefined) {
-    updates.capacity = payload.capacity;
-    updates.default_capacity = payload.capacity;
-  }
-
-  if (payload.price !== undefined) {
-    updates.price = payload.price;
-  }
-
-  const { error: updateError } = await supabase
-    .from("sessions")
-    .update(updates)
-    .eq("id", id);
-
-  if (updateError) {
-    console.error("[Admin activities] Failed to update session:", updateError.message);
-    return { ok: false, error: updateError.message };
-  }
-
-  const sessionDateUpdates: Record<string, unknown> = {};
-  if (payload.startTime !== undefined) {
-    sessionDateUpdates.start_time = normalizeTimeForDb(payload.startTime);
-  }
-  if (payload.endTime !== undefined) {
-    sessionDateUpdates.end_time = normalizeTimeForDb(payload.endTime);
-  }
-  if (payload.capacity !== undefined) {
-    sessionDateUpdates.capacity = payload.capacity;
-  }
-
-  if (Object.keys(sessionDateUpdates).length > 0) {
-    const { error: datesError } = await supabase
-      .from("session_dates")
-      .update(sessionDateUpdates)
-      .eq("session_id", id);
-
-    if (datesError) {
-      console.error(
-        "[Admin activities] Failed to sync session_dates:",
-        datesError.message,
-      );
-      return { ok: false, error: datesError.message };
-    }
-  }
-
-  const activity = await fetchAdminActivityById(id);
-  if (!activity) {
-    return { ok: false, error: "Activity could not be reloaded after update." };
-  }
-
-  return { ok: true, activity };
-}
-
-export async function deleteAdminActivity(
-  id: string,
-): Promise<{ ok: true } | { ok: false; error: string }> {
-  if (adminListDataSource() === "env_missing") {
-    return { ok: false, error: "Supabase is not configured." };
-  }
-
-  const supabase = createSupabaseServerClient();
-
-  const { error } = await supabase.from("sessions").delete().eq("id", id);
-
-  if (error) {
-    console.error("[Admin activities] Failed to delete session:", error.message);
-    return { ok: false, error: error.message };
-  }
-
-  return { ok: true };
+  return mapSessionRow(row);
 }
 
 export async function fetchProviderRemovalContact(
@@ -569,15 +365,24 @@ export async function removeAdminActivity(
     return { ok: false, error: "Supabase is not configured." };
   }
 
-  const existing = await fetchAdminActivityById(id);
-  if (!existing) {
+  const supabase = createSupabaseServerClient();
+  const removedAt = new Date().toISOString();
+  const notes = input.removalNotes?.trim() || null;
+
+  const { data: existingRow, error: existingError } = await supabase
+    .from("sessions")
+    .select("id, provider_id, moderation_status, providers(name, slug)")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (existingError || !existingRow) {
     return { ok: false, error: "Activity not found." };
   }
 
-  const supabase = createSupabaseServerClient();
-  const removedAt = new Date().toISOString();
-
-  const notes = input.removalNotes?.trim() || null;
+  const row = existingRow as unknown as SessionRow;
+  if (isRemovedActivityRow(row) || isDemoActivityRow(row)) {
+    return { ok: false, error: "Activity not found." };
+  }
 
   const { error } = await supabase
     .from("sessions")

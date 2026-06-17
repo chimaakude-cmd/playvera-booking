@@ -577,6 +577,11 @@ export type Database = {
           platform_fee_percent: number;
           bookings_count: number;
           published: boolean;
+          moderation_status: Database["public"]["Enums"]["session_moderation_status"];
+          removal_reason: string | null;
+          removal_notes: string | null;
+          removed_at: string | null;
+          removed_by: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -613,6 +618,11 @@ export type Database = {
           platform_fee_percent?: number;
           bookings_count?: number;
           published?: boolean;
+          moderation_status?: Database["public"]["Enums"]["session_moderation_status"];
+          removal_reason?: string | null;
+          removal_notes?: string | null;
+          removed_at?: string | null;
+          removed_by?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -649,6 +659,11 @@ export type Database = {
           platform_fee_percent?: number;
           bookings_count?: number;
           published?: boolean;
+          moderation_status?: Database["public"]["Enums"]["session_moderation_status"];
+          removal_reason?: string | null;
+          removal_notes?: string | null;
+          removed_at?: string | null;
+          removed_by?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -999,6 +1014,7 @@ export type Database = {
     Views: Record<string, never>;
     Functions: Record<string, never>;
     Enums: {
+      session_moderation_status: "active" | "removed";
       session_booking_type: "individual" | "block" | "subscription";
       ticket_type:
         | "free"
