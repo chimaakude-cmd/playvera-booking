@@ -4,7 +4,35 @@ import { formatPostgrestError } from "@/lib/data/supabase-errors";
 export const DEFAULT_PROVIDER_NAME = "Demo Provider";
 export const DEFAULT_PROVIDER_SLUG = "demo-provider";
 const DEFAULT_PROVIDER_CACHE_KEY = "activora-default-provider-id";
-const LEGACY_PROVIDER_SLUG = "activora-dev-club";
+export const LEGACY_PROVIDER_SLUG = "activora-dev-club";
+
+export const DEMO_PROVIDER_SLUGS = [
+  DEFAULT_PROVIDER_SLUG,
+  LEGACY_PROVIDER_SLUG,
+] as const;
+
+export function isDemoProviderRecord(provider: {
+  id: string;
+  name?: string | null;
+  slug?: string | null;
+}): boolean {
+  const envProviderId = getDefaultProviderIdFromEnv();
+  if (envProviderId && provider.id === envProviderId) {
+    return true;
+  }
+
+  const slug = provider.slug?.trim();
+  if (slug && DEMO_PROVIDER_SLUGS.includes(slug as typeof DEMO_PROVIDER_SLUGS[number])) {
+    return true;
+  }
+
+  const name = provider.name?.trim();
+  if (name === DEFAULT_PROVIDER_NAME) {
+    return true;
+  }
+
+  return false;
+}
 
 export function getDefaultProviderIdFromEnv(): string | null {
   return process.env.NEXT_PUBLIC_DEFAULT_PROVIDER_ID?.trim() || null;

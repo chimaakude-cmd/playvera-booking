@@ -144,7 +144,9 @@ export function AdminTestDashboardContent({ data }: Props) {
             </ul>
           ) : (
             <p className="mt-4 rounded-xl border border-dashed border-zinc-200 bg-zinc-50 px-4 py-6 text-center text-sm text-zinc-500">
-              {data.supabaseConfigured ? "No data yet" : "Supabase not configured"}
+              {data.supabaseConfigured
+                ? "No provider signups yet."
+                : "Supabase not configured"}
             </p>
           )}
         </article>

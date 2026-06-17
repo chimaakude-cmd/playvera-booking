@@ -5,6 +5,10 @@ import {
 } from "@/lib/admin/platform-revenue-data";
 import { isSecretKeyConfigured } from "@/lib/stripe/env";
 import {
+  isDemoProviderRecord,
+} from "@/lib/data/providers/supabase/default-provider";
+import { DEMO_PROVIDER_ID } from "@/lib/stripe-connect/types";
+import {
   createSupabaseServerClient,
   isSupabaseConfigured,
 } from "@/lib/supabase";
@@ -92,16 +96,21 @@ async function fetchRecentSignups(): Promise<AdminDashboardSignup[] | null> {
   const supabase = createSupabaseServerClient();
   const { data, error } = await supabase
     .from("providers")
-    .select("id, name, created_at")
+    .select("id, name, slug, created_at")
     .order("created_at", { ascending: false })
-    .limit(5);
+    .limit(20);
 
   if (error) {
     console.error("[Admin dashboard] Failed to load recent signups:", error.message);
     return null;
   }
 
-  return (data ?? []).map((provider) => ({
+  const realProviders = (data ?? []).filter(
+    (provider) =>
+      provider.id !== DEMO_PROVIDER_ID && !isDemoProviderRecord(provider),
+  );
+
+  return realProviders.slice(0, 5).map((provider) => ({
     id: provider.id,
     name: provider.name.trim() || "Unnamed club",
     joinedLabel: formatRelativeJoinDate(provider.created_at),
