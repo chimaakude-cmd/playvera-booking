@@ -248,20 +248,22 @@ export function AdminSettingsSection() {
               className="h-4 w-4 rounded border-zinc-300 text-violet-600"
             />
           </label>
-          <label className="flex items-center justify-between gap-4 rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 opacity-75">
+          <label className="flex items-center justify-between gap-4 rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3">
             <span>
               <span className="block text-sm text-zinc-700">
-                AI assistant enabled
+                AI search assistant enabled
               </span>
-              <span className="text-xs text-zinc-400">
-                Coming soon — schema ready, not active yet
+              <span className="text-xs text-zinc-500">
+                Enables AI search assistant on activity discovery (Phase 1 only)
               </span>
             </span>
             <input
               type="checkbox"
               checked={settings.aiAssistantEnabled}
-              disabled
-              className="h-4 w-4 rounded border-zinc-300"
+              onChange={(e) =>
+                handleChange("aiAssistantEnabled", e.target.checked)
+              }
+              className="h-4 w-4 rounded border-zinc-300 text-violet-600"
             />
           </label>
         </div>

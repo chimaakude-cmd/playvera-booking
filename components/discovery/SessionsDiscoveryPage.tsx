@@ -19,6 +19,7 @@ import { HomeHeader } from "@/components/home/HomeHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { LoadingState } from "@/components/club/LoadingState";
 import { StickySearchBar } from "./StickySearchBar";
+import { AiSearchAssistant } from "./AiSearchAssistant";
 import { SessionsTrustBar } from "./SessionsTrustBar";
 import { CategoryDiscoveryCards } from "./CategoryDiscoveryCards";
 import { DiscoverySocialProofBar } from "./DiscoverySocialProofBar";
@@ -54,6 +55,7 @@ import {
   ACTIVORA_ACTION,
   ACTIVORA_ACCENT,
 } from "@/lib/home/constants";
+import { useAiSearchAssistantEnabled } from "@/lib/ai/use-ai-search-enabled";
 
 const SessionsMap = dynamic(
   () => import("@/components/sessions/SessionsMap").then((m) => m.SessionsMap),
@@ -115,6 +117,7 @@ export function SessionsDiscoveryPage() {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [filtersSaved, setFiltersSaved] = useState(false);
+  const aiSearchEnabled = useAiSearchAssistantEnabled();
   const isLargeScreen = useMediaQuery("(min-width: 1024px)");
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const cardRefs = useRef<Map<string, HTMLElement>>(new Map());
@@ -208,8 +211,17 @@ export function SessionsDiscoveryPage() {
   }, []);
 
   async function handleSearch() {
+    await applyFilters(filters);
+  }
+
+  function handleFiltersChange(updates: Partial<HomeSearchFilters>) {
+    setFilters((current) => ({ ...current, ...updates }));
+  }
+
+  async function applyFilters(next: HomeSearchFilters) {
+    setFilters(next);
     setSearchError(null);
-    const locationQuery = filters.location.trim();
+    const locationQuery = next.location.trim();
 
     if (locationQuery) {
       try {
@@ -230,14 +242,22 @@ export function SessionsDiscoveryPage() {
       setSearchCenter(null);
     }
 
-    setAppliedFilters(filters);
+    setAppliedFilters(next);
     setFocusSessionId(null);
     setPreviewSessionId(null);
-    router.push(buildSessionsUrl(filters));
+    router.push(buildSessionsUrl(next));
   }
 
-  function handleFiltersChange(updates: Partial<HomeSearchFilters>) {
-    setFilters((current) => ({ ...current, ...updates }));
+  function handleAiApplyFilters(updates: Partial<HomeSearchFilters>) {
+    const next = { ...filters, ...updates };
+    setFilters(next);
+    void applyFilters(next);
+  }
+
+  function handleAdjustFilters(updates: Partial<HomeSearchFilters>) {
+    const next = { ...appliedFilters, ...updates };
+    setFilters(next);
+    void applyFilters(next);
   }
 
   function handleCategorySelect(query: string) {
@@ -298,6 +318,10 @@ export function SessionsDiscoveryPage() {
         onSearch={() => void handleSearch()}
         searchError={searchError}
       />
+
+      {aiSearchEnabled ? (
+        <AiSearchAssistant onApplyFilters={handleAiApplyFilters} />
+      ) : null}
 
       <section className="border-b border-slate-200/60 bg-white py-5 sm:py-6">
         <div className="mx-auto max-w-[1400px] px-4 sm:px-6">
@@ -410,6 +434,7 @@ export function SessionsDiscoveryPage() {
                 <SessionsEmptyState
                   filters={appliedFilters}
                   onClearFilters={handleClearFilters}
+                  onAdjustFilters={handleAdjustFilters}
                 />
               ) : (
                 <>
