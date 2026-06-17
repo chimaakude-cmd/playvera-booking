@@ -879,6 +879,71 @@ export type Database = {
           },
         ];
       };
+      platform_settings: {
+        Row: {
+          id: number;
+          platform_name: string;
+          support_email: string;
+          support_phone: string;
+          platform_url: string;
+          default_currency: string;
+          country: string;
+          vat_threshold: number;
+          marketplace_footer_text: string;
+          marketplace_enabled: boolean;
+          ai_search_assistant_enabled: boolean;
+          default_fees: Json;
+          booking_question_defaults: Json;
+          created_at: string;
+          updated_at: string;
+          updated_by: string | null;
+        };
+        Insert: {
+          id?: number;
+          platform_name?: string;
+          support_email?: string;
+          support_phone?: string;
+          platform_url?: string;
+          default_currency?: string;
+          country?: string;
+          vat_threshold?: number;
+          marketplace_footer_text?: string;
+          marketplace_enabled?: boolean;
+          ai_search_assistant_enabled?: boolean;
+          default_fees?: Json;
+          booking_question_defaults?: Json;
+          created_at?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Update: {
+          id?: number;
+          platform_name?: string;
+          support_email?: string;
+          support_phone?: string;
+          platform_url?: string;
+          default_currency?: string;
+          country?: string;
+          vat_threshold?: number;
+          marketplace_footer_text?: string;
+          marketplace_enabled?: boolean;
+          ai_search_assistant_enabled?: boolean;
+          default_fees?: Json;
+          booking_question_defaults?: Json;
+          created_at?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "platform_settings_updated_by_fkey";
+            columns: ["updated_by"];
+            isOneToOne: false;
+            referencedRelation: "admin_users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       admin_users: {
         Row: {
           id: string;

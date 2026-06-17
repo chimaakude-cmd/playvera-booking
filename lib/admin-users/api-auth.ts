@@ -52,4 +52,35 @@ export async function requireManageActivitiesActor(
   return { actor };
 }
 
+export async function requirePlatformSettingsReadActor(
+  request: NextRequest,
+): Promise<{ actor: AdminUserActor } | { error: string; status: number }> {
+  const actor = await getAdminActorFromRequest(request);
+
+  if (!actor) {
+    return { error: "Admin authentication required.", status: 401 };
+  }
+
+  return { actor };
+}
+
+export async function requirePlatformSettingsWriteActor(
+  request: NextRequest,
+): Promise<{ actor: AdminUserActor } | { error: string; status: number }> {
+  const actor = await getAdminActorFromRequest(request);
+
+  if (!actor) {
+    return { error: "Admin authentication required.", status: 401 };
+  }
+
+  if (actor.role !== "owner" && actor.role !== "super_admin") {
+    return {
+      error: "Only Owner or Super Admin can change platform settings.",
+      status: 403,
+    };
+  }
+
+  return { actor };
+}
+
 export type { AdminRole };

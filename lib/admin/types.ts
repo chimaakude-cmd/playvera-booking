@@ -2,7 +2,7 @@
  * Activora platform admin types.
  *
  * Storage (today): localStorage `activora-admin-session`
- * Database: future `platform_admins` + `platform_settings`
+ * Database: `admin_users` + `platform_settings`
  */
 
 export type AdminRole =

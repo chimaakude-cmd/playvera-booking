@@ -1,56 +1,70 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { getAdminSession } from "@/lib/admin";
 import {
   calculatePlatformFeeAmount,
   DEFAULT_PLATFORM_FEE_MATRIX,
-  getPlatformFeeAuditLog,
-  getPlatformFeeMatrix,
   MAX_PLATFORM_FEE_PERCENT,
   MIN_PLATFORM_FEE_PERCENT,
   PLATFORM_FEE_TIERS,
-  resetPlatformFeeMatrix,
-  savePlatformFeeMatrix,
   validatePlatformFeeMatrix,
   validatePlatformFeePercent,
-  type PlatformFeeAuditEntry,
   type PlatformFeeMatrix,
 } from "@/lib/fee-settings";
+import { invalidatePlatformPublicSettingsCache } from "@/lib/platform-settings/client-cache";
+import type { PlatformSettingsPayload } from "@/lib/platform-settings/types";
 import { formatMoney } from "@/lib/payments";
 import type { PlanId } from "@/src/config/pricing";
 
 const PREVIEW_BOOKING_AMOUNT = 100;
 
-function formatAuditSummary(entry: PlatformFeeAuditEntry): string {
-  const changes = PLATFORM_FEE_TIERS.filter(
-    (tier) => entry.previous[tier.planId] !== entry.next[tier.planId],
-  ).map(
-    (tier) =>
-      `${tier.label}: ${entry.previous[tier.planId]}% → ${entry.next[tier.planId]}%`,
-  );
-
-  return changes.join(", ");
-}
-
-function formatAuditTimestamp(iso: string): string {
-  return new Date(iso).toLocaleString("en-GB", {
-    dateStyle: "medium",
-    timeStyle: "short",
+async function fetchPlatformSettings(): Promise<PlatformSettingsPayload> {
+  const response = await fetch("/api/admin/platform-settings", {
+    cache: "no-store",
   });
+
+  if (!response.ok) {
+    throw new Error("Failed to load platform settings.");
+  }
+
+  const data = (await response.json()) as { settings: PlatformSettingsPayload };
+  return data.settings;
 }
 
 export function PlatformFeeStructureSection() {
   const [matrix, setMatrix] = useState<PlatformFeeMatrix>(
     DEFAULT_PLATFORM_FEE_MATRIX,
   );
-  const [auditLog, setAuditLog] = useState<PlatformFeeAuditEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    setMatrix(getPlatformFeeMatrix());
-    setAuditLog(getPlatformFeeAuditLog());
+    let cancelled = false;
+
+    async function load() {
+      try {
+        const settings = await fetchPlatformSettings();
+        if (!cancelled) {
+          setMatrix(settings.defaultFees);
+          setError(null);
+        }
+      } catch {
+        if (!cancelled) {
+          setError("Unable to load platform settings.");
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    void load();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const preview = useMemo(
@@ -72,7 +86,7 @@ export function PlatformFeeStructureSection() {
     setError(null);
   }
 
-  function handleSave(event: React.FormEvent) {
+  async function handleSave(event: React.FormEvent) {
     event.preventDefault();
 
     if (!validatePlatformFeeMatrix(matrix)) {
@@ -82,22 +96,57 @@ export function PlatformFeeStructureSection() {
       return;
     }
 
-    const session = getAdminSession();
-    savePlatformFeeMatrix(matrix, {
-      name: session?.name ?? "Platform Admin",
-      email: session?.email ?? "admin@activora.co.uk",
-    });
+    setSaving(true);
+    setSaved(false);
 
-    setAuditLog(getPlatformFeeAuditLog());
-    setSaved(true);
-    setError(null);
+    try {
+      const response = await fetch("/api/admin/platform-settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ defaultFees: matrix }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Save failed");
+      }
+
+      const data = (await response.json()) as { settings: PlatformSettingsPayload };
+      setMatrix(data.settings.defaultFees);
+      invalidatePlatformPublicSettingsCache();
+      setSaved(true);
+      setError(null);
+    } catch {
+      setError("Unable to save settings. Please try again.");
+    } finally {
+      setSaving(false);
+    }
   }
 
-  function handleReset() {
-    const defaults = resetPlatformFeeMatrix();
-    setMatrix(defaults);
+  async function handleReset() {
+    setSaving(true);
     setSaved(false);
     setError(null);
+
+    try {
+      const response = await fetch("/api/admin/platform-settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reset: true }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Reset failed");
+      }
+
+      const data = (await response.json()) as { settings: PlatformSettingsPayload };
+      setMatrix(data.settings.defaultFees);
+      invalidatePlatformPublicSettingsCache();
+      setSaved(true);
+    } catch {
+      setError("Unable to save settings. Please try again.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -113,6 +162,10 @@ export function PlatformFeeStructureSection() {
           Platform fees apply per successful booking transaction.
         </p>
       </div>
+
+      {loading ? (
+        <p className="text-sm text-zinc-500">Loading fee structure…</p>
+      ) : null}
 
       <div className="space-y-3">
         {PLATFORM_FEE_TIERS.map((tier) => {
@@ -140,7 +193,8 @@ export function PlatformFeeStructureSection() {
                     onChange={(event) =>
                       handleTierChange(tier.planId, event.target.value)
                     }
-                    className={`w-full rounded-xl border px-4 py-2.5 pr-8 text-sm text-zinc-900 outline-none transition focus:ring-2 ${
+                    disabled={loading || saving}
+                    className={`w-full rounded-xl border px-4 py-2.5 pr-8 text-sm text-zinc-900 outline-none transition focus:ring-2 disabled:opacity-60 ${
                       isValid
                         ? "border-zinc-200 focus:border-violet-300 focus:ring-violet-500/20"
                         : "border-red-300 focus:border-red-300 focus:ring-red-500/20"
@@ -177,55 +231,25 @@ export function PlatformFeeStructureSection() {
       <div className="flex flex-wrap items-center gap-3 border-t border-zinc-100 pt-5">
         <button
           type="submit"
-          className="rounded-xl bg-zinc-900 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-zinc-800"
+          disabled={loading || saving}
+          className="rounded-xl bg-zinc-900 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-zinc-800 disabled:opacity-60"
         >
-          Save fee structure
+          {saving ? "Saving…" : "Save fee structure"}
         </button>
         <button
           type="button"
-          onClick={handleReset}
-          className="rounded-xl border border-zinc-200 px-5 py-2.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
+          onClick={() => void handleReset()}
+          disabled={loading || saving}
+          className="rounded-xl border border-zinc-200 px-5 py-2.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 disabled:opacity-60"
         >
           Reset to defaults
         </button>
         {saved ? (
           <span className="text-sm font-medium text-emerald-600">
-            Fee structure saved.
+            Settings saved successfully.
           </span>
         ) : null}
       </div>
-
-      <div className="space-y-3 border-t border-zinc-100 pt-5">
-        <h3 className="text-sm font-semibold text-zinc-900">Audit history</h3>
-        {auditLog.length === 0 ? (
-          <p className="text-sm text-zinc-500">No fee changes recorded yet.</p>
-        ) : (
-          <ul className="space-y-2">
-            {auditLog.map((entry) => (
-              <li
-                key={entry.id}
-                className="rounded-xl border border-zinc-200 px-4 py-3 text-sm"
-              >
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="font-medium text-zinc-900">{entry.changedBy}</p>
-                  <p className="text-xs text-zinc-500">
-                    {formatAuditTimestamp(entry.changedAt)}
-                  </p>
-                </div>
-                <p className="mt-1 text-xs text-zinc-500">{entry.changedByEmail}</p>
-                <p className="mt-2 text-sm text-zinc-700">
-                  {formatAuditSummary(entry)}
-                </p>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-
-      <p className="text-xs text-zinc-400">
-        Fee tiers are stored in localStorage for demo purposes. Clubs inherit
-        the rate for their account type via resolvePlatformFeePercent().
-      </p>
     </form>
   );
 }

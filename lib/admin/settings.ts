@@ -8,7 +8,6 @@ import { BRAND_NAME } from "@/lib/brand";
 import type { AdminSession, PlatformSettings } from "./types";
 
 export const ADMIN_SESSION_KEY = "activora-admin-session";
-export const PLATFORM_SETTINGS_KEY = "activora-platform-settings";
 
 export const DEFAULT_PLATFORM_SETTINGS: PlatformSettings = {
   platformName: BRAND_NAME,
@@ -22,10 +21,6 @@ export const DEFAULT_PLATFORM_SETTINGS: PlatformSettings = {
   marketplaceEnabled: true,
   aiAssistantEnabled: false,
 };
-
-function isBrowser(): boolean {
-  return typeof window !== "undefined";
-}
 
 /** Reads admin session from unified auth storage. */
 export function getAdminSession(): AdminSession | null {
@@ -69,40 +64,4 @@ export function signInDemoAdmin(
   };
   setAdminSession(session);
   return session;
-}
-
-export function getPlatformSettings(): PlatformSettings {
-  if (!isBrowser()) {
-    return DEFAULT_PLATFORM_SETTINGS;
-  }
-
-  try {
-    const raw = localStorage.getItem(PLATFORM_SETTINGS_KEY);
-    if (!raw) {
-      return DEFAULT_PLATFORM_SETTINGS;
-    }
-    return { ...DEFAULT_PLATFORM_SETTINGS, ...JSON.parse(raw) };
-  } catch {
-    return DEFAULT_PLATFORM_SETTINGS;
-  }
-}
-
-export function savePlatformSettings(
-  updates: Partial<PlatformSettings>,
-): PlatformSettings {
-  const current = getPlatformSettings();
-  const next = { ...current, ...updates };
-
-  if (isBrowser()) {
-    localStorage.setItem(PLATFORM_SETTINGS_KEY, JSON.stringify(next));
-  }
-
-  return next;
-}
-
-export function resetPlatformSettings(): PlatformSettings {
-  if (isBrowser()) {
-    localStorage.removeItem(PLATFORM_SETTINGS_KEY);
-  }
-  return DEFAULT_PLATFORM_SETTINGS;
 }

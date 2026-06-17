@@ -2,15 +2,12 @@
 
 import { useEffect, useState } from "react";
 import {
-  addAdminBookingQuestion,
   BOOKING_QUESTION_CATEGORY_LABELS,
-  getAdminBookingQuestions,
-  reorderAdminBookingQuestions,
-  resetAdminBookingQuestions,
-  saveAdminBookingQuestions,
   type AdminBookingQuestion,
   type BookingQuestionCategory,
 } from "@/lib/admin-booking-questions";
+import { invalidatePlatformPublicSettingsCache } from "@/lib/platform-settings/client-cache";
+import type { PlatformSettingsPayload } from "@/lib/platform-settings/types";
 
 const ANSWER_TYPES = [
   { value: "short_text", label: "Short text" },
@@ -20,24 +17,53 @@ const ANSWER_TYPES = [
   { value: "checkbox", label: "Checkbox" },
 ] as const;
 
+async function fetchPlatformSettings(): Promise<PlatformSettingsPayload> {
+  const response = await fetch("/api/admin/platform-settings", {
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to load platform settings.");
+  }
+
+  const data = (await response.json()) as { settings: PlatformSettingsPayload };
+  return data.settings;
+}
+
 export function BookingQuestionsSettings() {
   const [questions, setQuestions] = useState<AdminBookingQuestion[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
 
   useEffect(() => {
-    setQuestions(getAdminBookingQuestions());
+    let cancelled = false;
+
+    async function load() {
+      try {
+        const settings = await fetchPlatformSettings();
+        if (!cancelled) {
+          setQuestions(settings.bookingQuestionDefaults);
+          setError(null);
+        }
+      } catch {
+        if (!cancelled) {
+          setError("Unable to load platform settings.");
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    void load();
+    return () => {
+      cancelled = true;
+    };
   }, []);
-
-  function refresh() {
-    setQuestions(getAdminBookingQuestions());
-    setSaved(false);
-  }
-
-  function handleSave() {
-    saveAdminBookingQuestions(questions);
-    setSaved(true);
-  }
 
   function moveQuestion(id: string, direction: -1 | 1) {
     const index = questions.findIndex((q) => q.id === id);
@@ -50,8 +76,12 @@ export function BookingQuestionsSettings() {
     }
     const next = [...questions];
     [next[index], next[target]] = [next[target], next[index]];
-    reorderAdminBookingQuestions(next.map((q) => q.id));
-    refresh();
+    setQuestions(next.map((question, sortIndex) => ({
+      ...question,
+      sortOrder: sortIndex + 1,
+    })));
+    setSaved(false);
+    setError(null);
   }
 
   function updateQuestion(id: string, patch: Partial<AdminBookingQuestion>) {
@@ -59,10 +89,12 @@ export function BookingQuestionsSettings() {
       current.map((q) => (q.id === id ? { ...q, ...patch } : q)),
     );
     setSaved(false);
+    setError(null);
   }
 
   function handleAdd() {
-    addAdminBookingQuestion({
+    const next: AdminBookingQuestion = {
+      id: `admin-custom_${Date.now()}`,
       key: `custom_${Date.now()}`,
       label: "New question",
       category: "SESSION",
@@ -70,8 +102,65 @@ export function BookingQuestionsSettings() {
       required: false,
       showOnRegister: true,
       enabled: true,
-    });
-    refresh();
+      sortOrder: questions.length + 1,
+    };
+    setQuestions((current) => [...current, next]);
+    setSaved(false);
+    setError(null);
+  }
+
+  async function handleSave() {
+    setSaving(true);
+    setSaved(false);
+    setError(null);
+
+    try {
+      const response = await fetch("/api/admin/platform-settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bookingQuestionDefaults: questions }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Save failed");
+      }
+
+      const data = (await response.json()) as { settings: PlatformSettingsPayload };
+      setQuestions(data.settings.bookingQuestionDefaults);
+      invalidatePlatformPublicSettingsCache();
+      setSaved(true);
+    } catch {
+      setError("Unable to save settings. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleReset() {
+    setSaving(true);
+    setSaved(false);
+    setError(null);
+
+    try {
+      const response = await fetch("/api/admin/platform-settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reset: true }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Reset failed");
+      }
+
+      const data = (await response.json()) as { settings: PlatformSettingsPayload };
+      setQuestions(data.settings.bookingQuestionDefaults);
+      invalidatePlatformPublicSettingsCache();
+      setSaved(true);
+    } catch {
+      setError("Unable to save settings. Please try again.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -82,31 +171,32 @@ export function BookingQuestionsSettings() {
             Default booking questions
           </h3>
           <p className="mt-1 text-xs text-zinc-500">
-            Platform defaults clubs inherit. Stored in{" "}
-            <code className="text-[10px]">activora-admin-booking-questions</code>
-            .
+            Platform defaults clubs inherit.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
             onClick={handleAdd}
-            className="rounded-lg border border-violet-200 px-3 py-1.5 text-xs font-semibold text-violet-700 hover:bg-violet-50"
+            disabled={loading || saving}
+            className="rounded-lg border border-violet-200 px-3 py-1.5 text-xs font-semibold text-violet-700 hover:bg-violet-50 disabled:opacity-60"
           >
             Add question
           </button>
           <button
             type="button"
-            onClick={() => {
-              resetAdminBookingQuestions();
-              refresh();
-            }}
-            className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 hover:bg-zinc-50"
+            onClick={() => void handleReset()}
+            disabled={loading || saving}
+            className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 hover:bg-zinc-50 disabled:opacity-60"
           >
             Reset defaults
           </button>
         </div>
       </div>
+
+      {loading ? (
+        <p className="text-sm text-zinc-500">Loading booking questions…</p>
+      ) : null}
 
       <div className="space-y-2">
         {questions.map((question, index) => (
@@ -141,7 +231,7 @@ export function BookingQuestionsSettings() {
               <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"
-                  disabled={index === 0}
+                  disabled={index === 0 || loading || saving}
                   onClick={() => moveQuestion(question.id, -1)}
                   className="rounded border border-zinc-200 px-2 py-1 text-xs disabled:opacity-30"
                 >
@@ -149,7 +239,7 @@ export function BookingQuestionsSettings() {
                 </button>
                 <button
                   type="button"
-                  disabled={index === questions.length - 1}
+                  disabled={index === questions.length - 1 || loading || saving}
                   onClick={() => moveQuestion(question.id, 1)}
                   className="rounded border border-zinc-200 px-2 py-1 text-xs disabled:opacity-30"
                 >
@@ -238,13 +328,19 @@ export function BookingQuestionsSettings() {
       <div className="flex items-center gap-3 border-t border-zinc-100 pt-4">
         <button
           type="button"
-          onClick={handleSave}
-          className="rounded-xl bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800"
+          onClick={() => void handleSave()}
+          disabled={loading || saving}
+          className="rounded-xl bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800 disabled:opacity-60"
         >
-          Save questions
+          {saving ? "Saving…" : "Save questions"}
         </button>
         {saved ? (
-          <span className="text-sm text-emerald-600">Saved locally.</span>
+          <span className="text-sm text-emerald-600">
+            Settings saved successfully.
+          </span>
+        ) : null}
+        {error ? (
+          <span className="text-sm text-red-600">{error}</span>
         ) : null}
       </div>
     </div>

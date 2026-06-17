@@ -1,11 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-  DEFAULT_PLATFORM_SETTINGS,
-  getPlatformSettings,
-  PLATFORM_SETTINGS_KEY,
-} from "@/lib/admin/settings";
+import { DEFAULT_PLATFORM_SETTINGS } from "@/lib/admin/settings";
+import { hydratePlatformPublicSettings } from "@/lib/platform-settings/client-cache";
 
 export function useAiSearchAssistantEnabled(): boolean {
   const [enabled, setEnabled] = useState(
@@ -13,20 +10,19 @@ export function useAiSearchAssistantEnabled(): boolean {
   );
 
   useEffect(() => {
-    function readSettings() {
-      setEnabled(getPlatformSettings().aiAssistantEnabled);
-    }
+    let cancelled = false;
 
-    readSettings();
-
-    function handleStorage(event: StorageEvent) {
-      if (event.key === null || event.key === PLATFORM_SETTINGS_KEY) {
-        readSettings();
+    async function load() {
+      const settings = await hydratePlatformPublicSettings();
+      if (!cancelled) {
+        setEnabled(settings.aiSearchAssistantEnabled);
       }
     }
 
-    window.addEventListener("storage", handleStorage);
-    return () => window.removeEventListener("storage", handleStorage);
+    void load();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   return enabled;
