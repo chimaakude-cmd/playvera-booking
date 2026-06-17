@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import {
   AUTH_ROLE_COOKIE,
   AUTH_ROLE_COOKIE_MAX_AGE_SECONDS,
@@ -8,8 +8,10 @@ import type { AuthUser } from "@/lib/auth/types";
 import { getStaffDashboardPath } from "@/lib/auth/staff-access";
 import {
   adminAuthLoginErrorMessage,
-  authenticateAdminWithPassword,
+  type AdminAuthLoginError,
 } from "@/lib/admin-users/supabase-auth";
+import { verifyAdminAfterMagicLinkAuth } from "@/lib/admin-users/magic-link-auth";
+import { createSupabaseRouteClient } from "@/lib/supabase-ssr";
 import { createSupabaseServiceRoleClient, isSupabaseConfigured } from "@/lib/supabase";
 
 type LoginBody = {
@@ -32,7 +34,7 @@ function buildAuthUser(adminUser: {
   };
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   if (!isSupabaseConfigured()) {
     return NextResponse.json(
       { error: adminAuthLoginErrorMessage("auth_not_configured") },
@@ -47,7 +49,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
 
-  const email = body.email?.trim() ?? "";
+  const email = body.email?.trim().toLowerCase() ?? "";
   const password = body.password ?? "";
 
   if (!email || !password) {
@@ -57,28 +59,71 @@ export async function POST(request: Request) {
     );
   }
 
-  try {
-    const result = await authenticateAdminWithPassword(email, password);
+  const isProduction = process.env.NODE_ENV === "production";
 
-    if (!result.ok) {
+  try {
+    const successResponse = NextResponse.json({ ok: true });
+    const supabase = createSupabaseRouteClient(request, successResponse);
+    const { data: authData, error: authError } =
+      await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+    if (authError || !authData.user?.email || !authData.user.id) {
+      const serviceClient = createSupabaseServiceRoleClient();
+      const { data: adminRow } = await serviceClient
+        .from("admin_users")
+        .select("auth_user_id, status")
+        .eq("email", email)
+        .maybeSingle();
+
+      const errorCode: AdminAuthLoginError =
+        adminRow?.auth_user_id && adminRow.status === "active"
+          ? "password_mismatch_auth"
+          : adminRow
+            ? adminRow.status !== "active"
+              ? "access_not_active"
+              : "password_incorrect"
+            : "account_not_found";
+
       const status =
-        result.error === "password_incorrect" ||
-        result.error === "password_mismatch_auth"
+        errorCode === "password_incorrect" ||
+        errorCode === "password_mismatch_auth"
           ? 401
-          : result.error === "auth_not_configured"
-            ? 503
-            : 403;
+          : 403;
 
       return NextResponse.json(
         {
-          error: adminAuthLoginErrorMessage(result.error),
-          code: result.error,
+          error: adminAuthLoginErrorMessage(errorCode),
+          code: errorCode,
         },
         { status },
       );
     }
 
-    const adminUser = result.adminUser;
+    const verifyResult = await verifyAdminAfterMagicLinkAuth(
+      authData.user.email,
+      authData.user.id,
+    );
+
+    if (!verifyResult.ok) {
+      await supabase.auth.signOut();
+      const errorCode: AdminAuthLoginError =
+        verifyResult.error === "inactive"
+          ? "access_not_active"
+          : "account_not_found";
+
+      return NextResponse.json(
+        {
+          error: adminAuthLoginErrorMessage(errorCode),
+          code: errorCode,
+        },
+        { status: 403 },
+      );
+    }
+
+    const adminUser = verifyResult.adminUser;
     const user = buildAuthUser(adminUser);
     const redirectTo = getStaffDashboardPath(adminUser.role);
 
@@ -88,9 +133,13 @@ export async function POST(request: Request) {
       .update({ last_login_at: new Date().toISOString() })
       .eq("id", adminUser.id);
 
-    const isProduction = process.env.NODE_ENV === "production";
-    const response = NextResponse.json({ ok: true, user, redirectTo });
-    response.cookies.set(AUTH_ROLE_COOKIE, "admin", {
+    const jsonResponse = NextResponse.json({ ok: true, user, redirectTo });
+
+    for (const cookie of successResponse.cookies.getAll()) {
+      jsonResponse.cookies.set(cookie.name, cookie.value);
+    }
+
+    jsonResponse.cookies.set(AUTH_ROLE_COOKIE, "admin", {
       httpOnly: true,
       secure: isProduction,
       sameSite: "lax",
@@ -98,7 +147,7 @@ export async function POST(request: Request) {
       maxAge: AUTH_ROLE_COOKIE_MAX_AGE_SECONDS,
     });
 
-    return response;
+    return jsonResponse;
   } catch (error) {
     console.error("[Admin auth login] Unexpected error:", error);
     return NextResponse.json(

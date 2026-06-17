@@ -1,6 +1,7 @@
 "use client";
 
-// TODO: Restore PortalGuard for /admin routes before launch.
+import { AdminPortalGuard } from "@/components/auth/AdminPortalGuard";
+
 export function AdminLayoutClient({ children }: { children: React.ReactNode }) {
-  return <>{children}</>;
+  return <AdminPortalGuard>{children}</AdminPortalGuard>;
 }

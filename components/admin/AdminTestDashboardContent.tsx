@@ -92,11 +92,6 @@ export function AdminTestDashboardContent({ data }: Props) {
 
   return (
     <div className="space-y-8">
-      <div className="rounded-2xl border border-amber-300/80 bg-amber-50 px-4 py-3 text-sm text-amber-950 ring-1 ring-amber-200">
-        Test admin access only — replace with secure authentication before
-        production.
-      </div>
-
       <PageHeader
         title="Admin Dashboard"
         description="Platform overview from connected data sources."

@@ -18,7 +18,7 @@ type RemoveActivityBody = {
 };
 
 export async function DELETE(request: NextRequest, context: RouteContext) {
-  const auth = requireManageActivitiesActor(request);
+  const auth = await requireManageActivitiesActor(request);
   if ("error" in auth) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }

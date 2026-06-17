@@ -72,8 +72,22 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     }
   }, [pathname]);
 
-  function handleSignOut() {
+  async function handleSignOut() {
     clearAdminSession();
+
+    try {
+      const { getSupabaseBrowserClient } = await import("@/lib/supabase");
+      await getSupabaseBrowserClient().auth.signOut();
+    } catch {
+      // Client Supabase session may already be cleared.
+    }
+
+    try {
+      await fetch("/api/admin/auth/logout", { method: "POST" });
+    } catch {
+      // Server logout is best-effort; local session is already cleared.
+    }
+
     window.location.href = "/admin/login";
   }
 

@@ -4,7 +4,7 @@ import { getServerAuditLog } from "@/lib/admin-users/server-store";
 import { adminUsersErrorMessage, adminUsersErrorStatus } from "@/lib/admin-users/errors";
 
 export async function GET(request: NextRequest) {
-  const auth = requireManageAdminActor(request);
+  const auth = await requireManageAdminActor(request);
   if ("error" in auth) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }

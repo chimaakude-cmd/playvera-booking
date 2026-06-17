@@ -8,6 +8,8 @@ export const AUTH_EXEMPT_PATHS: Record<UserRole, string[]> = {
     "/admin/signup",
     "/admin/auth/callback",
     "/admin/auth/complete",
+    "/admin/accept-invite",
+    "/admin/repair-access",
   ],
   organisation: [
     "/organisation/login",
@@ -36,7 +38,7 @@ export function getLoginPath(role: UserRole): string {
     case "club":
       return "/club/login";
     case "admin":
-      return "/admin-login";
+      return "/admin/login";
     case "organisation":
       return "/organisation/login";
   }

@@ -14,25 +14,12 @@ import {
 
 type SettingsTab = "general" | "fees" | "booking-questions";
 
-type RegenerateCredentialsResponse = {
-  ok: true;
-  email: string;
-  password: string;
-  wroteEnvFile: boolean;
-  note: string;
-};
-
 export function AdminSettingsSection() {
   const [tab, setTab] = useState<SettingsTab>("general");
   const [settings, setSettings] = useState<PlatformSettings>(
     DEFAULT_PLATFORM_SETTINGS,
   );
   const [saved, setSaved] = useState(false);
-  const [regenerating, setRegenerating] = useState(false);
-  const [regenerateResult, setRegenerateResult] =
-    useState<RegenerateCredentialsResponse | null>(null);
-  const [regenerateError, setRegenerateError] = useState<string | null>(null);
-  const isDevEnvironment = process.env.NODE_ENV !== "production";
 
   useEffect(() => {
     setSettings(getPlatformSettings());
@@ -56,36 +43,6 @@ export function AdminSettingsSection() {
     const defaults = resetPlatformSettings();
     setSettings(defaults);
     setSaved(false);
-  }
-
-  async function handleRegenerateTestCredentials() {
-    setRegenerating(true);
-    setRegenerateError(null);
-    setRegenerateResult(null);
-
-    try {
-      const response = await fetch("/api/admin/regenerate-test-credentials", {
-        method: "POST",
-      });
-      const payload = (await response.json()) as
-        | RegenerateCredentialsResponse
-        | { ok: false; error?: string };
-
-      if (!response.ok || !payload.ok) {
-        setRegenerateError(
-          "error" in payload && payload.error
-            ? payload.error
-            : "Failed to regenerate credentials",
-        );
-        return;
-      }
-
-      setRegenerateResult(payload);
-    } catch {
-      setRegenerateError("Failed to regenerate credentials");
-    } finally {
-      setRegenerating(false);
-    }
   }
 
   return (
@@ -294,69 +251,6 @@ export function AdminSettingsSection() {
           use a secure platform_settings table.
         </p>
       </form>
-      ) : null}
-
-      {isDevEnvironment ? (
-        <section className="max-w-2xl space-y-4 rounded-2xl border border-amber-200 bg-amber-50 p-6 shadow-sm">
-          <div>
-            <h3 className="text-sm font-semibold text-amber-950">
-              Development test admin
-            </h3>
-            <p className="mt-1 text-sm text-amber-900/80">
-              Regenerate the temporary admin password used by{" "}
-              <code className="rounded bg-amber-100 px-1 py-0.5 text-xs">
-                /admin-login
-              </code>
-              . The new password is shown once in the response below.
-            </p>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => void handleRegenerateTestCredentials()}
-            disabled={regenerating}
-            className="rounded-xl bg-amber-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-amber-500 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {regenerating
-              ? "Regenerating…"
-              : "Regenerate Test Admin Credentials"}
-          </button>
-
-          {regenerateError ? (
-            <p className="rounded-xl bg-red-100 px-3 py-2 text-sm text-red-800">
-              {regenerateError}
-            </p>
-          ) : null}
-
-          {regenerateResult ? (
-            <div className="space-y-2 rounded-xl border border-amber-200 bg-white p-4 text-sm text-amber-950">
-              <p className="font-medium">New credentials (save now)</p>
-              <p>
-                <span className="text-amber-800">Email:</span>{" "}
-                {regenerateResult.email}
-              </p>
-              <p>
-                <span className="text-amber-800">Password:</span>{" "}
-                <code className="rounded bg-amber-100 px-1.5 py-0.5">
-                  {regenerateResult.password}
-                </code>
-              </p>
-              <p className="text-xs text-amber-800/80">{regenerateResult.note}</p>
-            </div>
-          ) : null}
-
-          <p className="text-xs text-amber-800/70">
-            From the terminal you can also run{" "}
-            <code className="rounded bg-amber-100 px-1 py-0.5">
-              npm run admin:regenerate-credentials
-            </code>
-            . On Vercel, in-memory updates do not persist across deploys — set{" "}
-            <code className="rounded bg-amber-100 px-1 py-0.5">
-              ADMIN_TEST_PASSWORD
-            </code>{" "}
-            manually in project env vars.
-          </p>
-        </section>
       ) : null}
     </div>
   );

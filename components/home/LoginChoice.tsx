@@ -24,7 +24,7 @@ const LOGIN_OPTIONS = [
   },
   {
     key: "admin",
-    href: "/admin-login",
+    href: "/admin/login",
     icon: Shield,
   },
 ] as const;

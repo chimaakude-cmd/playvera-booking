@@ -38,11 +38,6 @@ function protectPortal(
     return null;
   }
 
-  if (role === "admin") {
-    // TODO: Restore admin auth/session checks before launch.
-    return null;
-  }
-
   const currentRole = getRoleFromCookie(request);
 
   if (!currentRole) {

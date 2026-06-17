@@ -5,6 +5,7 @@ import {
   repairAdminAccessAccount,
   validateRepairToken,
 } from "@/lib/admin-users/emergency-access";
+import { isAdminRepairEnabled } from "@/lib/admin-users/production-gates";
 import { isSupabaseConfigured } from "@/lib/supabase";
 
 type RepairAccessBody = {
@@ -13,6 +14,10 @@ type RepairAccessBody = {
 };
 
 export async function POST(request: Request) {
+  if (!isAdminRepairEnabled()) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
   if (!isSupabaseConfigured()) {
     return NextResponse.json(
       { error: "Admin access repair is not configured." },

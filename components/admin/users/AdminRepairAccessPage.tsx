@@ -104,6 +104,22 @@ export function AdminRepairAccessForm({ token }: { token: string }) {
   );
 }
 
+export function AdminRepairAccessUnavailable() {
+  return (
+    <div className="rounded-2xl border border-zinc-500/20 bg-zinc-900/80 p-6 text-center text-sm text-violet-200/70">
+      <p>Admin access repair is not available.</p>
+      <p className="mt-4">
+        <Link
+          href="/admin/login"
+          className="font-medium text-violet-200 hover:text-white"
+        >
+          Go to admin sign-in
+        </Link>
+      </p>
+    </div>
+  );
+}
+
 export function AdminRepairAccessInvalid() {
   return (
     <div className="rounded-2xl border border-red-500/20 bg-red-950/30 p-6 text-center text-sm text-red-300">

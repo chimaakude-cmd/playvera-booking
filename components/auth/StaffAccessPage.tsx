@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Logo } from "@/components/branding";
-import { TEST_ACCOUNTS } from "@/lib/auth/accounts";
 import { writeAuthSession } from "@/lib/auth/session";
 import {
   clearStaffAccessAttempts,
@@ -22,35 +21,16 @@ function formatLockoutRemaining(ms: number): string {
   return `${minutes} minute${minutes === 1 ? "" : "s"}`;
 }
 
-function buildDevAdminUser(email: string): AuthUser {
-  const normalized =
-    email.trim().toLowerCase() || "admin-test@activora.local";
-
-  return {
-    id: "test_admin_001",
-    email: normalized,
-    name: "Test Admin",
-    role: "admin",
-    adminRole: "super_admin",
-  };
-}
-
 export function StaffAccessPage({
   backHref,
   backLabel,
-  useServerTestLogin = false,
 }: {
   backHref?: string;
   backLabel?: string;
-  useServerTestLogin?: boolean;
 } = {}) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [email, setEmail] = useState(
-    !useServerTestLogin && process.env.NODE_ENV !== "production"
-      ? TEST_ACCOUNTS.admin.email
-      : "",
-  );
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [locked, setLocked] = useState(isStaffAccessLocked());
@@ -62,6 +42,10 @@ export function StaffAccessPage({
   const [signInMode, setSignInMode] = useState<SignInMode>("magic-link");
   const [magicLinkSent, setMagicLinkSent] = useState(false);
   const [magicLinkMessage, setMagicLinkMessage] = useState<string | null>(null);
+  const [forgotPasswordSent, setForgotPasswordSent] = useState(false);
+  const [forgotPasswordMessage, setForgotPasswordMessage] = useState<
+    string | null
+  >(null);
 
   useEffect(() => {
     const urlError = searchParams.get("error");
@@ -71,10 +55,6 @@ export function StaffAccessPage({
   }, [searchParams]);
 
   useEffect(() => {
-    if (useServerTestLogin) {
-      return;
-    }
-
     async function checkEmergencyAvailable() {
       try {
         const response = await fetch("/api/admin/auth/emergency-available");
@@ -89,38 +69,14 @@ export function StaffAccessPage({
     }
 
     void checkEmergencyAvailable();
-  }, [useServerTestLogin]);
-
-  async function handleServerTestLogin() {
-    setSubmitting(true);
-
-    const loginEmail = email.trim() || "admin-test@activora.local";
-    let user: AuthUser = buildDevAdminUser(loginEmail);
-
-    try {
-      const response = await fetch("/api/admin/test-login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: loginEmail }),
-      });
-
-      if (response.ok) {
-        const payload = (await response.json()) as { ok: true; user: AuthUser };
-        user = payload.user;
-      }
-    } catch {
-      // TODO: Surface login errors before launch.
-    }
-
-    writeAuthSession(user);
-    router.push("/admin/dashboard");
-    setSubmitting(false);
-  }
+  }, []);
 
   async function handleMagicLinkRequest() {
     setSubmitting(true);
     setMagicLinkSent(false);
     setMagicLinkMessage(null);
+    setForgotPasswordSent(false);
+    setForgotPasswordMessage(null);
 
     try {
       const response = await fetch("/api/admin/auth/magic-link", {
@@ -147,6 +103,42 @@ export function StaffAccessPage({
       );
     } catch {
       setError("Unable to send sign-in link right now. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleForgotPassword() {
+    setSubmitting(true);
+    setForgotPasswordSent(false);
+    setForgotPasswordMessage(null);
+    setError(null);
+
+    try {
+      const response = await fetch("/api/admin/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim() }),
+      });
+
+      const payload = (await response.json()) as {
+        ok?: boolean;
+        message?: string;
+        error?: string;
+      };
+
+      if (!response.ok || !payload.ok) {
+        setError(payload.error ?? "Unable to send reset instructions.");
+        return;
+      }
+
+      setForgotPasswordSent(true);
+      setForgotPasswordMessage(
+        payload.message ??
+          "If this email is registered for admin access, password reset instructions have been sent.",
+      );
+    } catch {
+      setError("Unable to send reset instructions right now. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -230,11 +222,8 @@ export function StaffAccessPage({
     setError(null);
     setMagicLinkSent(false);
     setMagicLinkMessage(null);
-
-    if (useServerTestLogin) {
-      void handleServerTestLogin();
-      return;
-    }
+    setForgotPasswordSent(false);
+    setForgotPasswordMessage(null);
 
     if (isStaffAccessLocked()) {
       setLocked(true);
@@ -257,30 +246,20 @@ export function StaffAccessPage({
 
   const lockoutMs = locked ? getStaffAccessLockoutRemainingMs() : 0;
   const formDisabled = locked || submitting;
-  const showPasswordFields =
-    !useServerTestLogin && (useEmergencyPin || signInMode === "password");
+  const showPasswordFields = useEmergencyPin || signInMode === "password";
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-violet-950 via-zinc-950 to-zinc-950 px-4 py-12">
-      {useServerTestLogin ? (
-        <div className="fixed inset-x-0 top-0 z-50 bg-amber-500 px-4 py-2 text-center text-sm font-medium text-amber-950">
-          DEVELOPMENT MODE — admin access must be secured before launch.
-        </div>
-      ) : null}
-      <div
-        className={`w-full max-w-md${useServerTestLogin ? " pt-10" : ""}`}
-      >
+      <div className="w-full max-w-md">
         <div className="mb-8 flex flex-col items-center text-center">
           <div className="rounded-2xl bg-white/5 p-4 ring-1 ring-white/10">
             <Logo size="desktop" />
           </div>
           <h1 className="mt-6 text-2xl font-bold tracking-tight text-white">
-            {useServerTestLogin ? "Admin Login" : "Activora Staff Access"}
+            Activora Staff Access
           </h1>
           <p className="mt-2 text-sm text-violet-200/70">
-            {useServerTestLogin
-              ? "Enter your admin email to continue"
-              : "Authorised personnel only"}
+            Authorised personnel only
           </p>
         </div>
 
@@ -288,7 +267,7 @@ export function StaffAccessPage({
           onSubmit={handleSubmit}
           className="rounded-2xl border border-violet-500/20 bg-zinc-900/80 p-6 shadow-2xl shadow-violet-950/40 backdrop-blur sm:p-8"
         >
-          {!useServerTestLogin && !useEmergencyPin ? (
+          {!useEmergencyPin ? (
             <div className="mb-5 flex rounded-xl bg-zinc-950/60 p-1 ring-1 ring-violet-500/20">
               <button
                 type="button"
@@ -297,6 +276,8 @@ export function StaffAccessPage({
                   setError(null);
                   setMagicLinkSent(false);
                   setMagicLinkMessage(null);
+                  setForgotPasswordSent(false);
+                  setForgotPasswordMessage(null);
                 }}
                 className={`flex-1 rounded-lg px-3 py-2 text-xs font-semibold transition ${
                   signInMode === "magic-link"
@@ -313,6 +294,8 @@ export function StaffAccessPage({
                   setError(null);
                   setMagicLinkSent(false);
                   setMagicLinkMessage(null);
+                  setForgotPasswordSent(false);
+                  setForgotPasswordMessage(null);
                 }}
                 className={`flex-1 rounded-lg px-3 py-2 text-xs font-semibold transition ${
                   signInMode === "password"
@@ -334,7 +317,7 @@ export function StaffAccessPage({
               autoComplete="username"
               disabled={formDisabled}
               className="mt-1.5 w-full rounded-xl border border-violet-500/20 bg-zinc-950/60 px-4 py-2.5 text-sm text-white outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-500/30 disabled:opacity-50"
-              required={!useServerTestLogin}
+              required
             />
           </label>
 
@@ -389,9 +372,28 @@ export function StaffAccessPage({
             )
           ) : null}
 
+          {signInMode === "password" && !useEmergencyPin ? (
+            <p className="mt-3 text-right">
+              <button
+                type="button"
+                onClick={() => void handleForgotPassword()}
+                disabled={formDisabled || !email.trim()}
+                className="text-xs font-medium text-violet-300/80 underline-offset-2 hover:text-violet-100 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Forgot password?
+              </button>
+            </p>
+          ) : null}
+
           {magicLinkSent && magicLinkMessage ? (
             <p className="mt-4 rounded-xl bg-emerald-950/40 px-3 py-2 text-sm text-emerald-300 ring-1 ring-emerald-500/20">
               {magicLinkMessage}
+            </p>
+          ) : null}
+
+          {forgotPasswordSent && forgotPasswordMessage ? (
+            <p className="mt-4 rounded-xl bg-emerald-950/40 px-3 py-2 text-sm text-emerald-300 ring-1 ring-emerald-500/20">
+              {forgotPasswordMessage}
             </p>
           ) : null}
 
@@ -425,7 +427,7 @@ export function StaffAccessPage({
                   : "Sign in"}
           </button>
 
-          {!useServerTestLogin && emergencyAvailable ? (
+          {emergencyAvailable ? (
             <p className="mt-4 text-center">
               <button
                 type="button"
@@ -437,6 +439,8 @@ export function StaffAccessPage({
                   setNewPassword("");
                   setMagicLinkSent(false);
                   setMagicLinkMessage(null);
+                  setForgotPasswordSent(false);
+                  setForgotPasswordMessage(null);
                 }}
                 className="text-xs font-medium text-violet-300/80 underline-offset-2 hover:text-violet-100 hover:underline"
               >

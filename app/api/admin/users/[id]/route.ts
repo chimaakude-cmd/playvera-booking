@@ -12,7 +12,7 @@ import type { UpdateAdminUserInput } from "@/lib/admin-users/types";
 type RouteContext = { params: Promise<{ id: string }> };
 
 export async function GET(_request: NextRequest, context: RouteContext) {
-  const auth = requireManageAdminActor(_request);
+  const auth = await requireManageAdminActor(_request);
   if ("error" in auth) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
@@ -38,7 +38,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
 }
 
 export async function PATCH(request: NextRequest, context: RouteContext) {
-  const auth = requireManageAdminActor(request);
+  const auth = await requireManageAdminActor(request);
   if ("error" in auth) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
@@ -60,7 +60,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 }
 
 export async function DELETE(request: NextRequest, context: RouteContext) {
-  const auth = requireManageAdminActor(request);
+  const auth = await requireManageAdminActor(request);
   if ("error" in auth) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }

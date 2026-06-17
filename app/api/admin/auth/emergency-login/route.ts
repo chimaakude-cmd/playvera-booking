@@ -11,6 +11,7 @@ import {
   repairAdminAccessAccount,
   validateEmergencyCredentials,
 } from "@/lib/admin-users/emergency-access";
+import { isEmergencyLoginApiEnabled } from "@/lib/admin-users/production-gates";
 import { createSupabaseServiceRoleClient, isSupabaseConfigured } from "@/lib/supabase";
 
 type EmergencyLoginBody = {
@@ -35,6 +36,10 @@ function buildAuthUser(adminUser: {
 }
 
 export async function POST(request: Request) {
+  if (!isEmergencyLoginApiEnabled()) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
   if (!isSupabaseConfigured()) {
     return NextResponse.json(
       { error: "Admin sign-in is not configured. Contact support." },

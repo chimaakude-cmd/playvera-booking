@@ -12,7 +12,7 @@ import { adminUsersErrorMessage, adminUsersErrorStatus } from "@/lib/admin-users
 import type { InviteAdminUserInput } from "@/lib/admin-users/types";
 
 export async function GET(request: NextRequest) {
-  const auth = requireManageAdminActor(request);
+  const auth = await requireManageAdminActor(request);
   if ("error" in auth) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const auth = requireManageAdminActor(request);
+  const auth = await requireManageAdminActor(request);
   if ("error" in auth) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }

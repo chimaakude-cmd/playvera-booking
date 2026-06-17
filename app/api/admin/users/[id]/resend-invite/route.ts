@@ -10,7 +10,7 @@ import { adminUsersErrorMessage, adminUsersErrorStatus } from "@/lib/admin-users
 type RouteContext = { params: Promise<{ id: string }> };
 
 export async function POST(request: NextRequest, context: RouteContext) {
-  const auth = requireManageAdminActor(request);
+  const auth = await requireManageAdminActor(request);
   if ("error" in auth) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
