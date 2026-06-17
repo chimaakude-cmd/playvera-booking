@@ -373,7 +373,7 @@ export function ClubOnboardingWizard() {
     }
 
     pendingCompletionRef.current = false;
-    finishOnboarding(mergeImagePreviews(state, imagePreviewsRef.current));
+    void finishOnboarding(mergeImagePreviews(state, imagePreviewsRef.current));
   }, [state, completing]);
 
   function updateState(updates: Partial<ClubOnboardingState>) {
@@ -411,11 +411,11 @@ export function ClubOnboardingWizard() {
     }
   }
 
-  function finishOnboarding(current: ClubOnboardingState) {
+  async function finishOnboarding(current: ClubOnboardingState) {
     setCompleting(true);
     setErrors([]);
 
-    const result = completeClubOnboarding(current);
+    const result = await completeClubOnboarding(current);
     if (!result.success) {
       setErrors(result.errors);
       setCompleting(false);
@@ -529,7 +529,7 @@ export function ClubOnboardingWizard() {
     if (!state) {
       return;
     }
-    finishOnboarding(mergeImagePreviews(state, imagePreviews));
+    void finishOnboarding(mergeImagePreviews(state, imagePreviews));
   }
 
   if (!state) {

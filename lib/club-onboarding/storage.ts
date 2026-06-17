@@ -1,20 +1,10 @@
 import { writeAuthSession, type AuthUser } from "@/lib/auth";
 import { readAuthSession } from "@/lib/auth/session";
+import { isSupabaseConfigured } from "@/lib/supabase";
 import { toPersistableImageUrl } from "@/lib/image-urls";
 import { createDefaultBookingQuestions } from "@/lib/booking-questions";
 import { seedSetupProgressAfterOnboarding } from "@/lib/club-setup/storage";
 import { saveClubProfile, CLUB_PROFILE_SAVE_QUOTA_MESSAGE } from "@/lib/club-profile/storage";
-import {
-  createDefaultClubProfile,
-  DEFAULT_CLUB_BRANDING,
-  DEFAULT_CLUB_CUSTOMER_VIEW,
-} from "@/lib/club-profile/defaults";
-import type { ClubProfileInput } from "@/lib/club-profile/types";
-import {
-  createEmptyContact,
-  createEmptySocialLinks,
-  slugifyClubName,
-} from "@/lib/club-profile/types";
 import {
   CLUB_ONBOARDING_COMPLETE_KEY,
   CLUB_ONBOARDING_DRAFT_KEY_PREFIX,
@@ -22,7 +12,6 @@ import {
   CLUB_ONBOARDING_DRAFT_SESSION_KEY,
   CLUB_DEFAULT_BOOKING_QUESTIONS_KEY,
   formatOwnerFullLegalName,
-  getClubCategories,
   type ClubOnboardingState,
   type OnboardingClub,
   type OnboardingProfile,
@@ -35,6 +24,10 @@ import {
   syncDerivedOnboardingFields,
   validateOnboardingForCompletion,
 } from "./validation";
+import {
+  buildClubProfileInput,
+  stripImageDataUrls,
+} from "./profile-mapper";
 
 function isBrowser(): boolean {
   return typeof window !== "undefined";
@@ -95,15 +88,7 @@ export type SaveDraftResult =
   | { ok: false; reason: "quota_exceeded" | "too_large" };
 
 /** Strip base64/data URLs — only lightweight http(s) URLs may be persisted. */
-export function stripImageDataUrls(
-  profile: OnboardingProfile,
-): OnboardingProfile {
-  return {
-    ...profile,
-    logoUrl: toPersistableImageUrl(profile.logoUrl),
-    coverUrl: toPersistableImageUrl(profile.coverUrl),
-  };
-}
+export { stripImageDataUrls } from "./profile-mapper";
 
 function sanitizeDraftForStorage(state: ClubOnboardingState): ClubOnboardingState {
   return syncDerivedOnboardingFields({
@@ -412,85 +397,16 @@ export function markOnboardingComplete(): void {
   }
 }
 
-function buildClubProfileInput(state: ClubOnboardingState): ClubProfileInput {
-  const defaults = createDefaultClubProfile();
-  const slug = slugifyClubName(state.club.name);
-  const aboutText =
-    state.profile.aboutText.trim() || state.club.suggestedDescription.trim();
-  const tagline =
-    state.profile.tagline.trim() || state.club.suggestedTagline.trim();
-  const persistedProfile = stripImageDataUrls(state.profile);
-  const logoUrl = persistedProfile.logoUrl;
-  const coverUrl = persistedProfile.coverUrl;
+export { buildClubProfileInput } from "./profile-mapper";
 
-  const contact = {
-    ...createEmptyContact(),
-    email: state.owner.email.trim(),
-    phone: state.owner.phone.trim(),
-  };
-
-  return {
-    logoUrl,
-    coverImageUrl: coverUrl,
-    clubName: state.club.name.trim(),
-    tagline,
-    shortDescription: aboutText.slice(0, 200),
-    establishedYear: null,
-    verificationStatus: "unverified",
-    longDescription: aboutText,
-    uniqueSellingPoints: "",
-    categories: getClubCategories(state.club),
-    ageRanges: state.club.ageRanges,
-    accessibilityOptions: defaults.accessibilityOptions,
-    locations: defaults.locations,
-    contact,
-    socialLinks: createEmptySocialLinks(),
-    branding: {
-      ...DEFAULT_CLUB_BRANDING,
-      primaryColor: state.profile.primaryColor,
-      secondaryColor: DEFAULT_CLUB_BRANDING.secondaryColor,
-    },
-    customerView: DEFAULT_CLUB_CUSTOMER_VIEW,
-    mediaGallery: defaults.mediaGallery,
-    publicSlug: slug,
-    metaTitle: `${state.club.name.trim()} | Activeora`,
-    metaDescription: tagline,
-    published: true,
-    profileDesign: {
-      logoUrl,
-      coverUrl,
-      primaryColor: state.profile.primaryColor,
-      accentColor: DEFAULT_CLUB_BRANDING.secondaryColor,
-      themePreset: null,
-      tagline,
-      aboutText,
-      whatMakesSpecial: "",
-      profileStyle: "modern",
-      trustSignals: {
-        verified: false,
-        dbs: false,
-        ofsted: false,
-        insurance: false,
-        yearsRunning: false,
-        avgReview: false,
-      },
-      settings: {
-        publicVisible: true,
-        searchIndexing: true,
-        showReviews: true,
-        allowMessaging: true,
-      },
-      publishedAt: new Date().toISOString(),
-      skipped: state.profile.skippedProfile,
-    },
-  };
-}
-
-function createOwnerAuthUser(state: ClubOnboardingState): AuthUser {
+function createOwnerAuthUser(
+  state: ClubOnboardingState,
+  options?: { authUserId?: string },
+): AuthUser {
   const name = formatOwnerFullLegalName(state.owner);
 
   return {
-    id: `club_owner_${Date.now()}`,
+    id: options?.authUserId ?? `club_owner_${Date.now()}`,
     email: state.owner.email.trim(),
     name: name || "Club Owner",
     role: "club",
@@ -498,21 +414,72 @@ function createOwnerAuthUser(state: ClubOnboardingState): AuthUser {
   };
 }
 
-export function completeClubOnboarding(state: ClubOnboardingState): {
+type CompleteClubOnboardingResult = {
   success: boolean;
   errors: string[];
-} {
-  const synced = syncDerivedOnboardingFields(state);
-  const errors = validateOnboardingForCompletion(synced);
+  providerId?: string;
+};
 
-  if (errors.length > 0) {
-    return { success: false, errors };
+async function persistClubOnboardingToSupabase(
+  synced: ClubOnboardingState,
+): Promise<{ ok: true; providerId: string; authUserId: string } | { ok: false; error: string }> {
+  console.info("[club-onboarding] Submitting onboarding to Supabase API");
+
+  const response = await fetch("/api/club/onboarding/complete", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      owner: synced.owner,
+      club: synced.club,
+      profile: synced.profile,
+      planId: synced.planId,
+    }),
+  });
+
+  let payload: { error?: string; providerId?: string; authUserId?: string } = {};
+  try {
+    payload = (await response.json()) as typeof payload;
+  } catch {
+    payload = {};
   }
 
-  if (!isBrowser()) {
-    return { success: false, errors: ["Onboarding must be completed in the browser."] };
+  if (!response.ok) {
+    console.error("[club-onboarding] Supabase submit failed:", {
+      status: response.status,
+      error: payload.error ?? "Unknown error",
+    });
+    return {
+      ok: false,
+      error:
+        payload.error ??
+        "Could not save your club to the database. Please try again.",
+    };
   }
 
+  if (!payload.providerId || !payload.authUserId) {
+    console.error("[club-onboarding] Supabase submit returned incomplete payload:", payload);
+    return {
+      ok: false,
+      error: "Club was created but the response was incomplete. Please contact support.",
+    };
+  }
+
+  console.info("[club-onboarding] Supabase submit succeeded:", {
+    providerId: payload.providerId,
+    authUserId: payload.authUserId,
+  });
+
+  return {
+    ok: true,
+    providerId: payload.providerId,
+    authUserId: payload.authUserId,
+  };
+}
+
+function finalizeClubOnboardingLocally(
+  synced: ClubOnboardingState,
+  options?: { authUserId?: string; providerId?: string },
+): CompleteClubOnboardingResult {
   const profileInput = buildClubProfileInput(synced);
 
   try {
@@ -530,7 +497,7 @@ export function completeClubOnboarding(state: ClubOnboardingState): {
     }
   }
 
-  const user = createOwnerAuthUser(synced);
+  const user = createOwnerAuthUser(synced, options);
   writeAuthSession(user);
 
   setProviderSubscriptionPlan(normalizePlanId(synced.planId));
@@ -540,7 +507,44 @@ export function completeClubOnboarding(state: ClubOnboardingState): {
   initializeProviderTemplates(undefined, { showOnboardingBanner: true });
   clearOnboardingDraft();
 
-  return { success: true, errors: [] };
+  return {
+    success: true,
+    errors: [],
+    providerId: options?.providerId,
+  };
+}
+
+export async function completeClubOnboarding(
+  state: ClubOnboardingState,
+): Promise<CompleteClubOnboardingResult> {
+  const synced = syncDerivedOnboardingFields(state);
+  const errors = validateOnboardingForCompletion(synced);
+
+  if (errors.length > 0) {
+    return { success: false, errors };
+  }
+
+  if (!isBrowser()) {
+    return { success: false, errors: ["Onboarding must be completed in the browser."] };
+  }
+
+  if (isSupabaseConfigured()) {
+    const supabaseResult = await persistClubOnboardingToSupabase(synced);
+    if (!supabaseResult.ok) {
+      return { success: false, errors: [supabaseResult.error] };
+    }
+
+    return finalizeClubOnboardingLocally(synced, {
+      authUserId: supabaseResult.authUserId,
+      providerId: supabaseResult.providerId,
+    });
+  }
+
+  console.warn(
+    "[club-onboarding] Supabase is not configured — completing onboarding with local storage only.",
+  );
+
+  return finalizeClubOnboardingLocally(synced);
 }
 
 export function getClubDefaultBookingQuestions() {
