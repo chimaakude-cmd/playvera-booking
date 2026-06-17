@@ -6,6 +6,7 @@ export type AdminListDataSource = "supabase" | "env_missing";
 
 export type AdminStatusBadgeLabel =
   | "Live data"
+  | "No data yet"
   | "No live payment data yet"
   | "Supabase not configured"
   | "Stripe not configured";
@@ -38,12 +39,31 @@ export function adminLiveDataLabel(): AdminStatusBadgeLabel {
   return "Live data";
 }
 
+export function adminNoDataLabel(): AdminStatusBadgeLabel {
+  return "No data yet";
+}
+
 export function formatSupabaseMetricsStatusLabel(
   supabaseConfigured: boolean,
 ): AdminStatusBadgeLabel {
   return supabaseConfigured
     ? adminLiveDataLabel()
     : adminEnvMissingLabel();
+}
+
+export function formatRecentSignupsStatusLabel(options: {
+  supabaseConfigured: boolean;
+  status: "live" | "no_data" | "env_missing";
+}): AdminStatusBadgeLabel {
+  if (!options.supabaseConfigured) {
+    return adminEnvMissingLabel();
+  }
+
+  if (options.status === "live") {
+    return adminLiveDataLabel();
+  }
+
+  return adminNoDataLabel();
 }
 
 export function formatPaymentsStatusLabel(options: {

@@ -21,14 +21,30 @@ export function isDemoProviderRecord(provider: {
     return true;
   }
 
-  const slug = provider.slug?.trim();
-  if (slug && DEMO_PROVIDER_SLUGS.includes(slug as typeof DEMO_PROVIDER_SLUGS[number])) {
-    return true;
+  const slug = provider.slug?.trim().toLowerCase();
+  if (slug) {
+    if (
+      DEMO_PROVIDER_SLUGS.some(
+        (demoSlug) => demoSlug.toLowerCase() === slug,
+      )
+    ) {
+      return true;
+    }
+
+    if (slug.includes("demo")) {
+      return true;
+    }
   }
 
-  const name = provider.name?.trim();
-  if (name === DEFAULT_PROVIDER_NAME) {
-    return true;
+  const name = provider.name?.trim().toLowerCase();
+  if (name) {
+    if (name === DEFAULT_PROVIDER_NAME.toLowerCase()) {
+      return true;
+    }
+
+    if (name.includes("demo")) {
+      return true;
+    }
   }
 
   return false;

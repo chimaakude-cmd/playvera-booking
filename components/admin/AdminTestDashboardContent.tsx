@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/club/PageHeader";
 import type { AdminDashboardData } from "@/lib/admin/dashboard-data";
 import {
   formatPaymentsStatusLabel,
+  formatRecentSignupsStatusLabel,
   formatSupabaseMetricsStatusLabel,
   type AdminStatusBadgeLabel,
 } from "@/lib/admin/data-source";
@@ -78,6 +79,10 @@ export function AdminTestDashboardContent({ data }: Props) {
   const metricsStatusLabel = formatSupabaseMetricsStatusLabel(
     data.supabaseConfigured,
   );
+  const recentSignupsStatusLabel = formatRecentSignupsStatusLabel({
+    supabaseConfigured: data.supabaseConfigured,
+    status: data.recentSignupsStatus,
+  });
   const paymentsStatusLabel = formatPaymentsStatusLabel({
     supabaseConfigured: data.supabaseConfigured,
     stripeConfigured: data.stripeConfigured,
@@ -128,7 +133,7 @@ export function AdminTestDashboardContent({ data }: Props) {
           <SectionHeader
             title="Recent signups"
             description="Latest clubs joining Activora."
-            label={metricsStatusLabel}
+            label={recentSignupsStatusLabel}
           />
           {data.recentSignups.length > 0 ? (
             <ul className="mt-4 space-y-3">
