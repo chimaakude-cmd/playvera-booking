@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Logo } from "@/components/branding";
 import { TEST_ACCOUNTS } from "@/lib/auth/accounts";
 import { writeAuthSession } from "@/lib/auth/session";
@@ -52,6 +52,31 @@ export function StaffAccessPage({
   const [error, setError] = useState<string | null>(null);
   const [locked, setLocked] = useState(isStaffAccessLocked());
   const [submitting, setSubmitting] = useState(false);
+  const [emergencyAvailable, setEmergencyAvailable] = useState(false);
+  const [useEmergencyPin, setUseEmergencyPin] = useState(false);
+  const [pin, setPin] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+
+  useEffect(() => {
+    if (useServerTestLogin) {
+      return;
+    }
+
+    async function checkEmergencyAvailable() {
+      try {
+        const response = await fetch("/api/admin/auth/emergency-available");
+        if (!response.ok) {
+          return;
+        }
+        const payload = (await response.json()) as { available?: boolean };
+        setEmergencyAvailable(Boolean(payload.available));
+      } catch {
+        // Emergency recovery is optional — ignore fetch errors.
+      }
+    }
+
+    void checkEmergencyAvailable();
+  }, [useServerTestLogin]);
 
   async function handleServerTestLogin() {
     setSubmitting(true);
@@ -77,6 +102,42 @@ export function StaffAccessPage({
     writeAuthSession(user);
     router.push("/admin/dashboard");
     setSubmitting(false);
+  }
+
+  async function handleEmergencyLogin() {
+    setSubmitting(true);
+
+    try {
+      const response = await fetch("/api/admin/auth/emergency-login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: email.trim(),
+          pin,
+          password: newPassword,
+        }),
+      });
+
+      const payload = (await response.json()) as {
+        ok?: boolean;
+        user?: AuthUser;
+        redirectTo?: string;
+        error?: string;
+      };
+
+      if (!response.ok || !payload.ok || !payload.user) {
+        setError(payload.error ?? "Emergency login failed");
+        return;
+      }
+
+      writeAuthSession(payload.user);
+      clearStaffAccessAttempts();
+      router.push(payload.redirectTo ?? "/admin/dashboard");
+    } catch {
+      setError("Unable to recover access right now. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   async function handleProductionLogin() {
@@ -131,6 +192,11 @@ export function StaffAccessPage({
       return;
     }
 
+    if (useEmergencyPin) {
+      void handleEmergencyLogin();
+      return;
+    }
+
     void handleProductionLogin();
   }
 
@@ -179,20 +245,54 @@ export function StaffAccessPage({
           </label>
 
           {!useServerTestLogin ? (
-            <label className="mt-4 block">
-              <span className="text-sm font-medium text-violet-100">
-                Password
-              </span>
-              <input
-                type="password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                autoComplete="current-password"
-                disabled={formDisabled}
-                className="mt-1.5 w-full rounded-xl border border-violet-500/20 bg-zinc-950/60 px-4 py-2.5 text-sm text-white outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-500/30 disabled:opacity-50"
-                required
-              />
-            </label>
+            useEmergencyPin ? (
+              <>
+                <label className="mt-4 block">
+                  <span className="text-sm font-medium text-violet-100">
+                    Emergency PIN
+                  </span>
+                  <input
+                    type="password"
+                    value={pin}
+                    onChange={(event) => setPin(event.target.value)}
+                    autoComplete="off"
+                    disabled={formDisabled}
+                    className="mt-1.5 w-full rounded-xl border border-violet-500/20 bg-zinc-950/60 px-4 py-2.5 text-sm text-white outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-500/30 disabled:opacity-50"
+                    required
+                  />
+                </label>
+                <label className="mt-4 block">
+                  <span className="text-sm font-medium text-violet-100">
+                    New password
+                  </span>
+                  <input
+                    type="password"
+                    value={newPassword}
+                    onChange={(event) => setNewPassword(event.target.value)}
+                    autoComplete="new-password"
+                    disabled={formDisabled}
+                    minLength={8}
+                    className="mt-1.5 w-full rounded-xl border border-violet-500/20 bg-zinc-950/60 px-4 py-2.5 text-sm text-white outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-500/30 disabled:opacity-50"
+                    required
+                  />
+                </label>
+              </>
+            ) : (
+              <label className="mt-4 block">
+                <span className="text-sm font-medium text-violet-100">
+                  Password
+                </span>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  autoComplete="current-password"
+                  disabled={formDisabled}
+                  className="mt-1.5 w-full rounded-xl border border-violet-500/20 bg-zinc-950/60 px-4 py-2.5 text-sm text-white outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-500/30 disabled:opacity-50"
+                  required
+                />
+              </label>
+            )
           ) : null}
 
           {error ? (
@@ -212,8 +312,32 @@ export function StaffAccessPage({
             disabled={formDisabled}
             className="mt-6 w-full rounded-xl bg-violet-600 py-3 text-sm font-semibold text-white transition-colors hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {submitting ? "Signing in…" : "Sign in"}
+            {submitting
+              ? useEmergencyPin
+                ? "Recovering access…"
+                : "Signing in…"
+              : useEmergencyPin
+                ? "Recover access"
+                : "Sign in"}
           </button>
+
+          {!useServerTestLogin && emergencyAvailable ? (
+            <p className="mt-4 text-center">
+              <button
+                type="button"
+                onClick={() => {
+                  setUseEmergencyPin((current) => !current);
+                  setError(null);
+                  setPassword("");
+                  setPin("");
+                  setNewPassword("");
+                }}
+                className="text-xs font-medium text-violet-300/80 underline-offset-2 hover:text-violet-100 hover:underline"
+              >
+                {useEmergencyPin ? "Use normal sign-in" : "Use emergency PIN"}
+              </button>
+            </p>
+          ) : null}
         </form>
 
         {backHref && backLabel ? (

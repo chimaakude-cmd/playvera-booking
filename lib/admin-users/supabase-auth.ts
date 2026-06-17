@@ -10,6 +10,7 @@ import { rowToAdminUser } from "./db";
 export type AdminAuthLoginError =
   | "account_not_found"
   | "password_incorrect"
+  | "password_mismatch_auth"
   | "access_not_active"
   | "auth_not_configured";
 
@@ -19,6 +20,8 @@ export function adminAuthLoginErrorMessage(code: AdminAuthLoginError): string {
       return "Account not found";
     case "password_incorrect":
       return "Password incorrect";
+    case "password_mismatch_auth":
+      return "Password does not match Supabase Auth account";
     case "access_not_active":
       return "Admin access not active";
     case "auth_not_configured":
@@ -173,7 +176,7 @@ export async function ensureSupabaseAuthUserForAdmin(
   }
 }
 
-async function getAdminUserByEmail(email: string) {
+async function getAdminUserRowByEmail(email: string): Promise<AdminUserRow | null> {
   const supabase = createSupabaseServiceRoleClient();
   const { data, error } = await supabase
     .from("admin_users")
@@ -185,7 +188,7 @@ async function getAdminUserByEmail(email: string) {
     throw error;
   }
 
-  return data ? rowToAdminUser(data as AdminUserRow) : null;
+  return data ? (data as AdminUserRow) : null;
 }
 
 export type AdminAuthLoginSuccess = {
@@ -206,17 +209,38 @@ export async function authenticateAdminWithPassword(
   password: string,
 ): Promise<AdminAuthLoginResult> {
   if (!isSupabaseServiceRoleConfigured()) {
+    console.info("[admin-login]", {
+      email: email.trim().toLowerCase(),
+      errorCode: "auth_not_configured",
+      adminUserFound: false,
+      authUserIdSet: false,
+    });
     return { ok: false, error: "auth_not_configured" };
   }
 
   const normalizedEmail = email.trim().toLowerCase();
-  const adminByEmail = await getAdminUserByEmail(normalizedEmail);
+  const adminRow = await getAdminUserRowByEmail(normalizedEmail);
 
-  if (!adminByEmail) {
+  if (!adminRow) {
+    console.info("[admin-login]", {
+      email: normalizedEmail,
+      errorCode: "account_not_found",
+      adminUserFound: false,
+      authUserIdSet: false,
+    });
     return { ok: false, error: "account_not_found" };
   }
 
-  if (adminByEmail.status !== "active") {
+  const authUserIdSet = Boolean(adminRow.auth_user_id);
+
+  if (adminRow.status !== "active") {
+    console.info("[admin-login]", {
+      email: normalizedEmail,
+      errorCode: "access_not_active",
+      adminUserFound: true,
+      authUserIdSet,
+      status: adminRow.status,
+    });
     return { ok: false, error: "access_not_active" };
   }
 
@@ -229,7 +253,20 @@ export async function authenticateAdminWithPassword(
     });
 
   if (authError || !authData.user) {
-    return { ok: false, error: "password_incorrect" };
+    const errorCode: AdminAuthLoginError = authUserIdSet
+      ? "password_mismatch_auth"
+      : "password_incorrect";
+
+    console.info("[admin-login]", {
+      email: normalizedEmail,
+      errorCode,
+      adminUserFound: true,
+      authUserIdSet,
+      supabaseAuthError: authError?.message ?? null,
+      supabaseAuthCode: authError?.code ?? null,
+    });
+
+    return { ok: false, error: errorCode };
   }
 
   const serviceClient = createSupabaseServiceRoleClient();
@@ -245,9 +282,9 @@ export async function authenticateAdminWithPassword(
     throw byAuthError;
   }
 
-  let adminRow = byAuthId as AdminUserRow | null;
+  let linkedRow = byAuthId as AdminUserRow | null;
 
-  if (!adminRow) {
+  if (!linkedRow) {
     const { data: byEmail, error: byEmailError } = await serviceClient
       .from("admin_users")
       .select("*")
@@ -258,24 +295,38 @@ export async function authenticateAdminWithPassword(
       throw byEmailError;
     }
 
-    adminRow = (byEmail as AdminUserRow | null) ?? null;
+    linkedRow = (byEmail as AdminUserRow | null) ?? null;
 
-    if (adminRow && !adminRow.auth_user_id) {
+    if (linkedRow && !linkedRow.auth_user_id) {
       await serviceClient
         .from("admin_users")
         .update({ auth_user_id: authUserId })
-        .eq("id", adminRow.id);
-      adminRow = { ...adminRow, auth_user_id: authUserId };
+        .eq("id", linkedRow.id);
+      linkedRow = { ...linkedRow, auth_user_id: authUserId };
     }
   }
 
-  if (!adminRow) {
+  if (!linkedRow) {
+    console.info("[admin-login]", {
+      email: normalizedEmail,
+      errorCode: "account_not_found",
+      adminUserFound: false,
+      authUserIdSet: true,
+    });
     return { ok: false, error: "account_not_found" };
   }
 
+  console.info("[admin-login]", {
+    email: normalizedEmail,
+    errorCode: null,
+    adminUserFound: true,
+    authUserIdSet: true,
+    adminUserId: linkedRow.id,
+  });
+
   return {
     ok: true,
-    adminUser: rowToAdminUser(adminRow),
+    adminUser: rowToAdminUser(linkedRow),
     authUserId,
   };
 }

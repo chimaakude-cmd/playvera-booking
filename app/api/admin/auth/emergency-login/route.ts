@@ -7,13 +7,15 @@ import type { AdminRole } from "@/lib/admin/types";
 import type { AuthUser } from "@/lib/auth/types";
 import { getStaffDashboardPath } from "@/lib/auth/staff-access";
 import {
-  adminAuthLoginErrorMessage,
-  authenticateAdminWithPassword,
-} from "@/lib/admin-users/supabase-auth";
+  logEmergencyAccessRecovery,
+  repairAdminAccessAccount,
+  validateEmergencyCredentials,
+} from "@/lib/admin-users/emergency-access";
 import { createSupabaseServiceRoleClient, isSupabaseConfigured } from "@/lib/supabase";
 
-type LoginBody = {
+type EmergencyLoginBody = {
   email?: string;
+  pin?: string;
   password?: string;
 };
 
@@ -35,50 +37,54 @@ function buildAuthUser(adminUser: {
 export async function POST(request: Request) {
   if (!isSupabaseConfigured()) {
     return NextResponse.json(
-      { error: adminAuthLoginErrorMessage("auth_not_configured") },
+      { error: "Admin sign-in is not configured. Contact support." },
       { status: 503 },
     );
   }
 
-  let body: LoginBody;
+  let body: EmergencyLoginBody;
   try {
-    body = (await request.json()) as LoginBody;
+    body = (await request.json()) as EmergencyLoginBody;
   } catch {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
 
   const email = body.email?.trim() ?? "";
+  const pin = body.pin ?? "";
   const password = body.password ?? "";
 
-  if (!email || !password) {
+  if (!email || !pin || !password) {
+    return NextResponse.json({ error: "Invalid credentials." }, { status: 401 });
+  }
+
+  if (password.trim().length < 8) {
     return NextResponse.json(
-      { error: adminAuthLoginErrorMessage("account_not_found") },
+      { error: "Password must be at least 8 characters." },
       { status: 400 },
     );
   }
 
+  if (!validateEmergencyCredentials(email, pin)) {
+    return NextResponse.json({ error: "Invalid credentials." }, { status: 401 });
+  }
+
   try {
-    const result = await authenticateAdminWithPassword(email, password);
+    const repairResult = await repairAdminAccessAccount(email, password);
 
-    if (!result.ok) {
-      const status =
-        result.error === "password_incorrect" ||
-        result.error === "password_mismatch_auth"
-          ? 401
-          : result.error === "auth_not_configured"
-            ? 503
-            : 403;
-
+    if (!repairResult.ok) {
+      console.error("[emergency-login] repair failed:", {
+        email: email.trim().toLowerCase(),
+        error: repairResult.error,
+      });
       return NextResponse.json(
-        {
-          error: adminAuthLoginErrorMessage(result.error),
-          code: result.error,
-        },
-        { status },
+        { error: "Unable to recover admin access right now." },
+        { status: 500 },
       );
     }
 
-    const adminUser = result.adminUser;
+    await logEmergencyAccessRecovery(repairResult.adminUser, "emergency-login");
+
+    const adminUser = repairResult.adminUser;
     const user = buildAuthUser(adminUser);
     const redirectTo = getStaffDashboardPath(adminUser.role);
 
@@ -100,9 +106,9 @@ export async function POST(request: Request) {
 
     return response;
   } catch (error) {
-    console.error("[Admin auth login] Unexpected error:", error);
+    console.error("[emergency-login] Unexpected error:", error);
     return NextResponse.json(
-      { error: "Unable to sign in right now. Please try again." },
+      { error: "Unable to recover admin access right now." },
       { status: 500 },
     );
   }

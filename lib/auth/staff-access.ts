@@ -17,9 +17,9 @@ function accountToUser(account: TestAccount): AuthUser {
 
 export const STAFF_ACCESS_ATTEMPTS_KEY = "activora-staff-access-attempts";
 
-const IS_PRODUCTION = process.env.NODE_ENV === "production";
-const MAX_FAILURES = IS_PRODUCTION ? 5 : 999;
-const LOCKOUT_MS = IS_PRODUCTION ? 15 * 60 * 1000 : 0;
+const LOCKOUT_ENABLED = process.env.ADMIN_LOCKOUT_ENABLED === "true";
+const MAX_FAILURES = LOCKOUT_ENABLED ? 5 : 999;
+const LOCKOUT_MS = LOCKOUT_ENABLED ? 15 * 60 * 1000 : 0;
 
 type AttemptState = {
   failures: number;
@@ -85,6 +85,7 @@ export function recordStaffAccessFailure(): void {
 export type StaffAccessLoginFailureCode =
   | "account_not_found"
   | "password_incorrect"
+  | "password_mismatch_auth"
   | "access_not_active"
   | "auth_not_configured";
 
@@ -96,7 +97,11 @@ export function handleStaffAccessLoginFailure(
   status: number,
   code?: StaffAccessLoginFailureCode,
 ): void {
-  if (code === "password_incorrect" || (status === 401 && !code)) {
+  if (
+    code === "password_incorrect" ||
+    code === "password_mismatch_auth" ||
+    (status === 401 && !code)
+  ) {
     recordStaffAccessFailure();
     return;
   }
