@@ -63,15 +63,6 @@ export type ProviderTemplateSettings = {
   usesDefault: boolean;
 };
 
-export type TemplateAnalytics = {
-  templateKey: TemplateKey;
-  delivered: number;
-  opened: number;
-  clicked: number;
-  failed: number;
-  unsubscribed: number;
-};
-
 export type BulkApplyScope = "all_providers" | "new_providers_only" | "selected_providers";
 
 export type BulkApplyOptions = {

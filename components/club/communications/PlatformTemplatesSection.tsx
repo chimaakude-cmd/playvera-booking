@@ -5,14 +5,11 @@ import { X } from "lucide-react";
 import { useModalDismiss } from "@/lib/hooks/use-modal-dismiss";
 import { TemplatePreviewPanel } from "@/components/message-templates/TemplatePreviewPanel";
 import { TemplateVariableChips } from "@/components/message-templates/TemplateVariableChips";
-import { TemplateAnalyticsCards } from "@/components/message-templates/TemplateAnalyticsCards";
 import {
   CHANNEL_LABELS,
   SEND_TIMING_LABELS,
   cloneTemplateForProvider,
   dismissTemplatesOnboardingBanner,
-  formatAnalyticsRate,
-  getAllMockAnalytics,
   getClubTemplatesView,
   restoreClubTemplateDefault,
   saveClubTemplateOverride,
@@ -203,8 +200,6 @@ export function PlatformTemplatesSection({ canEdit }: PlatformTemplatesSectionPr
     return getClubTemplatesView();
   }, [refreshKey]);
 
-  const analytics = useMemo(() => getAllMockAnalytics("club"), [refreshKey]);
-
   function refresh() {
     setRefreshKey((current) => current + 1);
   }
@@ -276,9 +271,6 @@ export function PlatformTemplatesSection({ canEdit }: PlatformTemplatesSectionPr
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-zinc-500">
                   Source
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                  Sent (30d)
-                </th>
                 <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-zinc-500">
                   Actions
                 </th>
@@ -286,12 +278,7 @@ export function PlatformTemplatesSection({ canEdit }: PlatformTemplatesSectionPr
             </thead>
             <tbody className="divide-y divide-zinc-100">
               {templateViews.map(
-                ({ templateKey, effectiveTemplate, usesDefault }) => {
-                  const stats = analytics.find(
-                    (entry) => entry.templateKey === templateKey,
-                  );
-
-                  return (
+                ({ templateKey, effectiveTemplate, usesDefault }) => (
                     <tr key={templateKey} className="hover:bg-zinc-50/50">
                       <td className="px-4 py-3.5">
                         <div className="flex items-center gap-2">
@@ -318,15 +305,6 @@ export function PlatformTemplatesSection({ canEdit }: PlatformTemplatesSectionPr
                         >
                           {usesDefault ? "Platform default" : "Custom version"}
                         </span>
-                      </td>
-                      <td className="px-4 py-3.5 text-sm tabular-nums text-zinc-600">
-                        {stats?.delivered.toLocaleString("en-GB") ?? "—"}
-                        {stats ? (
-                          <span className="ml-2 text-xs text-zinc-400">
-                            ({formatAnalyticsRate(stats.opened, stats.delivered)}{" "}
-                            opened)
-                          </span>
-                        ) : null}
                       </td>
                       <td className="px-4 py-3.5">
                         <div className="flex justify-end gap-2">
@@ -370,29 +348,25 @@ export function PlatformTemplatesSection({ canEdit }: PlatformTemplatesSectionPr
                         </div>
                       </td>
                     </tr>
-                  );
-                },
+                ),
               )}
             </tbody>
           </table>
         </div>
       </div>
 
+      <p className="text-sm text-zinc-500">
+        Analytics will appear once real messages are sent.
+      </p>
+
       {previewKey ? (
-        <div className="space-y-3">
-          <TemplatePreviewPanel
-            template={
-              templateViews.find((entry) => entry.templateKey === previewKey)!
-                .effectiveTemplate
-            }
-            accent="teal"
-          />
-          <TemplateAnalyticsCards
-            templateKey={previewKey}
-            scope="club"
-            accent="teal"
-          />
-        </div>
+        <TemplatePreviewPanel
+          template={
+            templateViews.find((entry) => entry.templateKey === previewKey)!
+              .effectiveTemplate
+          }
+          accent="teal"
+        />
       ) : null}
 
       <div className="rounded-xl border border-zinc-200 bg-zinc-50/80 px-4 py-4">

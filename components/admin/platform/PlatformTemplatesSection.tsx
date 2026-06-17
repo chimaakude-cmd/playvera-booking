@@ -3,8 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/club/PageHeader";
 import {
-  formatAnalyticsRate,
-  getAllMockAnalytics,
   getPlatformTemplates,
   savePlatformTemplate,
   seedPlatformTemplatesIfEmpty,
@@ -52,8 +50,6 @@ export function PlatformTemplatesSection() {
     return getPlatformTemplates();
   }, [refreshKey]);
 
-  const analytics = useMemo(() => getAllMockAnalytics("platform"), [refreshKey]);
-
   function handleSave(template: MessageTemplateRecord) {
     savePlatformTemplate(template);
     setRefreshKey((current) => current + 1);
@@ -90,12 +86,6 @@ export function PlatformTemplatesSection() {
                   Timing
                 </th>
                 <th className="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                  Delivered
-                </th>
-                <th className="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                  Open rate
-                </th>
-                <th className="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wide text-zinc-500">
                   Status
                 </th>
                 <th className="px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-wide text-zinc-500">
@@ -104,12 +94,7 @@ export function PlatformTemplatesSection() {
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100">
-              {templates.map((template) => {
-                const stats = analytics.find(
-                  (entry) => entry.templateKey === template.templateKey,
-                );
-
-                return (
+              {templates.map((template) => (
                   <tr
                     key={template.id}
                     className="transition-colors hover:bg-zinc-50/60"
@@ -131,14 +116,6 @@ export function PlatformTemplatesSection() {
                     </td>
                     <td className="px-5 py-4 text-sm text-zinc-600">
                       {template.sendDelay.replaceAll("_", " ")}
-                    </td>
-                    <td className="px-5 py-4 text-sm tabular-nums text-zinc-700">
-                      {stats?.delivered.toLocaleString("en-GB") ?? "—"}
-                    </td>
-                    <td className="px-5 py-4 text-sm tabular-nums text-zinc-700">
-                      {stats
-                        ? formatAnalyticsRate(stats.opened, stats.delivered)
-                        : "—"}
                     </td>
                     <td className="px-5 py-4">
                       <span className="inline-flex items-center gap-2 text-sm text-zinc-700">
@@ -171,12 +148,15 @@ export function PlatformTemplatesSection() {
                       </div>
                     </td>
                   </tr>
-                );
-              })}
+              ))}
             </tbody>
           </table>
         </div>
       </div>
+
+      <p className="text-sm text-zinc-500">
+        Analytics will appear once real messages are sent.
+      </p>
 
       {previewKey ? (
         <div className="rounded-2xl border border-violet-100 bg-white p-5 shadow-sm">

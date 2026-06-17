@@ -5,7 +5,6 @@ import { X } from "lucide-react";
 import { useModalDismiss } from "@/lib/hooks/use-modal-dismiss";
 import { TemplatePreviewPanel } from "@/components/message-templates/TemplatePreviewPanel";
 import { TemplateVariableChips } from "@/components/message-templates/TemplateVariableChips";
-import { TemplateAnalyticsCards } from "@/components/message-templates/TemplateAnalyticsCards";
 import {
   CHANNEL_LABELS,
   SEND_TIMING_LABELS,
@@ -215,13 +214,9 @@ export function PlatformTemplateEditDrawer({
 
             <div>
               <p className="text-sm font-medium text-zinc-700">Analytics (30 days)</p>
-              <div className="mt-3">
-                <TemplateAnalyticsCards
-                  templateKey={draft.templateKey}
-                  scope="platform"
-                  accent="violet"
-                />
-              </div>
+              <p className="mt-2 rounded-xl border border-violet-100 bg-violet-50/60 px-4 py-3 text-sm leading-6 text-violet-900">
+                Analytics will appear once real messages are sent.
+              </p>
             </div>
 
             <div>
