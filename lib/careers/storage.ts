@@ -73,9 +73,17 @@ function ensureSeeded(): void {
   }
 }
 
+export function isDeletedCareerJob(job: CareerJob): boolean {
+  return job.status === "deleted" || Boolean(job.deletedAt);
+}
+
+function isNonDeletedCareerJob(job: CareerJob): boolean {
+  return !isDeletedCareerJob(job);
+}
+
 function isPublicJob(job: CareerJob): boolean {
   return (
-    job.status !== "deleted" &&
+    isNonDeletedCareerJob(job) &&
     job.status !== "archived" &&
     job.status !== "draft"
   );
@@ -90,16 +98,22 @@ export function filterCareerJobs(
   filter: JobListFilter,
 ): CareerJob[] {
   switch (filter) {
-    case "active":
-      return jobs.filter(isActiveJob);
-    case "closed":
-      return jobs.filter((job) => job.status === "closed");
-    case "archived":
-      return jobs.filter((job) => job.status === "archived");
     case "deleted":
-      return jobs.filter((job) => job.status === "deleted");
+      return jobs.filter(isDeletedCareerJob);
+    case "active":
+      return jobs.filter(
+        (job) => isNonDeletedCareerJob(job) && isActiveJob(job),
+      );
+    case "closed":
+      return jobs.filter(
+        (job) => isNonDeletedCareerJob(job) && job.status === "closed",
+      );
+    case "archived":
+      return jobs.filter(
+        (job) => isNonDeletedCareerJob(job) && job.status === "archived",
+      );
     default:
-      return jobs;
+      return jobs.filter(isNonDeletedCareerJob);
   }
 }
 
@@ -145,7 +159,9 @@ export function getCareerJobs(): CareerJob[] {
 }
 
 export function getOpenCareerJobs(): CareerJob[] {
-  return getCareerJobs().filter((job) => job.status === "open");
+  return getCareerJobs().filter(
+    (job) => isNonDeletedCareerJob(job) && job.status === "open",
+  );
 }
 
 export function getPublicCareerJobBySlugOrId(
@@ -412,7 +428,7 @@ export function createJobApplication(
 ): JobApplication | null {
   ensureSeeded();
   const job = getCareerJobById(input.jobId);
-  if (!job || job.status !== "open") {
+  if (!job || job.status !== "open" || isDeletedCareerJob(job)) {
     return null;
   }
   const applications = readJson<JobApplication[]>(CAREERS_APPLICATIONS_KEY, []);
@@ -542,7 +558,7 @@ export function getCareersAnalytics(): {
   pipeline: Record<ApplicationStatus, number>;
 } {
   const activeJobs = getCareerJobs().filter(
-    (job) => job.status !== "deleted" && job.status !== "archived",
+    (job) => isNonDeletedCareerJob(job) && job.status !== "archived",
   );
   const activeJobIds = new Set(activeJobs.map((job) => job.id));
   const applications = getJobApplications().filter((app) =>
