@@ -19,6 +19,27 @@ const BENEFITS = [
 ] as const;
 
 const CLUB_DASHBOARD_PATH = "/club/dashboard";
+const SETUP_WELCOME_MESSAGE = "Welcome back — your club setup is waiting.";
+
+function shouldShowSetupWelcome(
+  searchParams: URLSearchParams,
+  returnTo: string | null,
+): boolean {
+  if (searchParams.get("setup") === "1") {
+    return true;
+  }
+
+  if (searchParams.get("from") === "onboarding") {
+    return true;
+  }
+
+  const nextPath = returnTo ?? "";
+  if (nextPath.includes(CLUB_DASHBOARD_PATH)) {
+    return true;
+  }
+
+  return false;
+}
 
 function CheckIcon() {
   return (
@@ -99,6 +120,7 @@ export function ClubLoginPage() {
   const searchParams = useSearchParams();
   const returnTo =
     searchParams.get("returnTo") ?? searchParams.get("next");
+  const showSetupWelcome = shouldShowSetupWelcome(searchParams, returnTo);
   const [email, setEmail] = useState(
     process.env.NODE_ENV !== "production" ? TEST_ACCOUNTS.club.email : "",
   );
@@ -189,9 +211,22 @@ export function ClubLoginPage() {
               Club sign in
             </h2>
             <p className="mt-2 text-sm text-zinc-500">
-              Welcome back — manage your sessions, bookings, and club profile.
+              {showSetupWelcome
+                ? "Sign in to pick up where you left off."
+                : "Welcome back — manage your sessions, bookings, and club profile."}
             </p>
           </div>
+
+          {showSetupWelcome ? (
+            <div
+              className="mb-6 rounded-2xl border border-violet-200/80 bg-gradient-to-br from-violet-50 to-white px-5 py-4 text-center shadow-sm ring-1 ring-violet-100"
+              role="status"
+            >
+              <p className="text-sm font-medium text-violet-900">
+                {SETUP_WELCOME_MESSAGE}
+              </p>
+            </div>
+          ) : null}
 
           <form
             onSubmit={handleSubmit}

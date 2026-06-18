@@ -23,6 +23,30 @@ function isExempt(pathname: string, role: UserRole): boolean {
   );
 }
 
+function buildLoginReturnPath(request: NextRequest, pathname: string): string {
+  const search = request.nextUrl.search;
+  return search ? `${pathname}${search}` : pathname;
+}
+
+function applyClubLoginRedirectParams(
+  loginUrl: URL,
+  request: NextRequest,
+  returnPath: string,
+): void {
+  loginUrl.searchParams.set("next", returnPath);
+
+  if (request.nextUrl.searchParams.get("setup") === "1") {
+    loginUrl.searchParams.set("setup", "1");
+  }
+
+  if (
+    request.nextUrl.searchParams.get("from") === "onboarding" ||
+    request.nextUrl.pathname.startsWith("/club/onboarding")
+  ) {
+    loginUrl.searchParams.set("from", "onboarding");
+  }
+}
+
 function protectPortal(
   request: NextRequest,
   role: UserRole,
@@ -43,7 +67,13 @@ function protectPortal(
   if (!currentRole) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = getLoginPath(role);
-    loginUrl.searchParams.set("next", pathname);
+    loginUrl.search = "";
+    const returnPath = buildLoginReturnPath(request, pathname);
+    if (role === "club") {
+      applyClubLoginRedirectParams(loginUrl, request, returnPath);
+    } else {
+      loginUrl.searchParams.set("next", returnPath);
+    }
     return NextResponse.redirect(loginUrl);
   }
 
@@ -52,7 +82,9 @@ function protectPortal(
     if (role === "club") {
       const loginUrl = request.nextUrl.clone();
       loginUrl.pathname = getLoginPath("club");
-      loginUrl.searchParams.set("next", pathname);
+      loginUrl.search = "";
+      const returnPath = buildLoginReturnPath(request, pathname);
+      applyClubLoginRedirectParams(loginUrl, request, returnPath);
       const response = NextResponse.redirect(loginUrl);
       response.cookies.set(AUTH_ROLE_COOKIE, "", { path: "/", maxAge: 0 });
       return response;
