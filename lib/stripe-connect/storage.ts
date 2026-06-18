@@ -1,8 +1,39 @@
 import type { StripeConnectState } from "./types";
+import type { StripeConnectErrorCode } from "@/lib/stripe/errors";
 import {
   DEMO_PROVIDER_ID,
   STRIPE_CONNECT_STORAGE_KEY,
 } from "./types";
+
+export class StripeConnectOnboardError extends Error {
+  readonly code: StripeConnectErrorCode;
+  readonly adminDetail?: string;
+
+  constructor(payload: {
+    error: string;
+    code: StripeConnectErrorCode;
+    adminDetail?: string;
+  }) {
+    super(payload.error);
+    this.name = "StripeConnectOnboardError";
+    this.code = payload.code;
+    this.adminDetail = payload.adminDetail;
+  }
+}
+
+async function parseOnboardError(response: Response): Promise<never> {
+  const payload = (await response.json().catch(() => ({}))) as {
+    error?: string;
+    code?: StripeConnectErrorCode;
+    adminDetail?: string;
+  };
+
+  throw new StripeConnectOnboardError({
+    error: payload.error ?? "Could not start Stripe onboarding.",
+    code: payload.code ?? "transient",
+    adminDetail: payload.adminDetail,
+  });
+}
 
 function createDefaultState(): StripeConnectState {
   return {
@@ -100,10 +131,7 @@ export async function startStripeOnboarding(): Promise<{
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(
-      (error as { error?: string }).error ?? "Could not start Stripe onboarding.",
-    );
+    await parseOnboardError(response);
   }
 
   const data = (await response.json()) as {
@@ -133,10 +161,7 @@ export async function refreshStripeOnboarding(): Promise<{ url: string }> {
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(
-      (error as { error?: string }).error ?? "Could not refresh onboarding link.",
-    );
+    await parseOnboardError(response);
   }
 
   return (await response.json()) as { url: string; stripeAccountId: string };

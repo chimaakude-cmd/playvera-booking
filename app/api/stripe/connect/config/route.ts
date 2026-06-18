@@ -11,12 +11,14 @@ import {
   validateStripeSecretKey,
   type StripeMode,
 } from "@/lib/stripe/env";
+import { isStripeConnectAdminDebugEnabled } from "@/lib/stripe/errors";
 
 export type StripeConnectConfigResponse = {
   serverConfigured: boolean;
   clientConfigured: boolean;
   connectReady: boolean;
   connectEnabled: boolean;
+  platformUnavailable: boolean;
   mode: StripeMode | null;
   testModeOnly: boolean;
   /** Safe to expose — publishable keys are public by design */
@@ -25,6 +27,7 @@ export type StripeConnectConfigResponse = {
   secretKeyPrefix: string | null;
   publishableKeyPrefix: string | null;
   validationErrors: string[];
+  adminDetail?: string;
 };
 
 /** Public-safe Stripe readiness — never returns secret key values. */
@@ -58,11 +61,19 @@ export async function GET() {
   const mode = resolveStripeMode();
 
   let connectEnabled = false;
+  let platformUnavailable = false;
+  let adminDetail: string | undefined;
+
   if (secretValidation.valid) {
     const probe = await probeStripeConnectEnabled();
     connectEnabled = probe.connectEnabled;
+    platformUnavailable = secretValidation.valid && !probe.connectEnabled;
+
     if (!connectEnabled) {
-      validationErrors.push(probe.message);
+      if (isStripeConnectAdminDebugEnabled()) {
+        validationErrors.push(probe.message);
+        adminDetail = probe.message;
+      }
     }
   }
 
@@ -75,8 +86,9 @@ export async function GET() {
   const response: StripeConnectConfigResponse = {
     serverConfigured: isSecretKeyConfigured(),
     clientConfigured: isPublishableKeyConfigured(),
-    connectReady: isSecretKeyConfigured(),
-    connectEnabled: connectEnabled,
+    connectReady: isSecretKeyConfigured() && connectEnabled,
+    connectEnabled,
+    platformUnavailable,
     mode,
     testModeOnly: mode === "test",
     publishableKey: publishableValidation.valid ? resolvedPublishable : null,
@@ -84,6 +96,7 @@ export async function GET() {
     secretKeyPrefix: secretValidation.prefix ?? null,
     publishableKeyPrefix: publishableValidation.prefix ?? null,
     validationErrors,
+    ...(adminDetail ? { adminDetail } : {}),
   };
 
   return NextResponse.json(response);

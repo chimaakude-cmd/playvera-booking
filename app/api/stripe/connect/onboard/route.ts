@@ -4,7 +4,11 @@ import {
   createOnboardingLink,
 } from "@/lib/stripe/connect";
 import { STRIPE_PLATFORM_NAME } from "@/lib/stripe/constants";
-import { getStripeConnectErrorMessage } from "@/lib/stripe/errors";
+import {
+  buildStripeConnectErrorResponse,
+  getStripeConnectClubMessage,
+  type StripeConnectErrorCode,
+} from "@/lib/stripe/errors";
 import { getAppBaseUrl, getStripe, isStripeConfigured } from "@/lib/stripe/server";
 
 type OnboardBody = {
@@ -15,10 +19,19 @@ type OnboardBody = {
 
 export async function POST(request: Request) {
   if (!isStripeConfigured()) {
+    const code: StripeConnectErrorCode = "not_configured";
     return NextResponse.json(
       {
-        error:
-          "Stripe is not configured. Add STRIPE_SECRET_KEY to .env.local and restart the dev server.",
+        error: getStripeConnectClubMessage(
+          new Error("Stripe is not configured. Add STRIPE_SECRET_KEY."),
+        ),
+        code,
+        ...(process.env.NODE_ENV !== "production"
+          ? {
+              adminDetail:
+                "Stripe is not configured. Add STRIPE_SECRET_KEY to .env.local and restart the dev server.",
+            }
+          : {}),
       },
       { status: 503 },
     );
@@ -55,7 +68,14 @@ export async function POST(request: Request) {
       platform: STRIPE_PLATFORM_NAME,
     });
   } catch (error) {
-    const message = getStripeConnectErrorMessage(error);
-    return NextResponse.json({ error: message }, { status: 500 });
+    const payload = buildStripeConnectErrorResponse(error, {
+      route: "/api/stripe/connect/onboard",
+    });
+    const status =
+      payload.code === "platform_unavailable" || payload.code === "not_configured"
+        ? 503
+        : 500;
+
+    return NextResponse.json(payload, { status });
   }
 }

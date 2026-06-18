@@ -13,6 +13,7 @@
     "typecheck": "tsc --noEmit",
     "test:stripe-fees": "npx tsx scripts/test-stripe-fees.ts",
     "test:stripe-connect": "npx tsx scripts/test-stripe-connect-status.ts",
+    "test:stripe-connect-errors": "npx tsx scripts/test-stripe-connect-errors.ts",
     "check:stripe-env": "npx tsx --env-file=.env.local scripts/check-stripe-env.ts",
     "sync:stripe-publishable": "npx tsx scripts/sync-stripe-publishable.ts",
     "admin:regenerate-credentials": "node scripts/generate-admin-test-credentials.mjs"

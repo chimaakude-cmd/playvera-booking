@@ -1,5 +1,8 @@
 import Stripe from "stripe";
-import { getStripeConnectErrorMessage } from "./errors";
+import {
+  getStripeConnectTechnicalMessage,
+  isStripeConnectPlatformMisconfigured,
+} from "./errors";
 import { resolveStripeSecretKey, validateStripeSecretKey } from "./env";
 
 export type StripeConnectProbeResult = {
@@ -10,9 +13,6 @@ export type StripeConnectProbeResult = {
   secretKeyValid: boolean;
   message: string;
 };
-
-const CONNECT_SIGNUP_ERROR =
-  "signed up for Connect";
 
 /** Read-only probe — accounts.list only; does not create accounts. */
 export async function probeStripeConnectEnabled(): Promise<StripeConnectProbeResult> {
@@ -40,8 +40,8 @@ export async function probeStripeConnectEnabled(): Promise<StripeConnectProbeRes
         "Connect accounts API reachable (accounts.list). Express onboarding still requires Connect → Platform / Marketplace → Express · United Kingdom in Stripe Dashboard.",
     };
   } catch (error) {
-    const message = getStripeConnectErrorMessage(error);
-    const connectBlocked = message.includes(CONNECT_SIGNUP_ERROR);
+    const message = getStripeConnectTechnicalMessage(error);
+    const connectBlocked = isStripeConnectPlatformMisconfigured(error);
 
     return {
       connectApiReachable: false,
