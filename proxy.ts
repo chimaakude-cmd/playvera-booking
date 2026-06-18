@@ -48,6 +48,16 @@ function protectPortal(
   }
 
   if (currentRole !== role) {
+    // Club portal must never bounce visitors to admin/parent dashboards.
+    if (role === "club") {
+      const loginUrl = request.nextUrl.clone();
+      loginUrl.pathname = getLoginPath("club");
+      loginUrl.searchParams.set("next", pathname);
+      const response = NextResponse.redirect(loginUrl);
+      response.cookies.set(AUTH_ROLE_COOKIE, "", { path: "/", maxAge: 0 });
+      return response;
+    }
+
     const dashboardUrl = request.nextUrl.clone();
     dashboardUrl.pathname = getDashboardPath(currentRole);
     dashboardUrl.search = "";

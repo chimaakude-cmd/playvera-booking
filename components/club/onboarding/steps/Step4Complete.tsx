@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ONBOARDING_PRECONFIGURED_LABELS } from "@/lib/message-templates";
 import { SETUP_BASE_PERCENT } from "@/lib/club-setup";
+import { navigateToClubDashboardAfterOnboarding } from "@/lib/club-onboarding/navigation";
 import { OnboardingStepIntro } from "../shared";
 
 type StepProps = {
@@ -51,12 +52,13 @@ export function Step4Complete({ clubName }: StepProps) {
       </div>
 
       <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
-        <Link
-          href="/club/dashboard?setup=1"
+        <button
+          type="button"
+          onClick={navigateToClubDashboardAfterOnboarding}
           className="rounded-xl bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-teal-700"
         >
           Go to dashboard
-        </Link>
+        </button>
         <Link
           href="/club/create-session"
           className="rounded-xl border border-zinc-200 px-5 py-2.5 text-sm font-semibold text-zinc-700 transition-colors hover:bg-zinc-50"

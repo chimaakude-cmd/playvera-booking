@@ -21,6 +21,7 @@ import {
   validateOnboardingForCompletion,
   validateOwnerAccountWithConfirm,
   getEarliestOnboardingErrorStep,
+  navigateToClubDashboardAfterOnboarding,
   type ClubOnboardingState,
   type OnboardingImagePreviews,
   type OnboardingStep,
@@ -666,12 +667,13 @@ export function ClubOnboardingWizard() {
       >
         Create your first session
       </Link>
-      <Link
-        href="/club/dashboard?setup=1"
+      <button
+        type="button"
+        onClick={navigateToClubDashboardAfterOnboarding}
         className="rounded-xl bg-teal-600 px-5 py-2.5 text-center text-sm font-semibold text-white transition-colors hover:bg-teal-700"
       >
         Go to dashboard
-      </Link>
+      </button>
     </div>
   ) : (
     <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-start sm:justify-end">

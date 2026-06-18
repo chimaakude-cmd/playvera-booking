@@ -18,12 +18,17 @@ export const AUTH_EXEMPT_PATHS: Record<UserRole, string[]> = {
   ],
 };
 
+export const CLUB_DASHBOARD_PATH = "/club/dashboard";
+
+/** Post-onboarding entry — shows setup checklist on first visit. */
+export const CLUB_POST_ONBOARDING_DASHBOARD_PATH = `${CLUB_DASHBOARD_PATH}?setup=1`;
+
 export function getDashboardPath(role: UserRole): string {
   switch (role) {
     case "parent":
       return "/parent/dashboard";
     case "club":
-      return "/club/dashboard";
+      return CLUB_DASHBOARD_PATH;
     case "admin":
       return "/admin/dashboard";
     case "organisation":

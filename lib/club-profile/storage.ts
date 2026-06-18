@@ -111,7 +111,10 @@ export function getClubProfile(): ClubProfile {
   }
 }
 
-export function saveClubProfile(input: ClubProfileInput): ClubProfile {
+export function saveClubProfile(
+  input: ClubProfileInput,
+  options?: { providerId?: string },
+): ClubProfile {
   const existing = getClubProfile();
   const now = new Date().toISOString();
 
@@ -132,6 +135,7 @@ export function saveClubProfile(input: ClubProfileInput): ClubProfile {
   const profile = sanitizeClubProfileImages({
     ...existing,
     ...input,
+    providerId: options?.providerId?.trim() || existing.providerId,
     contact,
     socialLinks,
     updatedAt: now,

@@ -38,7 +38,8 @@ export function LoginPage({
 }: LoginPageProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const returnTo = searchParams.get("returnTo");
+  const returnTo =
+    searchParams.get("returnTo") ?? searchParams.get("next");
   const [email, setEmail] = useState(
     process.env.NODE_ENV !== "production" ? defaultEmail : "",
   );

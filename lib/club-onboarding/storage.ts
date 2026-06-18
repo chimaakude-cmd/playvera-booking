@@ -1,6 +1,6 @@
-import { writeAuthSession, type AuthUser } from "@/lib/auth";
+import { clearAuthSession, writeAuthSession, type AuthUser } from "@/lib/auth";
 import { readAuthSession } from "@/lib/auth/session";
-import { isSupabaseConfigured } from "@/lib/supabase";
+import { getSupabaseBrowserClient, isSupabaseConfigured } from "@/lib/supabase";
 import { toPersistableImageUrl } from "@/lib/image-urls";
 import { createDefaultBookingQuestions } from "@/lib/booking-questions";
 import { seedSetupProgressAfterOnboarding } from "@/lib/club-setup/storage";
@@ -416,6 +416,32 @@ function createOwnerAuthUser(
   };
 }
 
+async function establishClubOwnerSupabaseSession(
+  email: string,
+  password: string,
+): Promise<void> {
+  if (!isSupabaseConfigured()) {
+    return;
+  }
+
+  try {
+    const supabase = getSupabaseBrowserClient();
+    const { error } = await supabase.auth.signInWithPassword({
+      email: email.trim().toLowerCase(),
+      password,
+    });
+
+    if (error) {
+      console.warn("[club-onboarding] Supabase browser sign-in failed:", {
+        message: error.message,
+        code: error.code,
+      });
+    }
+  } catch (error) {
+    console.warn("[club-onboarding] Could not establish Supabase browser session:", error);
+  }
+}
+
 type CompleteClubOnboardingResult = {
   success: boolean;
   errors: string[];
@@ -486,7 +512,7 @@ function finalizeClubOnboardingLocally(
   const profileInput = buildClubProfileInput(synced);
 
   try {
-    saveClubProfile(profileInput);
+    saveClubProfile(profileInput, { providerId: options?.providerId });
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Could not save club profile.";
@@ -501,6 +527,7 @@ function finalizeClubOnboardingLocally(
   }
 
   const user = createOwnerAuthUser(synced, options);
+  clearAuthSession();
   writeAuthSession(user);
 
   setProviderSubscriptionPlan(DEFAULT_PLAN_ID);
@@ -536,6 +563,11 @@ export async function completeClubOnboarding(
     if (!supabaseResult.ok) {
       return { success: false, errors: [supabaseResult.error] };
     }
+
+    await establishClubOwnerSupabaseSession(
+      synced.owner.email,
+      synced.owner.password,
+    );
 
     return finalizeClubOnboardingLocally(synced, {
       authUserId: supabaseResult.authUserId,
