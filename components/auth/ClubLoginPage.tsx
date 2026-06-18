@@ -131,7 +131,6 @@ export function ClubLoginPage() {
           </p>
         ) : null
       }
-      showDevQuickLogin="club"
     >
       <form onSubmit={handleSubmit}>
         <label className="block">
