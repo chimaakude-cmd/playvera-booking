@@ -33,3 +33,19 @@ export function validateOwnerAccount(owner: OnboardingOwner): string[] {
 
   return errors;
 }
+
+/** Step 1 validation including confirm-password match. */
+export function validateOwnerAccountWithConfirm(
+  owner: OnboardingOwner,
+  confirmPassword: string,
+): string[] {
+  const errors = validateOwnerAccount(owner);
+
+  if (!confirmPassword.trim()) {
+    errors.push("Please confirm your password.");
+  } else if (owner.password !== confirmPassword) {
+    errors.push("Passwords do not match.");
+  }
+
+  return errors;
+}

@@ -40,7 +40,10 @@ export function createInitialOnboardingState(): ClubOnboardingState {
   };
 }
 
-export { validateOwnerAccount };
+export {
+  validateOwnerAccount,
+  validateOwnerAccountWithConfirm,
+} from "@/lib/onboarding/validate-owner";
 
 function stepBlockMessage(label: string): string {
   return `Please complete ${label} before continuing.`;
@@ -118,10 +121,45 @@ export function validateOnboardingForCompletion(
   for (let step = 1; step <= 2; step += 1) {
     errors.push(...validateOnboardingStep(step as OnboardingStep, state));
   }
+  if (!state.owner.password.trim()) {
+    errors.push("Password is required.");
+  }
   if (!slugifyClubName(state.club.name)) {
     errors.push(
       "Please complete a valid club name before continuing.",
     );
   }
   return errors;
+}
+
+const ERROR_STEP_HINTS: Array<{ step: OnboardingStep; pattern: RegExp }> = [
+  { step: 1, pattern: /password|confirm your password|passwords do not match|email|first name|last name|phone|business type|account/i },
+  { step: 2, pattern: /club name|category|activit|age range|valid club name/i },
+  { step: 3, pattern: /profile|logo|cover|tagline/i },
+];
+
+/** Map a validation or submit error to the onboarding step that should fix it. */
+export function mapOnboardingErrorToStep(error: string): OnboardingStep | null {
+  for (const hint of ERROR_STEP_HINTS) {
+    if (hint.pattern.test(error)) {
+      return hint.step;
+    }
+  }
+  return null;
+}
+
+/** Earliest step referenced by a list of validation errors. */
+export function getEarliestOnboardingErrorStep(
+  errors: string[],
+): OnboardingStep | null {
+  let earliest: OnboardingStep | null = null;
+
+  for (const error of errors) {
+    const step = mapOnboardingErrorToStep(error);
+    if (step && (earliest === null || step < earliest)) {
+      earliest = step;
+    }
+  }
+
+  return earliest;
 }

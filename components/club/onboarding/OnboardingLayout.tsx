@@ -15,6 +15,7 @@ import { OnboardingProgress } from "./OnboardingProgress";
 
 type OnboardingLayoutProps = {
   currentStep: OnboardingStep;
+  maxCompletedStep: OnboardingStep;
   onStepSelect: (step: OnboardingStep) => void;
   children: ReactNode;
   footer: ReactNode;
@@ -23,8 +24,17 @@ type OnboardingLayoutProps = {
   showBack?: boolean;
 };
 
+function canNavigateToStep(
+  step: OnboardingStep,
+  currentStep: OnboardingStep,
+  maxCompletedStep: OnboardingStep,
+): boolean {
+  return step <= maxCompletedStep || step < currentStep;
+}
+
 export function OnboardingLayout({
   currentStep,
+  maxCompletedStep,
   onStepSelect,
   children,
   footer,
@@ -70,25 +80,35 @@ export function OnboardingLayout({
             <ol className="space-y-1.5">
               {ONBOARDING_STEPS.map((entry) => {
                 const isActive = entry.id === currentStep;
-                const isComplete = entry.id < currentStep;
+                const isComplete =
+                  entry.id < currentStep ||
+                  (entry.id <= maxCompletedStep && entry.id !== currentStep);
+                const isReachable = canNavigateToStep(
+                  entry.id,
+                  currentStep,
+                  maxCompletedStep,
+                );
+                const isClickable = allowStepNavigation && isReachable;
 
                 return (
                   <li key={entry.id}>
                     <button
                       type="button"
                       onClick={() => {
-                        if (allowStepNavigation && entry.id <= currentStep) {
+                        if (isClickable) {
                           onStepSelect(entry.id);
                         }
                       }}
-                      disabled={!allowStepNavigation || entry.id > currentStep}
+                      disabled={!isClickable}
                       className={`flex w-full items-start gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition-colors ${
                         isActive
                           ? "bg-zinc-900 text-white"
                           : isComplete
                             ? "text-zinc-700 hover:bg-white"
-                            : "text-zinc-400"
-                      } ${allowStepNavigation && entry.id <= currentStep ? "cursor-pointer" : "cursor-not-allowed"}`}
+                            : isReachable
+                              ? "text-zinc-600 hover:bg-white"
+                              : "text-zinc-400"
+                      } ${isClickable ? "cursor-pointer" : "cursor-not-allowed"}`}
                     >
                       <span
                         className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${

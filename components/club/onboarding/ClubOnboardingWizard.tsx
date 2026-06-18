@@ -18,10 +18,14 @@ import {
   saveOnboardingDraft,
   syncDerivedOnboardingFields,
   validateOnboardingStep,
+  validateOnboardingForCompletion,
+  validateOwnerAccountWithConfirm,
+  getEarliestOnboardingErrorStep,
   type ClubOnboardingState,
   type OnboardingImagePreviews,
   type OnboardingStep,
 } from "@/lib/club-onboarding";
+import { getStepMeta } from "@/lib/club-onboarding/steps";
 import { OnboardingLayout } from "./OnboardingLayout";
 import { Step1AccountOwner } from "./steps/Step1AccountOwner";
 import { Step2AboutClub } from "./steps/Step2AboutClub";
@@ -127,6 +131,8 @@ export function ClubOnboardingWizard() {
     coverUrl: null,
   });
   const [errors, setErrors] = useState<string[]>([]);
+  const [passwordConfirm, setPasswordConfirm] = useState("");
+  const [maxCompletedStep, setMaxCompletedStep] = useState<OnboardingStep>(1);
   const [draftWarning, setDraftWarning] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [savingProgress, setSavingProgress] = useState(false);
@@ -152,6 +158,7 @@ export function ClubOnboardingWizard() {
   useEffect(() => {
     const draft = loadOnboardingDraft();
     setState(draft);
+    setMaxCompletedStep(draft.currentStep);
     setImagePreviews({
       logoUrl: draft.profile.logoUrl,
       coverUrl: draft.profile.coverUrl,
@@ -371,8 +378,18 @@ export function ClubOnboardingWizard() {
       return;
     }
 
+    const synced = syncDerivedOnboardingFields(
+      mergeImagePreviews(state, imagePreviewsRef.current),
+    );
+    const validationErrors = validateOnboardingForCompletion(synced);
+    if (validationErrors.length > 0) {
+      pendingCompletionRef.current = false;
+      setErrors(validationErrors);
+      return;
+    }
+
     pendingCompletionRef.current = false;
-    void finishOnboarding(mergeImagePreviews(state, imagePreviewsRef.current));
+    void finishOnboarding(synced);
   }, [state, completing]);
 
   function updateState(updates: Partial<ClubOnboardingState>) {
@@ -394,15 +411,25 @@ export function ClubOnboardingWizard() {
     const initial = createInitialOnboardingState();
     setState(initial);
     setImagePreviews({ logoUrl: null, coverUrl: null });
+    setPasswordConfirm("");
+    setMaxCompletedStep(1);
     setErrors([]);
     setDraftWarning(null);
     setSaveStatus("idle");
   }
 
-  function goToStep(step: OnboardingStep) {
+  function canNavigateToStep(step: OnboardingStep): boolean {
     if (!state) {
+      return false;
+    }
+    return step <= maxCompletedStep || step < state.currentStep;
+  }
+
+  function goToStep(step: OnboardingStep) {
+    if (!state || !canNavigateToStep(step)) {
       return;
     }
+    pendingCompletionRef.current = false;
     persist({ ...state, currentStep: step });
     setErrors([]);
     if (step === 4 && !state.completedAt) {
@@ -410,11 +437,44 @@ export function ClubOnboardingWizard() {
     }
   }
 
+  function handleStepSelect(step: OnboardingStep) {
+    goToStep(step);
+  }
+
+  function renderGoToErrorStepAction(className: string) {
+    const errorStep = getEarliestOnboardingErrorStep(errors);
+    if (!errorStep) {
+      return null;
+    }
+
+    const stepMeta = getStepMeta(errorStep);
+    return (
+      <button
+        type="button"
+        onClick={() => goToStep(errorStep)}
+        className={className}
+      >
+        Go to {stepMeta.shortTitle} step
+      </button>
+    );
+  }
+
   async function finishOnboarding(current: ClubOnboardingState) {
+    const withImages = mergeImagePreviews(current, imagePreviewsRef.current);
+    const synced = syncDerivedOnboardingFields(withImages);
+    const validationErrors = validateOnboardingForCompletion(synced);
+
+    if (validationErrors.length > 0) {
+      setErrors(validationErrors);
+      setCompleting(false);
+      pendingCompletionRef.current = false;
+      return;
+    }
+
     setCompleting(true);
     setErrors([]);
 
-    const result = await completeClubOnboarding(current);
+    const result = await completeClubOnboarding(synced);
     if (!result.success) {
       setErrors(result.errors);
       setCompleting(false);
@@ -437,7 +497,15 @@ export function ClubOnboardingWizard() {
     const withImages = mergeImagePreviews(state, imagePreviews);
     const synced = syncDerivedOnboardingFields(withImages);
 
-    const stepErrors = validateOnboardingStep(synced.currentStep, synced);
+    const stepErrors =
+      synced.currentStep === 1
+        ? [
+            ...validateOwnerAccountWithConfirm(synced.owner, passwordConfirm),
+            ...(synced.club.businessType
+              ? []
+              : ["Please complete business type before continuing."]),
+          ]
+        : validateOnboardingStep(synced.currentStep, synced);
     if (stepErrors.length > 0) {
       setErrors(stepErrors);
       return;
@@ -458,6 +526,9 @@ export function ClubOnboardingWizard() {
 
     setState(next);
     setErrors([]);
+    setMaxCompletedStep((current) =>
+      Math.max(current, synced.currentStep) as OnboardingStep,
+    );
     if (next.currentStep === 4 && !next.completedAt) {
       pendingCompletionRef.current = true;
     }
@@ -519,6 +590,7 @@ export function ClubOnboardingWizard() {
     saveDraft(mergeImagePreviews(next, imagePreviews), { showFeedback: true });
     persist(next);
     setErrors([]);
+    setMaxCompletedStep((current) => Math.max(current, 3) as OnboardingStep);
     if (!state.completedAt) {
       pendingCompletionRef.current = true;
     }
@@ -562,13 +634,17 @@ export function ClubOnboardingWizard() {
   const completeStepFooter = isFinishing ? null : errors.length > 0 ? (
     <div className="space-y-4">
       <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <button
-          type="button"
-          onClick={() => goToStep(2)}
-          className="rounded-xl border border-zinc-200 px-5 py-2.5 text-sm font-semibold text-zinc-700 transition-colors hover:bg-zinc-50"
-        >
-          Back to club details
-        </button>
+        {renderGoToErrorStepAction(
+          "rounded-xl border border-zinc-200 px-5 py-2.5 text-sm font-semibold text-zinc-700 transition-colors hover:bg-zinc-50",
+        ) ?? (
+          <button
+            type="button"
+            onClick={() => goToStep(2)}
+            className="rounded-xl border border-zinc-200 px-5 py-2.5 text-sm font-semibold text-zinc-700 transition-colors hover:bg-zinc-50"
+          >
+            Back to club details
+          </button>
+        )}
         <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-start">
           {saveProgressControls}
           <button
@@ -621,6 +697,9 @@ export function ClubOnboardingWizard() {
               <li key={error}>{error}</li>
             ))}
           </ul>
+          {renderGoToErrorStepAction(
+            "mt-3 text-sm font-semibold text-teal-700 underline-offset-2 hover:text-teal-800 hover:underline",
+          )}
         </div>
       ) : null}
 
@@ -665,14 +744,20 @@ export function ClubOnboardingWizard() {
     <>
       <OnboardingLayout
         currentStep={step}
-        onStepSelect={goToStep}
+        maxCompletedStep={maxCompletedStep}
+        onStepSelect={handleStepSelect}
         onBack={handleBack}
         showBack={showBack}
         footer={footer}
-        allowStepNavigation={!isCompleteStep}
+        allowStepNavigation={!completing}
       >
         {step === 1 ? (
-          <Step1AccountOwner state={state} onChange={updateState} />
+          <Step1AccountOwner
+            state={state}
+            onChange={updateState}
+            passwordConfirm={passwordConfirm}
+            onPasswordConfirmChange={setPasswordConfirm}
+          />
         ) : null}
         {step === 2 ? (
           <Step2AboutClub state={state} onChange={updateState} />
@@ -703,6 +788,9 @@ export function ClubOnboardingWizard() {
                   <li key={error}>{error}</li>
                 ))}
               </ul>
+              {renderGoToErrorStepAction(
+                "mt-3 text-sm font-semibold text-teal-700 underline-offset-2 hover:text-teal-800 hover:underline",
+              )}
             </div>
           ) : (
             <Step4Complete clubName={state.club.name} />

@@ -11,6 +11,8 @@ import {
 type OwnerAccountFieldsProps = {
   owner: OnboardingOwner;
   onChange: (updates: Partial<OnboardingOwner>) => void;
+  passwordConfirm?: string;
+  onPasswordConfirmChange?: (value: string) => void;
   loginHint?: React.ReactNode;
   phoneFieldError?: string;
 };
@@ -18,6 +20,8 @@ type OwnerAccountFieldsProps = {
 export function OwnerAccountFields({
   owner,
   onChange,
+  passwordConfirm,
+  onPasswordConfirmChange,
   loginHint,
   phoneFieldError,
 }: OwnerAccountFieldsProps) {
@@ -104,6 +108,23 @@ export function OwnerAccountFields({
           autoComplete="new-password"
         />
       </OnboardingField>
+
+      {onPasswordConfirmChange ? (
+      <OnboardingField
+        label="Confirm password"
+        htmlFor="owner-password-confirm"
+        required
+      >
+        <input
+          id="owner-password-confirm"
+          type="password"
+          value={passwordConfirm ?? ""}
+          onChange={(event) => onPasswordConfirmChange(event.target.value)}
+          className={onboardingInputClassName}
+          autoComplete="new-password"
+        />
+      </OnboardingField>
+      ) : null}
 
       {loginHint ? <OnboardingInfoBox>{loginHint}</OnboardingInfoBox> : null}
     </div>

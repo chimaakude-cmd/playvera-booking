@@ -11,9 +11,16 @@ import { OnboardingField, OnboardingStepIntro } from "../shared";
 type StepProps = {
   state: ClubOnboardingState;
   onChange: (updates: Partial<ClubOnboardingState>) => void;
+  passwordConfirm: string;
+  onPasswordConfirmChange: (value: string) => void;
 };
 
-export function Step1AccountOwner({ state, onChange }: StepProps) {
+export function Step1AccountOwner({
+  state,
+  onChange,
+  passwordConfirm,
+  onPasswordConfirmChange,
+}: StepProps) {
   function updateOwner(updates: Partial<ClubOnboardingState["owner"]>) {
     onChange({ owner: { ...state.owner, ...updates } });
   }
@@ -32,6 +39,8 @@ export function Step1AccountOwner({ state, onChange }: StepProps) {
       <OwnerAccountFields
         owner={state.owner}
         onChange={updateOwner}
+        passwordConfirm={passwordConfirm}
+        onPasswordConfirmChange={onPasswordConfirmChange}
         loginHint={
           <>
             Sign in at <strong>/club/login</strong> with this email and password.
