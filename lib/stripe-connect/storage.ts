@@ -1,5 +1,8 @@
+import { getClubProfile } from "@/lib/club-profile";
+import { getDefaultProviderIdFromEnv } from "@/lib/data/providers/supabase/default-provider";
 import type { StripeConnectState } from "./types";
 import type { StripeConnectErrorCode } from "@/lib/stripe/errors";
+import { STRIPE_CONNECT_LOG_PREFIX } from "@/lib/stripe/errors";
 import {
   DEMO_PROVIDER_ID,
   STRIPE_CONNECT_STORAGE_KEY,
@@ -48,6 +51,51 @@ function createDefaultState(): StripeConnectState {
     dashboard: null,
     updatedAt: new Date().toISOString(),
   };
+}
+
+const PLACEHOLDER_PROVIDER_IDS = new Set(["local-provider", DEMO_PROVIDER_ID]);
+
+function readCachedDefaultProviderId(): string | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  return localStorage.getItem("activora-default-provider-id")?.trim() || null;
+}
+
+/** Align Stripe Connect state with the signed-in club's provider record. */
+export function resolveStripeConnectProviderId(): string {
+  const state = getStripeConnectState();
+  const envProviderId = getDefaultProviderIdFromEnv();
+  const profileProviderId = getClubProfile().providerId?.trim();
+  const cachedProviderId = readCachedDefaultProviderId();
+
+  const resolved =
+    (profileProviderId && !PLACEHOLDER_PROVIDER_IDS.has(profileProviderId)
+      ? profileProviderId
+      : null) ??
+    (cachedProviderId && !PLACEHOLDER_PROVIDER_IDS.has(cachedProviderId)
+      ? cachedProviderId
+      : null) ??
+    envProviderId ??
+    state.providerId;
+
+  if (resolved !== state.providerId) {
+    const next: StripeConnectState = {
+      ...state,
+      providerId: resolved,
+      updatedAt: new Date().toISOString(),
+    };
+    saveStripeConnectState(next);
+    console.log(STRIPE_CONNECT_LOG_PREFIX, {
+      step: "providerId.sync",
+      previousProviderId: state.providerId,
+      providerId: resolved,
+    });
+    return resolved;
+  }
+
+  return state.providerId;
 }
 
 export function getStripeConnectState(): StripeConnectState {
@@ -115,17 +163,64 @@ export async function fetchStripeConnectStatus(
   return data;
 }
 
+function parseOnboardSuccess(payload: {
+  url?: string;
+  stripeAccountId?: string;
+}): { url: string; stripeAccountId: string } {
+  const url = payload.url?.trim();
+  const stripeAccountId = payload.stripeAccountId?.trim();
+
+  if (!url) {
+    console.error(STRIPE_CONNECT_LOG_PREFIX, {
+      step: "onboard.client.missing_url",
+      stripeAccountId: stripeAccountId ?? null,
+    });
+    throw new StripeConnectOnboardError({
+      error: "Stripe onboarding link was missing. Please try again.",
+      code: "transient",
+      adminDetail: "POST /api/stripe/connect/onboard returned no url.",
+    });
+  }
+
+  if (!stripeAccountId) {
+    console.error(STRIPE_CONNECT_LOG_PREFIX, {
+      step: "onboard.client.missing_account",
+      redirectUrl: url,
+    });
+    throw new StripeConnectOnboardError({
+      error: "Stripe account id was missing. Please try again.",
+      code: "transient",
+      adminDetail: "POST /api/stripe/connect/onboard returned no stripeAccountId.",
+    });
+  }
+
+  console.log(STRIPE_CONNECT_LOG_PREFIX, {
+    step: "onboard.client.redirect",
+    redirectUrl: url,
+    stripeAccountId,
+  });
+
+  return { url, stripeAccountId };
+}
+
 export async function startStripeOnboarding(): Promise<{
   url: string;
   stripeAccountId: string;
 }> {
+  const providerId = resolveStripeConnectProviderId();
   const current = getStripeConnectState();
+
+  console.log(STRIPE_CONNECT_LOG_PREFIX, {
+    step: "onboard.client.start",
+    providerId,
+    stripeAccountId: current.stripeAccountId,
+  });
 
   const response = await fetch("/api/stripe/connect/onboard", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      providerId: current.providerId,
+      providerId,
       stripeAccountId: current.stripeAccountId,
     }),
   });
@@ -134,16 +229,19 @@ export async function startStripeOnboarding(): Promise<{
     await parseOnboardError(response);
   }
 
-  const data = (await response.json()) as {
-    url: string;
-    stripeAccountId: string;
-  };
+  const data = parseOnboardSuccess(
+    (await response.json()) as {
+      url?: string;
+      stripeAccountId?: string;
+    },
+  );
 
   setStripeAccountId(data.stripeAccountId);
   return data;
 }
 
 export async function refreshStripeOnboarding(): Promise<{ url: string }> {
+  const providerId = resolveStripeConnectProviderId();
   const current = getStripeConnectState();
 
   if (!current.stripeAccountId) {
@@ -154,7 +252,7 @@ export async function refreshStripeOnboarding(): Promise<{ url: string }> {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      providerId: current.providerId,
+      providerId,
       stripeAccountId: current.stripeAccountId,
       refresh: true,
     }),
@@ -164,7 +262,12 @@ export async function refreshStripeOnboarding(): Promise<{ url: string }> {
     await parseOnboardError(response);
   }
 
-  return (await response.json()) as { url: string; stripeAccountId: string };
+  return parseOnboardSuccess(
+    (await response.json()) as {
+      url?: string;
+      stripeAccountId?: string;
+    },
+  );
 }
 
 export async function disconnectStripeAccount(): Promise<StripeConnectState> {

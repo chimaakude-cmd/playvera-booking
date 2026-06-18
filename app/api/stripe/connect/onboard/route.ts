@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import {
+  getProviderEmail,
   getProviderStripeAccountId,
   persistProviderStripeConnect,
 } from "@/lib/stripe-connect/provider-persistence";
@@ -11,6 +12,7 @@ import { STRIPE_PLATFORM_NAME } from "@/lib/stripe/constants";
 import {
   buildStripeConnectErrorResponse,
   getStripeConnectClubMessage,
+  logStripeConnectError,
   STRIPE_CONNECT_LOG_PREFIX,
   type StripeConnectErrorCode,
 } from "@/lib/stripe/errors";
@@ -21,7 +23,21 @@ type OnboardBody = {
   providerId?: string;
   stripeAccountId?: string | null;
   refresh?: boolean;
+  email?: string;
 };
+
+function scheduleProviderPersist(
+  providerId: string,
+  account: Awaited<ReturnType<typeof createExpressConnectAccount>>,
+): void {
+  void persistProviderStripeConnect(providerId, account).catch((error) => {
+    logStripeConnectError(error, {
+      step: "persistProviderStripeConnect.failed",
+      providerId,
+      accountId: account.id,
+    });
+  });
+}
 
 export async function POST(request: Request) {
   if (!isStripeConfigured()) {
@@ -49,9 +65,11 @@ export async function POST(request: Request) {
     const providerId = body.providerId?.trim() || "demo-provider-1";
     const baseUrl = getAppBaseUrl(request);
     const returnUrl = `${baseUrl}/club/finance?tab=stripe&stripe=complete`;
-    const refreshUrl = `${baseUrl}/club/finance?tab=stripe&stripe=refresh`;
+    const refreshUrl = `${baseUrl}/club/finance?tab=stripe&retry=1`;
 
     const environment = resolveStripeMode();
+    const providerEmail =
+      body.email?.trim() || (await getProviderEmail(providerId)) || undefined;
 
     console.log(STRIPE_CONNECT_LOG_PREFIX, {
       step: "onboard.start",
@@ -60,6 +78,7 @@ export async function POST(request: Request) {
       environment,
       returnUrl,
       refreshUrl,
+      hasEmail: Boolean(providerEmail),
     });
 
     let accountId =
@@ -68,7 +87,11 @@ export async function POST(request: Request) {
       null;
 
     if (!accountId) {
-      const account = await createExpressConnectAccount(stripe, providerId);
+      const account = await createExpressConnectAccount(
+        stripe,
+        providerId,
+        providerEmail,
+      );
       accountId = account.id;
       console.log(STRIPE_CONNECT_LOG_PREFIX, {
         step: "accounts.create.response",
@@ -79,15 +102,38 @@ export async function POST(request: Request) {
         detailsSubmitted: account.details_submitted,
         providerId,
       });
-      await persistProviderStripeConnect(providerId, account);
+      scheduleProviderPersist(providerId, account);
     } else {
-      const account = await stripe.accounts.retrieve(accountId);
-      console.log(STRIPE_CONNECT_LOG_PREFIX, {
-        step: "accounts.retrieve",
-        accountId: account.id,
-        providerId,
-      });
-      await persistProviderStripeConnect(providerId, account);
+      try {
+        const account = await stripe.accounts.retrieve(accountId);
+        console.log(STRIPE_CONNECT_LOG_PREFIX, {
+          step: "accounts.retrieve.response",
+          accountId: account.id,
+          providerId,
+        });
+        scheduleProviderPersist(providerId, account);
+      } catch (retrieveError) {
+        logStripeConnectError(retrieveError, {
+          step: "accounts.retrieve.failed",
+          accountId,
+          providerId,
+        });
+
+        const account = await createExpressConnectAccount(
+          stripe,
+          providerId,
+          providerEmail,
+        );
+        accountId = account.id;
+        console.log(STRIPE_CONNECT_LOG_PREFIX, {
+          step: "accounts.create.response",
+          accountId: account.id,
+          environment,
+          replacedStaleAccount: true,
+          providerId,
+        });
+        scheduleProviderPersist(providerId, account);
+      }
     }
 
     let url: string;
@@ -99,7 +145,7 @@ export async function POST(request: Request) {
         refreshUrl,
       );
     } catch (linkError) {
-      console.error(STRIPE_CONNECT_LOG_PREFIX, {
+      logStripeConnectError(linkError, {
         step: "accountLinks.create.failed",
         accountId,
         providerId,

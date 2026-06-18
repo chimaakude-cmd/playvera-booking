@@ -14,6 +14,32 @@ function getSupabaseForProviderWrites() {
   return createSupabaseServerClient();
 }
 
+export async function getProviderEmail(
+  providerId: string,
+): Promise<string | undefined> {
+  if (!isSupabaseConfigured() || !providerId.trim()) {
+    return undefined;
+  }
+
+  const supabase = getSupabaseForProviderWrites();
+  const { data, error } = await supabase
+    .from("providers")
+    .select("email")
+    .eq("id", providerId)
+    .maybeSingle();
+
+  if (error) {
+    console.error("[stripe-connect] Provider email lookup failed", {
+      providerId,
+      message: error.message,
+    });
+    return undefined;
+  }
+
+  const email = data?.email?.trim();
+  return email || undefined;
+}
+
 export async function getProviderStripeAccountId(
   providerId: string,
 ): Promise<string | null> {

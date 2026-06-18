@@ -6,7 +6,7 @@ import type {
 } from "@/lib/stripe-connect/types";
 import { DEMO_PROVIDER_ID } from "@/lib/stripe-connect/types";
 import { STRIPE_CONNECT_COUNTRY, STRIPE_PLATFORM_NAME } from "./constants";
-import { STRIPE_CONNECT_LOG_PREFIX } from "./errors";
+import { STRIPE_CONNECT_LOG_PREFIX, logStripeConnectError } from "./errors";
 
 export function resolveStripeConnectStatus(
   account: Stripe.Account | null,
@@ -230,32 +230,42 @@ export async function createExpressConnectAccount(
   providerId: string,
   email?: string,
 ): Promise<Stripe.Account> {
-  const account = await stripe.accounts.create({
-    type: "express",
-    country: STRIPE_CONNECT_COUNTRY,
-    email,
-    business_profile: {
-      name: STRIPE_PLATFORM_NAME,
-    },
-    metadata: {
-      provider_id: providerId,
-      platform: STRIPE_PLATFORM_NAME.toLowerCase(),
-    },
-    capabilities: {
-      card_payments: { requested: true },
-      transfers: { requested: true },
-    },
-  });
+  try {
+    const account = await stripe.accounts.create({
+      type: "express",
+      country: STRIPE_CONNECT_COUNTRY,
+      email,
+      business_profile: {
+        name: STRIPE_PLATFORM_NAME,
+      },
+      metadata: {
+        provider_id: providerId,
+        platform: STRIPE_PLATFORM_NAME.toLowerCase(),
+      },
+      capabilities: {
+        card_payments: { requested: true },
+        transfers: { requested: true },
+      },
+    });
 
-  console.log(STRIPE_CONNECT_LOG_PREFIX, {
-    step: "accounts.create",
-    accountId: account.id,
-    type: account.type,
-    country: account.country,
-    providerId,
-  });
+    console.log(STRIPE_CONNECT_LOG_PREFIX, {
+      step: "accounts.create.response",
+      accountId: account.id,
+      type: account.type,
+      country: account.country,
+      providerId,
+      hasEmail: Boolean(email),
+    });
 
-  return account;
+    return account;
+  } catch (error) {
+    logStripeConnectError(error, {
+      step: "accounts.create.failed",
+      providerId,
+      hasEmail: Boolean(email),
+    });
+    throw error;
+  }
 }
 
 export async function createOnboardingLink(
@@ -264,21 +274,35 @@ export async function createOnboardingLink(
   returnUrl: string,
   refreshUrl: string,
 ): Promise<string> {
-  const link = await stripe.accountLinks.create({
-    account: accountId,
-    type: "account_onboarding",
-    return_url: returnUrl,
-    refresh_url: refreshUrl,
-  });
+  try {
+    const link = await stripe.accountLinks.create({
+      account: accountId,
+      type: "account_onboarding",
+      return_url: returnUrl,
+      refresh_url: refreshUrl,
+    });
 
-  console.log(STRIPE_CONNECT_LOG_PREFIX, {
-    step: "accountLinks.create",
-    accountId,
-    url: link.url,
-    expiresAt: link.expires_at,
-    returnUrl,
-    refreshUrl,
-  });
+    console.log(STRIPE_CONNECT_LOG_PREFIX, {
+      step: "accountLinks.create.response",
+      accountId,
+      url: link.url,
+      expiresAt: link.expires_at,
+      returnUrl,
+      refreshUrl,
+    });
 
-  return link.url;
+    if (!link.url?.trim()) {
+      throw new Error("Stripe account link did not include a redirect URL.");
+    }
+
+    return link.url;
+  } catch (error) {
+    logStripeConnectError(error, {
+      step: "accountLinks.create.failed",
+      accountId,
+      returnUrl,
+      refreshUrl,
+    });
+    throw error;
+  }
 }

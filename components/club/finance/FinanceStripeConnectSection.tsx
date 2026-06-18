@@ -13,12 +13,13 @@ import {
   fetchStripeConnectStatus,
   getStripeConnectState,
   refreshStripeOnboarding,
+  resolveStripeConnectProviderId,
   startStripeOnboarding,
   StripeConnectOnboardError,
   type StripeConnectState,
   type StripeConnectStatus,
 } from "@/lib/stripe-connect";
-import { STRIPE_CONNECT_CLUB_MESSAGES } from "@/lib/stripe/errors";
+import { STRIPE_CONNECT_CLUB_MESSAGES, STRIPE_CONNECT_LOG_PREFIX } from "@/lib/stripe/errors";
 import { StripeConnectUnavailableNotice, type StripeConnectDebugInfo } from "./StripeConnectUnavailableNotice";
 import { formatFinanceShortDate } from "@/lib/club-finance";
 import { invalidateStripeConnectStatusCache } from "@/lib/stripe-connect/use-stripe-connect-status";
@@ -81,6 +82,10 @@ export function FinanceStripeConnectSection() {
     publishableKeySource: "next_public" | "server" | null;
   } | null>(null);
   const isDev = process.env.NODE_ENV !== "production";
+
+  useEffect(() => {
+    resolveStripeConnectProviderId();
+  }, []);
 
   useEffect(() => {
     async function loadConfig() {
@@ -167,7 +172,9 @@ export function FinanceStripeConnectSection() {
 
   useEffect(() => {
     const stripeComplete = searchParams.get("stripe") === "complete";
-    const stripeRefresh = searchParams.get("stripe") === "refresh";
+    const stripeRefresh =
+      searchParams.get("stripe") === "refresh" ||
+      searchParams.get("retry") === "1";
     const connected =
       searchParams.get("connected") === "1" ||
       searchParams.get("stripe") === "connected" ||
@@ -203,8 +210,13 @@ export function FinanceStripeConnectSection() {
     setMessage(null);
 
     try {
+      console.log(STRIPE_CONNECT_LOG_PREFIX, { step: "onboard.ui.click" });
       const { url } = await startStripeOnboarding();
-      window.location.assign(url);
+      console.log(STRIPE_CONNECT_LOG_PREFIX, {
+        step: "onboard.ui.redirect",
+        redirectUrl: url,
+      });
+      window.location.href = url;
     } catch (connectError) {
       handleOnboardError(connectError);
       setActionLoading(false);
@@ -217,7 +229,11 @@ export function FinanceStripeConnectSection() {
 
     try {
       const { url } = await refreshStripeOnboarding();
-      window.location.assign(url);
+      console.log(STRIPE_CONNECT_LOG_PREFIX, {
+        step: "onboard.ui.redirect",
+        redirectUrl: url,
+      });
+      window.location.href = url;
     } catch (continueError) {
       handleOnboardError(continueError);
       setActionLoading(false);
