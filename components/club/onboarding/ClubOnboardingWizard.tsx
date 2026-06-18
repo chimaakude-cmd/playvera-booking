@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ConfirmDialog } from "@/components/club/ConfirmDialog";
 import { LazySupportLauncher } from "@/components/support/LazySupportLauncher";
 import {
@@ -24,7 +24,6 @@ import {
 } from "@/lib/club-onboarding";
 import { OnboardingLayout } from "./OnboardingLayout";
 import { Step1AccountOwner } from "./steps/Step1AccountOwner";
-import { Step2ChoosePlan } from "./steps/Step2ChoosePlan";
 import { Step2AboutClub } from "./steps/Step2AboutClub";
 import { Step3ClubProfile } from "./steps/Step3ClubProfile";
 import { Step4Complete } from "./steps/Step4Complete";
@@ -222,7 +221,7 @@ export function ClubOnboardingWizard() {
           setErrors([]);
           previousStepRef.current = urlStep;
 
-          if (urlStep === 5 && !current.completedAt) {
+          if (urlStep === 4 && !current.completedAt) {
             pendingCompletionRef.current = true;
           } else {
             pendingCompletionRef.current = false;
@@ -345,14 +344,14 @@ export function ClubOnboardingWizard() {
   }, []);
 
   useEffect(() => {
-    if (!state || state.currentStep !== 5) {
+    if (!state || state.currentStep !== 4) {
       pendingCompletionRef.current = false;
     }
   }, [state?.currentStep]);
 
   useEffect(() => {
     if (
-      state?.currentStep === 5 &&
+      state?.currentStep === 4 &&
       !state.completedAt &&
       !completing &&
       errors.length === 0
@@ -365,7 +364,7 @@ export function ClubOnboardingWizard() {
     if (
       !state ||
       !pendingCompletionRef.current ||
-      state.currentStep !== 5 ||
+      state.currentStep !== 4 ||
       state.completedAt ||
       completing
     ) {
@@ -406,7 +405,7 @@ export function ClubOnboardingWizard() {
     }
     persist({ ...state, currentStep: step });
     setErrors([]);
-    if (step === 5 && !state.completedAt) {
+    if (step === 4 && !state.completedAt) {
       pendingCompletionRef.current = true;
     }
   }
@@ -424,7 +423,7 @@ export function ClubOnboardingWizard() {
 
     setState({
       ...syncDerivedOnboardingFields(current),
-      currentStep: 5,
+      currentStep: 4,
       completedAt: new Date().toISOString(),
     });
     setCompleting(false);
@@ -459,7 +458,7 @@ export function ClubOnboardingWizard() {
 
     setState(next);
     setErrors([]);
-    if (next.currentStep === 5 && !next.completedAt) {
+    if (next.currentStep === 4 && !next.completedAt) {
       pendingCompletionRef.current = true;
     }
   }
@@ -476,7 +475,7 @@ export function ClubOnboardingWizard() {
     }
 
     if (
-      state.currentStep === 5 &&
+      state.currentStep === 4 &&
       (completing || (!state.completedAt && errors.length === 0))
     ) {
       return;
@@ -514,7 +513,7 @@ export function ClubOnboardingWizard() {
     const next = {
       ...state,
       profile: { ...state.profile, skippedProfile: true },
-      currentStep: 5 as const,
+      currentStep: 4 as const,
     };
 
     saveDraft(mergeImagePreviews(next, imagePreviews), { showFeedback: true });
@@ -541,8 +540,8 @@ export function ClubOnboardingWizard() {
   }
 
   const step = state.currentStep;
-  const isCompleteStep = step === 5;
-  const isProfileStep = step === 4;
+  const isCompleteStep = step === 4;
+  const isProfileStep = step === 3;
   const isFinishing =
     completing ||
     (isCompleteStep && !state.completedAt && errors.length === 0);
@@ -565,7 +564,7 @@ export function ClubOnboardingWizard() {
       <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-start sm:justify-between">
         <button
           type="button"
-          onClick={() => goToStep(3)}
+          onClick={() => goToStep(2)}
           className="rounded-xl border border-zinc-200 px-5 py-2.5 text-sm font-semibold text-zinc-700 transition-colors hover:bg-zinc-50"
         >
           Back to club details
@@ -676,20 +675,9 @@ export function ClubOnboardingWizard() {
           <Step1AccountOwner state={state} onChange={updateState} />
         ) : null}
         {step === 2 ? (
-          <Suspense
-            fallback={
-              <div className="py-12 text-center text-sm text-zinc-500">
-                Loading plans…
-              </div>
-            }
-          >
-            <Step2ChoosePlan state={state} onChange={updateState} />
-          </Suspense>
-        ) : null}
-        {step === 3 ? (
           <Step2AboutClub state={state} onChange={updateState} />
         ) : null}
-        {step === 4 ? (
+        {step === 3 ? (
           <Step3ClubProfile
             state={state}
             onChange={updateState}
@@ -697,7 +685,7 @@ export function ClubOnboardingWizard() {
             onImagePreviewChange={updateImagePreviews}
           />
         ) : null}
-        {step === 5 ? (
+        {step === 4 ? (
           isFinishing ? (
             <div className="flex flex-col items-center justify-center py-16 text-center">
               <div className="h-8 w-8 animate-spin rounded-full border-2 border-zinc-200 border-t-teal-600" />
@@ -717,7 +705,7 @@ export function ClubOnboardingWizard() {
               </ul>
             </div>
           ) : (
-            <Step4Complete clubName={state.club.name} planId={state.planId} />
+            <Step4Complete clubName={state.club.name} />
           )
         ) : null}
       </OnboardingLayout>

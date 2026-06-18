@@ -61,12 +61,6 @@ export function validateOnboardingStep(
       break;
     }
     case 2: {
-      if (!normalizePlanId(state.planId)) {
-        errors.push(stepBlockMessage("a subscription plan"));
-      }
-      break;
-    }
-    case 3: {
       if (!state.club.name.trim()) {
         errors.push(stepBlockMessage("club name"));
       }
@@ -81,13 +75,13 @@ export function validateOnboardingStep(
       }
       break;
     }
-    case 4: {
+    case 3: {
       if (!state.club.name.trim()) {
         errors.push(stepBlockMessage("club name"));
       }
       break;
     }
-    case 5:
+    case 4:
       break;
   }
 
@@ -104,7 +98,7 @@ export function syncDerivedOnboardingFields(
 
   return {
     ...state,
-    planId: normalizePlanId(state.planId),
+    planId: DEFAULT_PLAN_ID,
     club: {
       ...state.club,
       name: state.club.name.trim(),

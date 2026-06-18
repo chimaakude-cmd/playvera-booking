@@ -34,24 +34,6 @@ export const ONBOARDING_STEPS: OnboardingStepMeta[] = [
   },
   {
     id: 2,
-    title: "Choose your plan",
-    shortTitle: "Plan",
-    description:
-      "Pick the subscription that fits your club. You can change plans anytime.",
-    help: {
-      purpose: "Select your Activora provider subscription.",
-      whyNeeded:
-        "Your plan sets platform fees and available features for your club.",
-      examples: [
-        "Starter — free with standard platform fee",
-        "Pro — lower fees and priority support",
-        "Franchise — multi-location management",
-      ],
-      tip: "Start free on Starter and upgrade when you're ready.",
-    },
-  },
-  {
-    id: 3,
     title: "Tell us about your club",
     shortTitle: "Your club",
     description:
@@ -68,7 +50,7 @@ export const ONBOARDING_STEPS: OnboardingStepMeta[] = [
     },
   },
   {
-    id: 4,
+    id: 3,
     title: "Club profile",
     shortTitle: "Profile",
     description:
@@ -86,7 +68,7 @@ export const ONBOARDING_STEPS: OnboardingStepMeta[] = [
     },
   },
   {
-    id: 5,
+    id: 4,
     title: "Complete",
     shortTitle: "Launch",
     description: "Your club is ready — explore the dashboard or create your first session.",

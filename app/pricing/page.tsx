@@ -29,7 +29,7 @@ export default function PricingPage() {
           </p>
         </div>
 
-        <div className="mt-10 grid gap-6 lg:grid-cols-2 xl:grid-cols-4">
+        <div className="mt-10 grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
           {plans.map((plan) => (
             <PricingPlanCard
               key={plan.id}
@@ -37,7 +37,7 @@ export default function PricingPage() {
               ctaHref={
                 plan.contactSales
                   ? "/contact?topic=enterprise"
-                  : `/club/onboarding?plan=${plan.id}`
+                  : "/club/onboarding"
               }
             />
           ))}

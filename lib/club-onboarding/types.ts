@@ -18,9 +18,9 @@ export const CLUB_DEFAULT_BOOKING_QUESTIONS_KEY =
 import type { PlanId } from "@/src/config/pricing";
 import { DEFAULT_PLAN_ID } from "@/src/config/pricing";
 
-export const ONBOARDING_STEP_COUNT = 5;
+export const ONBOARDING_STEP_COUNT = 4;
 
-export type OnboardingStep = 1 | 2 | 3 | 4 | 5;
+export type OnboardingStep = 1 | 2 | 3 | 4;
 
 export type ClubBusinessType = "club" | "company" | "franchise";
 
@@ -149,9 +149,8 @@ export function getClubCategories(club: OnboardingClub): string[] {
 }
 
 export const STEP_TIME_REMAINING: Record<OnboardingStep, string> = {
-  1: "~4 mins left",
-  2: "~3 mins left",
-  3: "~2 mins left",
-  4: "~1 min left",
-  5: "Ready to launch",
+  1: "~3 mins left",
+  2: "~2 mins left",
+  3: "~1 min left",
+  4: "Ready to launch",
 };

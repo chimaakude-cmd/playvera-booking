@@ -3,42 +3,19 @@
 import Link from "next/link";
 import { ONBOARDING_PRECONFIGURED_LABELS } from "@/lib/message-templates";
 import { SETUP_BASE_PERCENT } from "@/lib/club-setup";
-import { getPlanByIdOrDefault, getPlanLabel, planRequiresGoCardlessBilling, type PlanId } from "@/src/config/pricing";
 import { OnboardingStepIntro } from "../shared";
 
 type StepProps = {
   clubName: string;
-  planId: PlanId;
 };
 
-export function Step4Complete({ clubName, planId }: StepProps) {
-  const plan = getPlanByIdOrDefault(planId);
-  const needsBillingSetup = planRequiresGoCardlessBilling(planId);
-
+export function Step4Complete({ clubName }: StepProps) {
   return (
     <div className="space-y-8 text-center">
       <OnboardingStepIntro
         title="Club created ✓"
-        description={`${clubName || "Your club"} is live. Finish setup at your own pace from the dashboard.`}
+        description={`${clubName || "Your club"} is live on the free Starter plan. Finish setup at your own pace from the dashboard.`}
       />
-
-      {needsBillingSetup ? (
-        <div className="mx-auto max-w-md rounded-2xl border border-blue-200 bg-blue-50/70 px-6 py-5 text-left">
-          <p className="text-sm font-semibold text-blue-900">
-            {getPlanLabel(plan.id)} plan selected
-          </p>
-          <p className="mt-2 text-sm text-blue-800">
-            Set up Direct Debit via GoCardless to activate your {formatMonthly(plan)}{" "}
-            subscription. You can do this now or later from Subscription &amp; billing.
-          </p>
-          <Link
-            href="/club/settings/subscription?setup=billing"
-            className="mt-4 inline-flex rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
-          >
-            Set up Direct Debit
-          </Link>
-        </div>
-      ) : null}
 
       <div className="mx-auto max-w-md rounded-2xl border border-teal-200 bg-teal-50/70 px-6 py-5 text-left">
         <p className="text-sm font-semibold text-teal-900">
@@ -54,7 +31,8 @@ export function Step4Complete({ clubName, planId }: StepProps) {
         </ul>
         <p className="mt-3 text-xs leading-5 text-teal-700">
           Automated message templates are ready — customise anytime from
-          Communications.
+          Communications. Upgrade your plan anytime from Settings → Subscription
+          &amp; billing.
         </p>
       </div>
 
@@ -88,14 +66,4 @@ export function Step4Complete({ clubName, planId }: StepProps) {
       </div>
     </div>
   );
-}
-
-function formatMonthly(plan: ReturnType<typeof getPlanByIdOrDefault>): string {
-  if (plan.monthlyPrice === 0) {
-    return "free";
-  }
-  return `£${plan.monthlyPrice.toLocaleString("en-GB", {
-    minimumFractionDigits: plan.monthlyPrice % 1 === 0 ? 0 : 2,
-    maximumFractionDigits: 2,
-  })}/month`;
 }

@@ -16,7 +16,7 @@ import {
   type OnboardingClub,
   type OnboardingProfile,
 } from "./types";
-import { normalizePlanId } from "@/src/config/pricing";
+import { DEFAULT_PLAN_ID } from "./types";
 import { setProviderSubscriptionPlan } from "@/lib/provider-subscription";
 import { initializeProviderTemplates } from "@/lib/message-templates";
 import {
@@ -196,19 +196,21 @@ function migrateLegacyDraft(parsed: LegacyDraft): ClubOnboardingState {
   };
 
   const legacyStep =
-    parsed.currentStep && parsed.currentStep <= 4
-      ? (parsed.currentStep as 1 | 2 | 3 | 4)
+    parsed.currentStep && parsed.currentStep >= 1
+      ? parsed.currentStep
       : null;
-  const hasLegacyPlanStep = !parsed.planId && legacyStep !== null && legacyStep >= 2;
-  const currentStep = legacyStep
-    ? ((hasLegacyPlanStep ? legacyStep + 1 : legacyStep) as ClubOnboardingState["currentStep"])
+  const migratedStep = legacyStep
+    ? legacyStep > 1
+      ? Math.min(legacyStep - 1, 4)
+      : 1
     : defaults.currentStep;
+  const currentStep = migratedStep as ClubOnboardingState["currentStep"];
 
   return syncDerivedOnboardingFields({
     ...defaults,
     ...parsed,
-    planId: normalizePlanId(parsed.planId),
-    currentStep: currentStep <= 5 ? currentStep : defaults.currentStep,
+    planId: DEFAULT_PLAN_ID,
+    currentStep: currentStep <= 4 ? currentStep : defaults.currentStep,
     owner: { ...defaults.owner, ...parsed.owner },
     club,
     profile,
@@ -432,7 +434,6 @@ async function persistClubOnboardingToSupabase(
       owner: synced.owner,
       club: synced.club,
       profile: synced.profile,
-      planId: synced.planId,
     }),
   });
 
@@ -500,7 +501,7 @@ function finalizeClubOnboardingLocally(
   const user = createOwnerAuthUser(synced, options);
   writeAuthSession(user);
 
-  setProviderSubscriptionPlan(normalizePlanId(synced.planId));
+  setProviderSubscriptionPlan(DEFAULT_PLAN_ID);
 
   markOnboardingComplete();
   seedSetupProgressAfterOnboarding();

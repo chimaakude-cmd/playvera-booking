@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 const settingsLinks = [
   { href: "/club/settings", label: "Overview", exact: true },
   { href: "/club/settings/profile", label: "Club profile" },
+  { href: "/club/settings/subscription", label: "Billing & plan" },
   { href: "/club/settings/team", label: "Account & team access" },
 ];
 

@@ -3,7 +3,7 @@ import {
   submitClubOnboardingToSupabase,
   type ClubOnboardingSubmitInput,
 } from "@/lib/club-onboarding/submit";
-import { normalizePlanId } from "@/src/config/pricing";
+import { DEFAULT_PLAN_ID } from "@/src/config/pricing";
 
 export async function POST(request: NextRequest) {
   try {
@@ -41,13 +41,12 @@ export async function POST(request: NextRequest) {
         aboutText: "",
         skippedProfile: false,
       },
-      planId: normalizePlanId(body.planId),
     };
 
     console.info("[club-onboarding] Received onboarding submit request:", {
       email: input.owner.email.trim().toLowerCase(),
       clubName: input.club.name.trim(),
-      planId: input.planId,
+      planId: DEFAULT_PLAN_ID,
     });
 
     const result = await submitClubOnboardingToSupabase(input);

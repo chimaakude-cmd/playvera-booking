@@ -27,7 +27,7 @@ export function PricingPlanCard({
   const highlighted = plan.highlighted || selected;
 
   const cardClassName = [
-    "relative flex h-full flex-col rounded-2xl border bg-white p-6 shadow-sm transition-all",
+    "relative flex h-full min-w-0 flex-col rounded-2xl border bg-white p-5 shadow-sm transition-all sm:p-6",
     highlighted
       ? "border-[#2563EB] ring-2 ring-[#2563EB]/20"
       : "border-slate-200 hover:border-slate-300",
@@ -44,7 +44,7 @@ export function PricingPlanCard({
         </span>
       ) : null}
 
-      <div>
+      <div className="min-w-0">
         <h3
           className="text-lg font-bold tracking-tight"
           style={{ color: ACTIVORA_PRIMARY }}
@@ -56,23 +56,28 @@ export function PricingPlanCard({
         </p>
       </div>
 
-      <div className="mt-5">
-        <p className="text-3xl font-bold tracking-tight text-[#0F172A]">
-          {formatMonthlyPrice(plan)}
+      <div className="mt-5 min-w-0">
+        <p className="text-2xl font-bold tracking-tight text-[#0F172A] sm:text-3xl">
+          <span className="inline-block max-w-full break-words">
+            {formatMonthlyPrice(plan)}
+          </span>
         </p>
-        <p className="mt-1 text-sm text-slate-500">
+        <p className="mt-1 text-xs leading-snug text-slate-500 sm:text-sm">
           {formatPlatformFee(plan)} platform fee per booking
         </p>
       </div>
 
       {!compact ? (
-        <ul className="mt-6 flex-1 space-y-2.5">
+        <ul className="mt-6 flex-1 space-y-3">
           {plan.features.map((feature) => (
-            <li key={feature} className="flex items-start gap-2.5 text-sm text-slate-700">
+            <li
+              key={feature}
+              className="flex items-start gap-2.5 text-sm leading-snug text-slate-700"
+            >
               <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-teal-50 text-teal-700">
                 <Check className="h-3 w-3" aria-hidden />
               </span>
-              {feature}
+              <span className="min-w-0 flex-1">{feature}</span>
             </li>
           ))}
         </ul>

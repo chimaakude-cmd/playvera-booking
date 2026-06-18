@@ -159,6 +159,12 @@ export function SubscriptionManagementSection() {
     return order.slice(currentIndex + 1);
   }, [currentPlanId]);
 
+  useEffect(() => {
+    if (upgradePlans.length > 0 && !upgradePlans.includes(selectedPlanId)) {
+      setSelectedPlanId(upgradePlans[0]);
+    }
+  }, [upgradePlans, selectedPlanId]);
+
   const showBillingDetails = planRequiresGoCardlessBilling(currentPlanId);
   const selectedRequiresBilling = planRequiresGoCardlessBilling(selectedPlanId);
 
@@ -351,7 +357,11 @@ export function SubscriptionManagementSection() {
             </p>
           </div>
 
-          <PlanSelector value={selectedPlanId} onChange={setSelectedPlanId} />
+          <PlanSelector
+            value={selectedPlanId}
+            onChange={setSelectedPlanId}
+            visiblePlanIds={upgradePlans}
+          />
 
           {selectedRequiresBilling ? (
             <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3">

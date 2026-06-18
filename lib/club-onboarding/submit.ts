@@ -6,7 +6,11 @@ import {
   isSupabaseConfigured,
   isSupabaseServiceRoleConfigured,
 } from "@/lib/supabase";
-import { normalizePlanId, type PlanId } from "@/src/config/pricing";
+import {
+  DEFAULT_PLAN_ID,
+  getPlanByIdOrDefault,
+  type PlanId,
+} from "@/src/config/pricing";
 import {
   formatOwnerFullLegalName,
   type ClubBusinessType,
@@ -25,7 +29,7 @@ export type ClubOnboardingSubmitInput = {
   owner: OnboardingOwner;
   club: OnboardingClub;
   profile: OnboardingProfile;
-  planId: PlanId;
+  planId?: PlanId;
 };
 
 export type ClubOnboardingSubmitResult =
@@ -286,8 +290,8 @@ export async function submitClubOnboardingToSupabase(
   }
 
   const state = syncDerivedOnboardingFields({
-    currentStep: 5,
-    planId: normalizePlanId(rawInput.planId),
+    currentStep: 4,
+    planId: DEFAULT_PLAN_ID,
     owner: rawInput.owner,
     club: rawInput.club,
     profile: rawInput.profile,
@@ -311,6 +315,8 @@ export async function submitClubOnboardingToSupabase(
   const profileInput = buildClubProfileInput(state);
   const supabase = createSupabaseServiceRoleClient();
 
+  const starterPlan = getPlanByIdOrDefault(DEFAULT_PLAN_ID);
+
   const { data: provider, error: providerError } = await supabase
     .from("providers")
     .insert({
@@ -321,6 +327,7 @@ export async function submitClubOnboardingToSupabase(
       auth_user_id: authUserId,
       organisation_type: mapBusinessTypeToOrganisationType(state.club.businessType),
       account_status: "active",
+      platform_fee_percent: starterPlan.platformFeePercent,
     })
     .select("id")
     .single();
@@ -367,7 +374,8 @@ export async function submitClubOnboardingToSupabase(
     .from("provider_subscriptions")
     .insert({
       provider_id: providerId,
-      plan: normalizePlanId(state.planId),
+      plan: DEFAULT_PLAN_ID,
+      status: "active",
     });
 
   if (subscriptionError) {
@@ -384,7 +392,9 @@ export async function submitClubOnboardingToSupabase(
   console.info("[club-onboarding] provider subscription insert result:", {
     success: true,
     providerId,
-    plan: normalizePlanId(state.planId),
+    plan: DEFAULT_PLAN_ID,
+    status: "active",
+    platformFeePercent: starterPlan.platformFeePercent,
   });
 
   const { error: ownerError } = await supabase.from("club_team_members").insert({
@@ -433,6 +443,6 @@ export function toClubOnboardingSubmitInput(
     owner: synced.owner,
     club: synced.club,
     profile: synced.profile,
-    planId: synced.planId,
+    planId: DEFAULT_PLAN_ID,
   };
 }
