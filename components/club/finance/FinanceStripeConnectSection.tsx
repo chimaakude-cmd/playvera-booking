@@ -19,7 +19,7 @@ import {
   type StripeConnectStatus,
 } from "@/lib/stripe-connect";
 import { STRIPE_CONNECT_CLUB_MESSAGES } from "@/lib/stripe/errors";
-import { StripeConnectUnavailableNotice } from "./StripeConnectUnavailableNotice";
+import { StripeConnectUnavailableNotice, type StripeConnectDebugInfo } from "./StripeConnectUnavailableNotice";
 import { formatFinanceShortDate } from "@/lib/club-finance";
 import { invalidateStripeConnectStatusCache } from "@/lib/stripe-connect/use-stripe-connect-status";
 import {
@@ -67,9 +67,6 @@ export function FinanceStripeConnectSection() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [errorCode, setErrorCode] = useState<
-    "platform_unavailable" | "transient" | "not_configured" | null
-  >(null);
   const [adminDetail, setAdminDetail] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [connectConfig, setConnectConfig] = useState<{
@@ -78,9 +75,11 @@ export function FinanceStripeConnectSection() {
     connectReady: boolean;
     connectEnabled: boolean;
     platformUnavailable: boolean;
+    stripe_enabled: boolean;
+    connect_enabled: boolean;
+    environment: "test" | "live" | null;
     publishableKeySource: "next_public" | "server" | null;
   } | null>(null);
-  const [platformUnavailable, setPlatformUnavailable] = useState(false);
   const isDev = process.env.NODE_ENV !== "production";
 
   useEffect(() => {
@@ -94,6 +93,10 @@ export function FinanceStripeConnectSection() {
             connectReady: boolean;
             connectEnabled: boolean;
             platformUnavailable?: boolean;
+            stripe_enabled?: boolean;
+            connect_enabled?: boolean;
+            environment?: "test" | "live" | null;
+            mode?: "test" | "live" | null;
             publishableKeySource: "next_public" | "server" | null;
             validationErrors?: string[];
             adminDetail?: string;
@@ -104,9 +107,11 @@ export function FinanceStripeConnectSection() {
             connectReady: data.connectReady,
             connectEnabled: data.connectEnabled,
             platformUnavailable: Boolean(data.platformUnavailable),
+            stripe_enabled: Boolean(data.stripe_enabled ?? data.serverConfigured),
+            connect_enabled: Boolean(data.connect_enabled ?? data.connectEnabled),
+            environment: data.environment ?? data.mode ?? null,
             publishableKeySource: data.publishableKeySource,
           });
-          setPlatformUnavailable(Boolean(data.platformUnavailable));
           setAdminDetail(data.adminDetail ?? null);
 
           if (!data.serverConfigured) {
@@ -116,14 +121,9 @@ export function FinanceStripeConnectSection() {
               );
             } else {
               setError(null);
-              setErrorCode("platform_unavailable");
             }
-          } else if (data.platformUnavailable) {
-            setError(null);
-            setErrorCode("platform_unavailable");
           } else {
             setError(null);
-            setErrorCode(null);
           }
         } else {
           setConnectConfig(null);
@@ -186,11 +186,7 @@ export function FinanceStripeConnectSection() {
   function handleOnboardError(onboardError: unknown) {
     if (onboardError instanceof StripeConnectOnboardError) {
       setError(onboardError.message);
-      setErrorCode(onboardError.code);
       setAdminDetail(onboardError.adminDetail ?? null);
-      if (onboardError.code === "platform_unavailable") {
-        setPlatformUnavailable(true);
-      }
       return;
     }
 
@@ -199,7 +195,6 @@ export function FinanceStripeConnectSection() {
         ? onboardError.message
         : "Could not start Stripe Connect.",
     );
-    setErrorCode("transient");
   }
 
   async function handleConnect() {
@@ -261,16 +256,22 @@ export function FinanceStripeConnectSection() {
   const dashboard = state?.dashboard;
   const setupComplete = isStripeSetupComplete(state);
   const setupIncomplete = isStripeSetupIncomplete(state);
-  const connectReady = connectConfig?.connectReady ?? false;
   const clientConfigured = connectConfig?.clientConfigured ?? false;
-  const serverConfigured = connectConfig?.serverConfigured ?? false;
+  const serverConfigured = connectConfig?.serverConfigured ?? true;
   const configLoaded = connectConfig !== null;
   const showSetupGuide = isDev && configLoaded && !serverConfigured;
-  const showPlatformUnavailable =
-    platformUnavailable || errorCode === "platform_unavailable";
-  const showTransientError = Boolean(error) && !showPlatformUnavailable;
-  const canStartOnboarding =
-    serverConfigured && connectReady && !showPlatformUnavailable;
+  const showTransientError = Boolean(error);
+  const showConnectPrompt = !setupComplete && configLoaded;
+
+  const debugInfo: StripeConnectDebugInfo = {
+    stripe_enabled: connectConfig?.stripe_enabled ?? serverConfigured,
+    connect_enabled: connectConfig?.connect_enabled ?? connectConfig?.connectEnabled ?? false,
+    account_exists: Boolean(state?.stripeAccountId),
+    charges_enabled: Boolean(state?.chargesEnabled),
+    payouts_enabled: Boolean(state?.payoutsEnabled),
+    onboarding_required: !setupComplete,
+    environment: connectConfig?.environment ?? null,
+  };
 
   return (
     <div className="space-y-6">
@@ -286,13 +287,17 @@ export function FinanceStripeConnectSection() {
         </div>
       ) : null}
 
-      {showPlatformUnavailable ? (
+      {showConnectPrompt ? (
         <StripeConnectUnavailableNotice
-          message={STRIPE_CONNECT_CLUB_MESSAGES.platformUnavailable}
+          message={
+            serverConfigured
+              ? "Connect your Stripe Express account to receive booking payouts. Free activities remain available without Stripe."
+              : STRIPE_CONNECT_CLUB_MESSAGES.notConfigured
+          }
           adminDetail={adminDetail}
+          debug={debugInfo}
           onTryAgain={() => {
             setError(null);
-            setErrorCode(null);
             void refreshStatus();
           }}
           tryAgainLoading={loading}
@@ -339,7 +344,7 @@ export function FinanceStripeConnectSection() {
         </div>
       ) : null}
 
-      {isDev && serverConfigured && connectReady && !clientConfigured ? (
+      {isDev && serverConfigured && !clientConfigured ? (
         <div className="rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
           <p className="font-semibold">Publishable key recommended</p>
           <p className="mt-1">
@@ -412,7 +417,7 @@ export function FinanceStripeConnectSection() {
             {!state?.stripeAccountId ? (
               <FinanceButton
                 onClick={() => void handleConnect()}
-                disabled={actionLoading || !canStartOnboarding}
+                disabled={actionLoading}
               >
                 Connect payments
               </FinanceButton>
@@ -421,25 +426,19 @@ export function FinanceStripeConnectSection() {
             {setupIncomplete ? (
               <FinanceButton
                 onClick={() => void handleContinueOnboarding()}
-                disabled={actionLoading || !canStartOnboarding}
+                disabled={actionLoading}
               >
-                Continue Stripe setup
+                Continue setup
               </FinanceButton>
             ) : null}
 
             {setupComplete ? (
-              <>
-                <FinanceButton variant="secondary" disabled>
-                  Payments connected
-                </FinanceButton>
-                <FinanceButton
-                  variant="secondary"
-                  onClick={() => void handleContinueOnboarding()}
-                  disabled={actionLoading}
-                >
-                  Manage in Stripe
-                </FinanceButton>
-              </>
+              <FinanceButton
+                onClick={() => void handleContinueOnboarding()}
+                disabled={actionLoading}
+              >
+                Manage Stripe
+              </FinanceButton>
             ) : null}
 
             {state?.stripeAccountId ? (
@@ -469,6 +468,26 @@ export function FinanceStripeConnectSection() {
           />
         </div>
       </FinanceSection>
+
+      {configLoaded ? (
+        <details className="rounded-lg border border-zinc-200 bg-zinc-50/60 px-4 py-3 text-sm">
+          <summary className="cursor-pointer text-xs font-semibold text-zinc-600">
+            Debug
+          </summary>
+          <dl className="mt-3 grid gap-2 text-xs sm:grid-cols-2">
+            <DebugField label="stripe_enabled" value={String(debugInfo.stripe_enabled)} />
+            <DebugField label="connect_enabled" value={String(debugInfo.connect_enabled)} />
+            <DebugField label="account_exists" value={String(debugInfo.account_exists)} />
+            <DebugField label="charges_enabled" value={String(debugInfo.charges_enabled)} />
+            <DebugField label="payouts_enabled" value={String(debugInfo.payouts_enabled)} />
+            <DebugField
+              label="onboarding_required"
+              value={String(debugInfo.onboarding_required)}
+            />
+            <DebugField label="environment" value={debugInfo.environment ?? "unknown"} />
+          </dl>
+        </details>
+      ) : null}
 
       {dashboard && status !== "not_connected" ? (
         <FinanceSection
@@ -565,6 +584,15 @@ export function FinanceStripeConnectSection() {
           />
         </div>
       </FinanceSection>
+    </div>
+  );
+}
+
+function DebugField({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex justify-between gap-2 font-mono">
+      <dt className="text-zinc-500">{label}</dt>
+      <dd className="font-semibold text-zinc-800">{value}</dd>
     </div>
   );
 }

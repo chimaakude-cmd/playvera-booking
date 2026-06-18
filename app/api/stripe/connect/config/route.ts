@@ -12,7 +12,10 @@ import {
   validateStripeSecretKey,
   type StripeMode,
 } from "@/lib/stripe/env";
-import { isStripeConnectAdminDebugEnabled } from "@/lib/stripe/errors";
+import {
+  isStripeConnectAdminDebugEnabled,
+  STRIPE_CONNECT_LOG_PREFIX,
+} from "@/lib/stripe/errors";
 
 export type StripeConnectConfigResponse = {
   serverConfigured: boolean;
@@ -20,6 +23,9 @@ export type StripeConnectConfigResponse = {
   connectReady: boolean;
   connectEnabled: boolean;
   platformUnavailable: boolean;
+  stripe_enabled: boolean;
+  connect_enabled: boolean;
+  environment: StripeMode | null;
   mode: StripeMode | null;
   testModeOnly: boolean;
   /** Safe to expose — publishable keys are public by design */
@@ -62,27 +68,34 @@ export async function GET() {
   }
 
   const mode = resolveStripeMode();
+  const stripeEnabled = secretValidation.valid;
 
-  let connectEnabled = false;
-  let platformUnavailable = false;
+  let connectEnabled = stripeEnabled;
   let adminDetail: string | undefined;
 
-  if (secretValidation.valid) {
+  if (stripeEnabled) {
     const probe = await probeStripeConnectEnabled();
     connectEnabled = probe.connectEnabled;
-    platformUnavailable = probe.platformMisconfigured;
 
-    if (probe.platformMisconfigured) {
-      if (isStripeConnectAdminDebugEnabled()) {
-        validationErrors.push(probe.message);
-        adminDetail = probe.message;
-      }
+    if (probe.platformMisconfigured && isStripeConnectAdminDebugEnabled()) {
+      validationErrors.push(probe.message);
+      adminDetail = probe.message;
     } else if (!probe.connectApiReachable && isStripeConnectAdminDebugEnabled()) {
       adminDetail = probe.message;
     }
-  } else {
-    platformUnavailable = true;
   }
+
+  // Only block onboarding when STRIPE_SECRET_KEY is missing or invalid.
+  const platformUnavailable = !stripeEnabled;
+
+  console.log(STRIPE_CONNECT_LOG_PREFIX, {
+    route: "/api/stripe/connect/config",
+    stripe_enabled: stripeEnabled,
+    connect_enabled: connectEnabled,
+    connectReady: stripeEnabled,
+    platformUnavailable,
+    environment: mode,
+  });
 
   const publishableKeySource = publicEnvKey
     ? "next_public"
@@ -93,9 +106,12 @@ export async function GET() {
   const response: StripeConnectConfigResponse = {
     serverConfigured: isSecretKeyConfigured(),
     clientConfigured: isPublishableKeyConfigured(),
-    connectReady: secretValidation.valid && !platformUnavailable,
+    connectReady: stripeEnabled,
     connectEnabled,
     platformUnavailable,
+    stripe_enabled: stripeEnabled,
+    connect_enabled: connectEnabled,
+    environment: mode,
     mode,
     testModeOnly: mode === "test",
     publishableKey: publishableValidation.valid ? resolvedPublishable : null,

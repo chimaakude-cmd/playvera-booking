@@ -1,12 +1,10 @@
 export const STRIPE_CONNECT_LOG_PREFIX = "[stripe-connect]";
 
 export const STRIPE_CONNECT_CLUB_MESSAGES = {
-  platformUnavailable:
-    "Payments setup is temporarily unavailable. You can still create free activities while we finish payment setup.",
+  platformUnavailable: "Connect Stripe to accept paid bookings.",
   genericFailure:
     "We couldn't start payment setup right now. Please try again in a few minutes.",
-  notConfigured:
-    "Payments setup is temporarily unavailable. You can still create free activities while we finish payment setup.",
+  notConfigured: "Connect Stripe to accept paid bookings.",
 } as const;
 
 export type StripeConnectErrorCode =

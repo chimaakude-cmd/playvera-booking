@@ -14,6 +14,7 @@ import {
   STRIPE_CONNECT_LOG_PREFIX,
   type StripeConnectErrorCode,
 } from "@/lib/stripe/errors";
+import { resolveStripeMode } from "@/lib/stripe/env";
 import { getAppBaseUrl, getStripe, isStripeConfigured } from "@/lib/stripe/server";
 
 type OnboardBody = {
@@ -50,10 +51,13 @@ export async function POST(request: Request) {
     const returnUrl = `${baseUrl}/club/finance?tab=stripe&stripe=complete`;
     const refreshUrl = `${baseUrl}/club/finance?tab=stripe&stripe=refresh`;
 
+    const environment = resolveStripeMode();
+
     console.log(STRIPE_CONNECT_LOG_PREFIX, {
       step: "onboard.start",
       providerId,
       refresh: Boolean(body.refresh),
+      environment,
       returnUrl,
       refreshUrl,
     });
@@ -66,6 +70,15 @@ export async function POST(request: Request) {
     if (!accountId) {
       const account = await createExpressConnectAccount(stripe, providerId);
       accountId = account.id;
+      console.log(STRIPE_CONNECT_LOG_PREFIX, {
+        step: "accounts.create.response",
+        accountId: account.id,
+        environment,
+        chargesEnabled: account.charges_enabled,
+        payoutsEnabled: account.payouts_enabled,
+        detailsSubmitted: account.details_submitted,
+        providerId,
+      });
       await persistProviderStripeConnect(providerId, account);
     } else {
       const account = await stripe.accounts.retrieve(accountId);
@@ -97,8 +110,9 @@ export async function POST(request: Request) {
     }
 
     console.log(STRIPE_CONNECT_LOG_PREFIX, {
-      step: "onboard.complete",
+      step: "accountLinks.create.response",
       accountId,
+      environment,
       redirectUrl: url,
       providerId,
     });
