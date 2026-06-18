@@ -54,8 +54,8 @@ export async function GET() {
   if (secretValidation.valid) {
     const probe = await probeStripeConnectEnabled();
     connectStatus = {
-      status: probe.connectEnabled ? "enabled" : "disabled",
-      ready: isSecretKeyConfigured() && probe.connectEnabled,
+      status: probe.platformMisconfigured ? "disabled" : "enabled",
+      ready: isSecretKeyConfigured() && !probe.platformMisconfigured,
     };
   }
 

@@ -100,7 +100,7 @@ export async function fetchStripeConnectStatus(
   }
 
   const response = await fetch(
-    `/api/stripe/connect/status?accountId=${encodeURIComponent(accountId)}`,
+    `/api/stripe/connect/status?accountId=${encodeURIComponent(accountId)}&providerId=${encodeURIComponent(current.providerId)}`,
   );
 
   if (!response.ok) {

@@ -1,15 +1,23 @@
 import Stripe from "stripe";
 import {
+  getRawStripeErrorMessage,
   getStripeConnectTechnicalMessage,
   isStripeConnectPlatformMisconfigured,
+  STRIPE_CONNECT_LOG_PREFIX,
 } from "./errors";
-import { resolveStripeSecretKey, validateStripeSecretKey } from "./env";
+import {
+  resolveStripeModeFromSecretKey,
+  resolveStripeSecretKey,
+  validateStripeSecretKey,
+} from "./env";
 
 export type StripeConnectProbeResult = {
   /** True when accounts.list succeeds without a Connect signup error. */
   connectApiReachable: boolean;
-  /** Back-compat alias for connectApiReachable. */
+  /** True when clubs may start Express onboarding (valid key, Connect not definitively disabled). */
   connectEnabled: boolean;
+  /** True only when Stripe returns the definitive "signed up for Connect" platform error. */
+  platformMisconfigured: boolean;
   secretKeyValid: boolean;
   message: string;
 };
@@ -23,10 +31,13 @@ export async function probeStripeConnectEnabled(): Promise<StripeConnectProbeRes
     return {
       connectApiReachable: false,
       connectEnabled: false,
+      platformMisconfigured: true,
       secretKeyValid: false,
       message: validation.error ?? "Invalid STRIPE_SECRET_KEY.",
     };
   }
+
+  const testMode = resolveStripeModeFromSecretKey(secretKey) === "test";
 
   try {
     const stripe = new Stripe(secretKey!, { typescript: true });
@@ -35,21 +46,43 @@ export async function probeStripeConnectEnabled(): Promise<StripeConnectProbeRes
     return {
       connectApiReachable: true,
       connectEnabled: true,
+      platformMisconfigured: false,
       secretKeyValid: true,
-      message:
-        "Connect accounts API reachable (accounts.list). Express onboarding still requires Connect → Platform / Marketplace → Express · United Kingdom in Stripe Dashboard.",
+      message: testMode
+        ? "Connect accounts API reachable (test mode)."
+        : "Connect accounts API reachable.",
     };
   } catch (error) {
     const message = getStripeConnectTechnicalMessage(error);
     const connectBlocked = isStripeConnectPlatformMisconfigured(error);
 
+    if (connectBlocked) {
+      return {
+        connectApiReachable: false,
+        connectEnabled: false,
+        platformMisconfigured: true,
+        secretKeyValid: true,
+        message,
+      };
+    }
+
+    // Probe failures that are not definitive Connect signup errors must not block clubs.
+    // Sandbox/test keys should still allow Express onboarding attempts.
+    console.warn(STRIPE_CONNECT_LOG_PREFIX, {
+      probe: "accounts.list",
+      inconclusive: true,
+      testMode,
+      message: getRawStripeErrorMessage(error),
+    });
+
     return {
       connectApiReachable: false,
-      connectEnabled: false,
+      connectEnabled: true,
+      platformMisconfigured: false,
       secretKeyValid: true,
-      message: connectBlocked
-        ? "Stripe Connect is not enabled on this platform account. Enable Express (UK) in Stripe Dashboard → Settings → Connect."
-        : message,
+      message: testMode
+        ? "Connect probe inconclusive in test mode — Express onboarding allowed."
+        : "Connect probe inconclusive — onboarding allowed; verify Connect in Stripe Dashboard if onboarding fails.",
     };
   }
 }

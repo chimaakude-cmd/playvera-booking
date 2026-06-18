@@ -30,6 +30,19 @@ import {
 
 const SAMPLE_PAYMENT = 50;
 
+function isStripeSetupComplete(state: StripeConnectState | null): boolean {
+  return Boolean(
+    state?.stripeAccountId &&
+      state.detailsSubmitted &&
+      state.chargesEnabled &&
+      state.payoutsEnabled,
+  );
+}
+
+function isStripeSetupIncomplete(state: StripeConnectState | null): boolean {
+  return Boolean(state?.stripeAccountId && !isStripeSetupComplete(state));
+}
+
 function StatusBadge({ status }: { status: StripeConnectStatus }) {
   const styles: Record<StripeConnectStatus, string> = {
     not_connected: "bg-zinc-100 text-zinc-600 ring-zinc-200",
@@ -153,14 +166,18 @@ export function FinanceStripeConnectSection() {
   }, [refreshStatus]);
 
   useEffect(() => {
+    const stripeComplete = searchParams.get("stripe") === "complete";
+    const stripeRefresh = searchParams.get("stripe") === "refresh";
     const connected =
       searchParams.get("connected") === "1" ||
-      searchParams.get("stripe") === "connected";
-    const refresh = searchParams.get("refresh") === "1";
+      searchParams.get("stripe") === "connected" ||
+      stripeComplete;
+    const refresh =
+      searchParams.get("refresh") === "1" || stripeRefresh;
 
     if (connected || refresh) {
       void refreshStatus();
-      if (connected) {
+      if (stripeComplete || searchParams.get("connected") === "1") {
         setMessage("Returned from Stripe. Your connection status has been updated.");
       }
     }
@@ -242,6 +259,8 @@ export function FinanceStripeConnectSection() {
   const breakdown = calculateStripeConnectPayoutBreakdown(SAMPLE_PAYMENT);
   const status = state?.status ?? "not_connected";
   const dashboard = state?.dashboard;
+  const setupComplete = isStripeSetupComplete(state);
+  const setupIncomplete = isStripeSetupIncomplete(state);
   const connectReady = connectConfig?.connectReady ?? false;
   const clientConfigured = connectConfig?.clientConfigured ?? false;
   const serverConfigured = connectConfig?.serverConfigured ?? false;
@@ -250,6 +269,8 @@ export function FinanceStripeConnectSection() {
   const showPlatformUnavailable =
     platformUnavailable || errorCode === "platform_unavailable";
   const showTransientError = Boolean(error) && !showPlatformUnavailable;
+  const canStartOnboarding =
+    serverConfigured && connectReady && !showPlatformUnavailable;
 
   return (
     <div className="space-y-6">
@@ -388,41 +409,47 @@ export function FinanceStripeConnectSection() {
           </div>
 
           <div className="flex flex-wrap gap-2">
-            {status === "not_connected" ? (
+            {!state?.stripeAccountId ? (
               <FinanceButton
                 onClick={() => void handleConnect()}
-                disabled={actionLoading || !connectReady || showPlatformUnavailable}
+                disabled={actionLoading || !canStartOnboarding}
               >
-                Connect Stripe
+                Connect payments
               </FinanceButton>
             ) : null}
 
-            {status === "action_required" || status === "restricted" ? (
+            {setupIncomplete ? (
               <FinanceButton
                 onClick={() => void handleContinueOnboarding()}
-                disabled={actionLoading}
+                disabled={actionLoading || !canStartOnboarding}
               >
-                {status === "restricted" ? "Resolve in Stripe" : "Complete setup"}
+                Continue Stripe setup
               </FinanceButton>
             ) : null}
 
-            {status !== "not_connected" ? (
+            {setupComplete ? (
               <>
+                <FinanceButton variant="secondary" disabled>
+                  Payments connected
+                </FinanceButton>
                 <FinanceButton
                   variant="secondary"
                   onClick={() => void handleContinueOnboarding()}
                   disabled={actionLoading}
                 >
-                  Reconnect
-                </FinanceButton>
-                <FinanceButton
-                  variant="danger"
-                  onClick={() => void handleDisconnect()}
-                  disabled={actionLoading}
-                >
-                  Disconnect
+                  Manage in Stripe
                 </FinanceButton>
               </>
+            ) : null}
+
+            {state?.stripeAccountId ? (
+              <FinanceButton
+                variant="danger"
+                onClick={() => void handleDisconnect()}
+                disabled={actionLoading}
+              >
+                Disconnect
+              </FinanceButton>
             ) : null}
           </div>
         </div>

@@ -146,3 +146,17 @@ export function isSecretKeyConfigured(): boolean {
   const key = resolveStripeSecretKey();
   return key ? validateStripeSecretKey(key).valid : false;
 }
+
+/** Log non-fatal Stripe env warnings (mixed test/live keys, etc.). */
+export function logStripeEnvWarnings(): void {
+  const secretKey = resolveStripeSecretKey();
+  const publishableKey = resolveStripePublishableKey();
+  const modeMatch = validateStripeKeyModeMatch(
+    secretKey ?? undefined,
+    publishableKey ?? undefined,
+  );
+
+  if (!modeMatch.valid && modeMatch.error) {
+    console.warn("[stripe]", modeMatch.error);
+  }
+}

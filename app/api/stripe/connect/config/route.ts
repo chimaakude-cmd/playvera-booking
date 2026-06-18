@@ -3,6 +3,7 @@ import { probeStripeConnectEnabled } from "@/lib/stripe/connect-probe";
 import {
   isPublishableKeyConfigured,
   isSecretKeyConfigured,
+  logStripeEnvWarnings,
   resolveStripeMode,
   resolveStripePublishableKey,
   resolveStripeSecretKey,
@@ -32,6 +33,8 @@ export type StripeConnectConfigResponse = {
 
 /** Public-safe Stripe readiness — never returns secret key values. */
 export async function GET() {
+  logStripeEnvWarnings();
+
   const secretValidation = validateStripeSecretKey(
     resolveStripeSecretKey() ?? undefined,
   );
@@ -67,14 +70,18 @@ export async function GET() {
   if (secretValidation.valid) {
     const probe = await probeStripeConnectEnabled();
     connectEnabled = probe.connectEnabled;
-    platformUnavailable = secretValidation.valid && !probe.connectEnabled;
+    platformUnavailable = probe.platformMisconfigured;
 
-    if (!connectEnabled) {
+    if (probe.platformMisconfigured) {
       if (isStripeConnectAdminDebugEnabled()) {
         validationErrors.push(probe.message);
         adminDetail = probe.message;
       }
+    } else if (!probe.connectApiReachable && isStripeConnectAdminDebugEnabled()) {
+      adminDetail = probe.message;
     }
+  } else {
+    platformUnavailable = true;
   }
 
   const publishableKeySource = publicEnvKey
@@ -86,7 +93,7 @@ export async function GET() {
   const response: StripeConnectConfigResponse = {
     serverConfigured: isSecretKeyConfigured(),
     clientConfigured: isPublishableKeyConfigured(),
-    connectReady: isSecretKeyConfigured() && connectEnabled,
+    connectReady: secretValidation.valid && !platformUnavailable,
     connectEnabled,
     platformUnavailable,
     mode,

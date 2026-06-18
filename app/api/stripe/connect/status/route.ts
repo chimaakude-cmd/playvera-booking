@@ -1,13 +1,20 @@
 import { NextResponse } from "next/server";
+import { persistProviderStripeConnect } from "@/lib/stripe-connect/provider-persistence";
 import { buildStripeConnectState } from "@/lib/stripe/connect";
+import {
+  buildStripeConnectErrorResponse,
+  getStripeConnectClubMessage,
+} from "@/lib/stripe/errors";
 import { getStripe, isStripeConfigured } from "@/lib/stripe/server";
 
 export async function GET(request: Request) {
   if (!isStripeConfigured()) {
     return NextResponse.json(
       {
-        error:
-          "Stripe is not configured. Add STRIPE_SECRET_KEY to .env.local and restart the dev server.",
+        error: getStripeConnectClubMessage(
+          new Error("Stripe is not configured. Add STRIPE_SECRET_KEY."),
+        ),
+        code: "not_configured",
       },
       { status: 503 },
     );
@@ -15,6 +22,7 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url);
   const accountId = searchParams.get("accountId");
+  const providerId = searchParams.get("providerId")?.trim() || undefined;
 
   if (!accountId) {
     return NextResponse.json(
@@ -26,11 +34,24 @@ export async function GET(request: Request) {
   try {
     const stripe = getStripe();
     const account = await stripe.accounts.retrieve(accountId);
-    const state = await buildStripeConnectState(stripe, account);
+    const state = await buildStripeConnectState(
+      stripe,
+      account,
+      providerId ?? account.metadata?.provider_id ?? "demo-provider-1",
+    );
+
+    const resolvedProviderId =
+      providerId ?? account.metadata?.provider_id?.trim();
+    if (resolvedProviderId) {
+      await persistProviderStripeConnect(resolvedProviderId, account);
+    }
+
     return NextResponse.json(state);
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Could not retrieve Stripe account.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    const payload = buildStripeConnectErrorResponse(error, {
+      route: "/api/stripe/connect/status",
+      accountId,
+    });
+    return NextResponse.json(payload, { status: 500 });
   }
 }

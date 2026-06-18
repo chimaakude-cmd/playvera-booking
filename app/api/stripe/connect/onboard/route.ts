@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
 import {
+  getProviderStripeAccountId,
+  persistProviderStripeConnect,
+} from "@/lib/stripe-connect/provider-persistence";
+import {
   createExpressConnectAccount,
   createOnboardingLink,
 } from "@/lib/stripe/connect";
@@ -40,18 +44,23 @@ export async function POST(request: Request) {
   try {
     const body = (await request.json()) as OnboardBody;
     const stripe = getStripe();
+    const providerId = body.providerId?.trim() || "demo-provider-1";
     const baseUrl = getAppBaseUrl(request);
-    const returnUrl = `${baseUrl}/club/finance?tab=stripe&connected=1`;
-    const refreshUrl = `${baseUrl}/club/finance?tab=stripe&refresh=1`;
+    const returnUrl = `${baseUrl}/club/finance?tab=stripe&stripe=complete`;
+    const refreshUrl = `${baseUrl}/club/finance?tab=stripe&stripe=refresh`;
 
-    let accountId = body.stripeAccountId?.trim() || null;
+    let accountId =
+      body.stripeAccountId?.trim() ||
+      (await getProviderStripeAccountId(providerId)) ||
+      null;
 
     if (!accountId) {
-      const account = await createExpressConnectAccount(
-        stripe,
-        body.providerId ?? "demo-provider-1",
-      );
+      const account = await createExpressConnectAccount(stripe, providerId);
       accountId = account.id;
+      await persistProviderStripeConnect(providerId, account);
+    } else {
+      const account = await stripe.accounts.retrieve(accountId);
+      await persistProviderStripeConnect(providerId, account);
     }
 
     const url = await createOnboardingLink(

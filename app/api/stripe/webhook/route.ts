@@ -33,6 +33,13 @@ export async function POST(request: Request) {
     if (event.type === "account.updated") {
       const account = event.data.object;
       const state = mapStripeAccountToState(account);
+      const providerId = account.metadata?.provider_id?.trim();
+      if (providerId) {
+        const { persistProviderStripeConnect } = await import(
+          "@/lib/stripe-connect/provider-persistence"
+        );
+        await persistProviderStripeConnect(providerId, account);
+      }
       return NextResponse.json({ received: true, state });
     }
 
