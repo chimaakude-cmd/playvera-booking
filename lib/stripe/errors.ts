@@ -75,16 +75,38 @@ export function getStripeConnectClubMessage(error: unknown): string {
   }
 }
 
+export function getStripeApiErrorFields(error: unknown): {
+  message?: string;
+  type?: string;
+  code?: string;
+} {
+  if (typeof error !== "object" || error === null) {
+    return {};
+  }
+
+  const stripeError = error as Record<string, unknown>;
+  return {
+    message:
+      typeof stripeError.message === "string" ? stripeError.message : undefined,
+    type: typeof stripeError.type === "string" ? stripeError.type : undefined,
+    code: typeof stripeError.code === "string" ? stripeError.code : undefined,
+  };
+}
+
 export function logStripeConnectError(
   error: unknown,
   context?: Record<string, unknown>,
 ): void {
   const technical = getStripeConnectTechnicalMessage(error);
   const code = classifyStripeConnectError(error);
+  const stripeApi = getStripeApiErrorFields(error);
 
   console.error(STRIPE_CONNECT_LOG_PREFIX, {
     code,
     message: technical,
+    stripeType: stripeApi.type,
+    stripeCode: stripeApi.code,
+    stripeMessage: stripeApi.message,
     ...context,
     ...(error instanceof Error && error.stack ? { stack: error.stack } : {}),
   });

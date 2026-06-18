@@ -11,6 +11,7 @@ import { STRIPE_PLATFORM_NAME } from "@/lib/stripe/constants";
 import {
   buildStripeConnectErrorResponse,
   getStripeConnectClubMessage,
+  STRIPE_CONNECT_LOG_PREFIX,
   type StripeConnectErrorCode,
 } from "@/lib/stripe/errors";
 import { getAppBaseUrl, getStripe, isStripeConfigured } from "@/lib/stripe/server";
@@ -49,6 +50,14 @@ export async function POST(request: Request) {
     const returnUrl = `${baseUrl}/club/finance?tab=stripe&stripe=complete`;
     const refreshUrl = `${baseUrl}/club/finance?tab=stripe&stripe=refresh`;
 
+    console.log(STRIPE_CONNECT_LOG_PREFIX, {
+      step: "onboard.start",
+      providerId,
+      refresh: Boolean(body.refresh),
+      returnUrl,
+      refreshUrl,
+    });
+
     let accountId =
       body.stripeAccountId?.trim() ||
       (await getProviderStripeAccountId(providerId)) ||
@@ -60,15 +69,39 @@ export async function POST(request: Request) {
       await persistProviderStripeConnect(providerId, account);
     } else {
       const account = await stripe.accounts.retrieve(accountId);
+      console.log(STRIPE_CONNECT_LOG_PREFIX, {
+        step: "accounts.retrieve",
+        accountId: account.id,
+        providerId,
+      });
       await persistProviderStripeConnect(providerId, account);
     }
 
-    const url = await createOnboardingLink(
-      stripe,
+    let url: string;
+    try {
+      url = await createOnboardingLink(
+        stripe,
+        accountId,
+        returnUrl,
+        refreshUrl,
+      );
+    } catch (linkError) {
+      console.error(STRIPE_CONNECT_LOG_PREFIX, {
+        step: "accountLinks.create.failed",
+        accountId,
+        providerId,
+        returnUrl,
+        refreshUrl,
+      });
+      throw linkError;
+    }
+
+    console.log(STRIPE_CONNECT_LOG_PREFIX, {
+      step: "onboard.complete",
       accountId,
-      returnUrl,
-      refreshUrl,
-    );
+      redirectUrl: url,
+      providerId,
+    });
 
     return NextResponse.json({
       url,
@@ -79,6 +112,7 @@ export async function POST(request: Request) {
   } catch (error) {
     const payload = buildStripeConnectErrorResponse(error, {
       route: "/api/stripe/connect/onboard",
+      step: "onboard.failed",
     });
     const status =
       payload.code === "platform_unavailable" || payload.code === "not_configured"

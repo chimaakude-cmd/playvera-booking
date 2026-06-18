@@ -6,6 +6,7 @@ import type {
 } from "@/lib/stripe-connect/types";
 import { DEMO_PROVIDER_ID } from "@/lib/stripe-connect/types";
 import { STRIPE_CONNECT_COUNTRY, STRIPE_PLATFORM_NAME } from "./constants";
+import { STRIPE_CONNECT_LOG_PREFIX } from "./errors";
 
 export function resolveStripeConnectStatus(
   account: Stripe.Account | null,
@@ -229,7 +230,7 @@ export async function createExpressConnectAccount(
   providerId: string,
   email?: string,
 ): Promise<Stripe.Account> {
-  return stripe.accounts.create({
+  const account = await stripe.accounts.create({
     type: "express",
     country: STRIPE_CONNECT_COUNTRY,
     email,
@@ -245,6 +246,16 @@ export async function createExpressConnectAccount(
       transfers: { requested: true },
     },
   });
+
+  console.log(STRIPE_CONNECT_LOG_PREFIX, {
+    step: "accounts.create",
+    accountId: account.id,
+    type: account.type,
+    country: account.country,
+    providerId,
+  });
+
+  return account;
 }
 
 export async function createOnboardingLink(
@@ -258,6 +269,15 @@ export async function createOnboardingLink(
     type: "account_onboarding",
     return_url: returnUrl,
     refresh_url: refreshUrl,
+  });
+
+  console.log(STRIPE_CONNECT_LOG_PREFIX, {
+    step: "accountLinks.create",
+    accountId,
+    url: link.url,
+    expiresAt: link.expires_at,
+    returnUrl,
+    refreshUrl,
   });
 
   return link.url;
