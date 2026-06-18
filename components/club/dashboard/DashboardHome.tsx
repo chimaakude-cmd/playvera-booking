@@ -18,9 +18,22 @@ import {
 import { SessionCapacityWidget } from "./SessionCapacityWidget";
 import { ReviewInsightsCard } from "./ReviewInsightsCard";
 import { SharePromptBanner } from "@/components/club/share/SharePromptBanner";
+import { FirstActivityCelebration } from "./FirstActivityCelebration";
+import { LaunchReadinessCard } from "./LaunchReadinessCard";
+import { NewClubAnalyticsPlaceholders } from "./NewClubAnalyticsPlaceholders";
+import { NewClubHero } from "./NewClubHero";
+import { NewClubShareSection } from "./NewClubShareSection";
+import { PublicProfilePreview } from "./PublicProfilePreview";
+import { SetupChecklist } from "./SetupChecklist";
 import { getBookings, getRecentBookings } from "@/lib/bookings";
 import { getClubProfile } from "@/lib/club-profile";
 import { DEMO_PROVIDER_ID } from "@/lib/club-widget";
+import {
+  getNewClubModeState,
+  markFirstActivityCelebrated,
+  storePublishedActivityCount,
+  type NewClubModeState,
+} from "@/lib/club/new-club-mode";
 import {
   buildDashboardKpis,
   getActivityPerformance,
@@ -41,10 +54,15 @@ function DashboardHomeContent() {
   const [profileSlug, setProfileSlug] = useState("playvera-juniors");
   const [providerId, setProviderId] = useState(DEMO_PROVIDER_ID);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
-  const [showSuccess, setShowSuccess] = useState(false);
+  const [newClubState, setNewClubState] = useState<NewClubModeState | null>(
+    null,
+  );
+  const [showCelebration, setShowCelebration] = useState(false);
 
   useEffect(() => {
-    setSessions(getSessions());
+    const loadedSessions = getSessions();
+    setSessions(loadedSessions);
+
     const profile = getClubProfile();
     if (profile?.clubName) {
       setClubName(profile.clubName);
@@ -52,23 +70,36 @@ function DashboardHomeContent() {
       setProviderId(profile.providerId || DEMO_PROVIDER_ID);
       setLogoUrl(profile.logoUrl);
     }
+
+    const state = getNewClubModeState(loadedSessions);
+    setNewClubState(state);
+
+    if (
+      state.showFirstActivityCelebration ||
+      searchParams.get("success") === "1"
+    ) {
+      setShowCelebration(true);
+      markFirstActivityCelebrated();
+    }
+
+    storePublishedActivityCount(state.publishedActivityCount);
     setLoading(false);
-  }, []);
+  }, [searchParams]);
 
   useEffect(() => {
-    if (searchParams.get("success") === "1") {
-      setShowSuccess(true);
+    if (searchParams.get("setup") === "1") {
       window.history.replaceState({}, "", "/club/dashboard");
     }
-    if (searchParams.get("setup") === "1") {
+    if (searchParams.get("success") === "1") {
       window.history.replaceState({}, "", "/club/dashboard");
     }
   }, [searchParams]);
 
-  if (loading) {
+  if (loading || !newClubState) {
     return <LoadingState message="Loading your dashboard..." />;
   }
 
+  const isNewClubMode = newClubState.isNewClubMode;
   const bookings = getBookings();
   const recentBookings = getRecentBookings(6);
   const kpis = buildDashboardKpis(sessions, bookings, formatCurrency);
@@ -95,8 +126,46 @@ function DashboardHomeContent() {
   const unreadMessages =
     getTotalUnreadCount() + getUnreadNotificationCount();
 
+  if (isNewClubMode) {
+    return (
+      <div className="space-y-6">
+        <NewClubHero
+          clubName={clubName}
+          primaryStepsRemaining={newClubState.primaryStepsRemaining}
+          estimatedMinutesRemaining={newClubState.estimatedMinutesRemaining}
+          checklist={newClubState.checklist}
+        />
+
+        <LaunchReadinessCard items={newClubState.launchReadiness} />
+
+        <SetupChecklist />
+
+        <PublicProfilePreview
+          profile={newClubState.profile}
+          visibleToParents={newClubState.profileVisibleToParents}
+        />
+
+        <DashboardSectionQuickActions variant="new-club" />
+
+        <NewClubAnalyticsPlaceholders />
+
+        <DashboardSubscriptionCard variant="new-club" />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
+      {showCelebration ? (
+        <FirstActivityCelebration
+          clubName={clubName}
+          slug={profileSlug}
+          providerId={providerId}
+          logoUrl={logoUrl}
+          onDismiss={() => setShowCelebration(false)}
+        />
+      ) : null}
+
       <DashboardHeader
         clubName={clubName}
         bookingsToday={bookingsToday}
@@ -105,21 +174,6 @@ function DashboardHomeContent() {
       />
 
       <CompleteSetupCard />
-
-      <DashboardSubscriptionCard />
-
-      <SharePromptBanner
-        clubName={clubName}
-        slug={profileSlug}
-        providerId={providerId}
-        logoUrl={logoUrl}
-      />
-
-      {showSuccess ? (
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 transition-opacity">
-          Activity created successfully. It is now visible on your dashboard.
-        </div>
-      ) : null}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         {kpis.map((kpi) => (
@@ -151,6 +205,24 @@ function DashboardHomeContent() {
         formatCurrency={formatCurrency}
       />
 
+      {newClubState.publishedActivityCount > 0 ? (
+        <NewClubShareSection
+          clubName={clubName}
+          slug={profileSlug}
+          providerId={providerId}
+          logoUrl={logoUrl}
+        />
+      ) : (
+        <SharePromptBanner
+          clubName={clubName}
+          slug={profileSlug}
+          providerId={providerId}
+          logoUrl={logoUrl}
+        />
+      )}
+
+      <DashboardSubscriptionCard />
+
       <div className="flex flex-wrap gap-3">
         <Link
           href="/club/create-session"
@@ -169,7 +241,11 @@ function DashboardHomeContent() {
   );
 }
 
-function DashboardSectionQuickActions() {
+function DashboardSectionQuickActions({
+  variant = "default",
+}: {
+  variant?: "default" | "new-club";
+}) {
   return (
     <section className="rounded-2xl border border-zinc-200/80 bg-white shadow-sm">
       <div className="border-b border-zinc-100 px-5 py-4">
@@ -179,7 +255,7 @@ function DashboardSectionQuickActions() {
         </p>
       </div>
       <div className="p-5">
-        <DashboardQuickActions />
+        <DashboardQuickActions variant={variant} />
       </div>
     </section>
   );

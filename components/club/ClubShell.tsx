@@ -12,8 +12,14 @@ import {
   getCurrentClubRole,
   getNavGroupsForRole,
   type ClubNavItem,
+  type ClubNavSection,
   type ClubRole,
 } from "@/lib/club-team";
+import {
+  isNewClubMode,
+  NEW_CLUB_HIDDEN_NAV_SECTIONS,
+  NEW_CLUB_HIGHLIGHTED_NAV_SECTIONS,
+} from "@/lib/club/new-club-mode";
 import { translateClubNavLabel, useTranslation } from "@/lib/i18n";
 
 function NavLinks({
@@ -21,11 +27,13 @@ function NavLinks({
   groups,
   inboxUnread,
   onNavigate,
+  newClubMode = false,
 }: {
   pathname: string;
   groups: Array<{ title: string; items: ClubNavItem[] }>;
   inboxUnread: number;
   onNavigate?: () => void;
+  newClubMode?: boolean;
 }) {
   const { t } = useTranslation("dashboard");
   const { t: tc } = useTranslation("common");
@@ -45,6 +53,9 @@ function NavLinks({
                 item.badgeKey === "inbox" && inboxUnread > 0
                   ? inboxUnread
                   : null;
+              const isHighlighted =
+                newClubMode &&
+                NEW_CLUB_HIGHLIGHTED_NAV_SECTIONS.has(item.section);
 
               return (
                 <Link
@@ -54,7 +65,9 @@ function NavLinks({
                   className={`flex items-center justify-between rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 ${
                     isActive
                       ? "bg-zinc-900 text-white shadow-sm"
-                      : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900"
+                      : isHighlighted
+                        ? "bg-violet-50 text-violet-900 ring-1 ring-violet-200 hover:bg-violet-100"
+                        : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900"
                   }`}
                 >
                   <span>
@@ -101,10 +114,12 @@ export function ClubShell({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [role, setRole] = useState<ClubRole>("owner");
   const [inboxUnread, setInboxUnread] = useState(0);
-  const navGroups = getNavGroupsForRole(role);
+  const [newClubMode, setNewClubMode] = useState(false);
+  const navGroups = getNavGroupsForNewClub(role, newClubMode);
 
   useEffect(() => {
     setRole(getCurrentClubRole());
+    setNewClubMode(isNewClubMode());
   }, [pathname]);
 
   useEffect(() => {
@@ -126,7 +141,7 @@ export function ClubShell({ children }: { children: React.ReactNode }) {
             </p>
           </div>
           <div className="flex-1 overflow-y-auto px-4 py-6">
-            <NavLinks pathname={pathname} groups={navGroups} inboxUnread={inboxUnread} />
+            <NavLinks pathname={pathname} groups={navGroups} inboxUnread={inboxUnread} newClubMode={newClubMode} />
           </div>
           <div className="border-t border-zinc-100 px-6 py-4 text-xs text-zinc-400">
             © {new Date().getFullYear()} {BRAND_NAME}
@@ -158,6 +173,7 @@ export function ClubShell({ children }: { children: React.ReactNode }) {
                   groups={navGroups}
                   inboxUnread={inboxUnread}
                   onNavigate={() => setMobileOpen(false)}
+                  newClubMode={newClubMode}
                 />
               </div>
             </aside>
@@ -203,4 +219,25 @@ export function ClubShell({ children }: { children: React.ReactNode }) {
       <LazySupportLauncher />
     </div>
   );
+}
+
+function getNavGroupsForNewClub(
+  role: ClubRole,
+  newClubMode: boolean,
+): Array<{ title: string; items: ClubNavItem[] }> {
+  const groups = getNavGroupsForRole(role);
+
+  if (!newClubMode) {
+    return groups;
+  }
+
+  return groups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter(
+        (item) =>
+          !NEW_CLUB_HIDDEN_NAV_SECTIONS.has(item.section as ClubNavSection),
+      ),
+    }))
+    .filter((group) => group.items.length > 0);
 }

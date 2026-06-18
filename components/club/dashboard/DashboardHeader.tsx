@@ -143,10 +143,32 @@ const quickActions: QuickAction[] = [
   },
 ];
 
-export function DashboardQuickActions() {
+const newClubQuickActions: QuickAction[] = [
+  ...quickActions,
+  {
+    label: "Edit public profile",
+    description: "Update logo, description and club details",
+    href: "/club/settings/profile",
+    tone: "neutral",
+  },
+  {
+    label: "Connect payments",
+    description: "Set up Stripe for paid bookings",
+    href: "/club/finance?tab=stripe",
+    tone: "neutral",
+  },
+];
+
+export function DashboardQuickActions({
+  variant = "default",
+}: {
+  variant?: "default" | "new-club";
+}) {
+  const actions = variant === "new-club" ? newClubQuickActions : quickActions;
+
   return (
     <div className="grid gap-3">
-      {quickActions.map((action) => (
+      {actions.map((action) => (
         <Link
           key={action.href}
           href={action.href}
