@@ -33,14 +33,6 @@ export async function POST(request: NextRequest) {
     const input: ClubOnboardingSubmitInput = {
       owner: body.owner,
       club: body.club,
-      profile: body.profile ?? {
-        logoUrl: null,
-        coverUrl: null,
-        primaryColor: "#0d9488",
-        tagline: "",
-        aboutText: "",
-        skippedProfile: false,
-      },
     };
 
     console.info("[club-onboarding] Received onboarding submit request:", {

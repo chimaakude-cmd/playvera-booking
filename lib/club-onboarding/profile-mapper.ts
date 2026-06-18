@@ -13,6 +13,33 @@ import {
 import type { ClubOnboardingState, OnboardingProfile } from "./types";
 import { getClubCategories } from "./types";
 
+/** Columns from base club_profiles schema (00008) — safe for production without 00009 jsonb fields. */
+export type MinimalClubProfilesRow = {
+  provider_id: string;
+  club_name: string;
+  public_slug: string;
+  email: string;
+  phone: string;
+  verified: boolean;
+  published: boolean;
+};
+
+/** Minimum club_profiles row for onboarding submit — no contact/social_links jsonb. */
+export function buildMinimalClubProfilesRow(
+  providerId: string,
+  state: Pick<ClubOnboardingState, "owner" | "club">,
+): MinimalClubProfilesRow {
+  return {
+    provider_id: providerId,
+    club_name: state.club.name.trim(),
+    public_slug: slugifyClubName(state.club.name),
+    email: state.owner.email.trim(),
+    phone: state.owner.phone.trim(),
+    verified: false,
+    published: false,
+  };
+}
+
 /** Strip base64/data URLs — only lightweight http(s) URLs may be persisted. */
 export function stripImageDataUrls(
   profile: OnboardingProfile,

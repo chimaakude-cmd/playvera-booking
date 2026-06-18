@@ -1,6 +1,5 @@
 import type { PostgrestError } from "@supabase/supabase-js";
 import { slugifyProviderName } from "@/lib/admin/provider-onboarding";
-import type { ClubProfileInput } from "@/lib/club-profile/types";
 import type { ActivoraSupabaseClient } from "@/lib/supabase";
 import {
   createSupabaseAuthenticatedClient,
@@ -22,15 +21,20 @@ import {
   type OnboardingProfile,
 } from "./types";
 import {
+  createInitialOnboardingState,
   syncDerivedOnboardingFields,
   validateOnboardingForCompletion,
 } from "./validation";
-import { buildClubProfileInput } from "./profile-mapper";
+import {
+  buildMinimalClubProfilesRow,
+  type MinimalClubProfilesRow,
+} from "./profile-mapper";
 
 export type ClubOnboardingSubmitInput = {
   owner: OnboardingOwner;
   club: OnboardingClub;
-  profile: OnboardingProfile;
+  /** Ignored on submit — full profile is edited in club dashboard settings. */
+  profile?: OnboardingProfile;
   planId?: PlanId;
 };
 
@@ -285,40 +289,6 @@ async function createOnboardingDatabaseClient(
   };
 }
 
-function mapProfileToClubProfilesRow(
-  providerId: string,
-  profileInput: ClubProfileInput,
-) {
-  return {
-    provider_id: providerId,
-    logo_url: profileInput.logoUrl,
-    cover_image_url: profileInput.coverImageUrl,
-    club_name: profileInput.clubName,
-    tagline: profileInput.tagline,
-    short_description: profileInput.shortDescription,
-    established_year: profileInput.establishedYear,
-    verified: false,
-    contact: profileInput.contact,
-    social_links: profileInput.socialLinks,
-    verification_status: profileInput.verificationStatus,
-    long_description: profileInput.longDescription,
-    unique_selling_points: profileInput.uniqueSellingPoints,
-    categories: profileInput.categories,
-    age_ranges: profileInput.ageRanges,
-    accessibility_options: profileInput.accessibilityOptions,
-    website: profileInput.contact.website,
-    email: profileInput.contact.email,
-    phone: profileInput.contact.phone,
-    branding: profileInput.branding,
-    customer_view: profileInput.customerView,
-    media_gallery: profileInput.mediaGallery,
-    public_slug: profileInput.publicSlug,
-    meta_title: profileInput.metaTitle,
-    meta_description: profileInput.metaDescription,
-    published: profileInput.published,
-  };
-}
-
 async function resolveUniqueProviderSlug(
   supabase: ActivoraSupabaseClient,
   clubName: string,
@@ -428,10 +398,9 @@ async function ensureProviderForOwner(
 
 async function ensureClubProfile(
   supabase: ActivoraSupabaseClient,
-  providerId: string,
-  profileInput: ClubProfileInput,
+  row: MinimalClubProfilesRow,
 ): Promise<{ ok: true } | { ok: false; error: PostgrestError | null }> {
-  const row = mapProfileToClubProfilesRow(providerId, profileInput);
+  const providerId = row.provider_id;
 
   const { data: existing, error: existingError } = await supabase
     .from("club_profiles")
@@ -638,7 +607,7 @@ export async function submitClubOnboardingToSupabase(
     planId: DEFAULT_PLAN_ID,
     owner: rawInput.owner,
     club: rawInput.club,
-    profile: rawInput.profile,
+    profile: rawInput.profile ?? createInitialOnboardingState().profile,
     completedAt: null,
     updatedAt: new Date().toISOString(),
   });
@@ -663,7 +632,6 @@ export async function submitClubOnboardingToSupabase(
 
   const authUserId = authResult.authUserId;
   const clubName = state.club.name.trim();
-  const profileInput = buildClubProfileInput(state);
   const starterPlan = getPlanByIdOrDefault(DEFAULT_PLAN_ID);
 
   const dbClientResult = await createOnboardingDatabaseClient(
@@ -713,7 +681,8 @@ export async function submitClubOnboardingToSupabase(
     dbClientMode,
   });
 
-  const profileResult = await ensureClubProfile(supabase, providerId, profileInput);
+  const clubProfileRow = buildMinimalClubProfilesRow(providerId, state);
+  const profileResult = await ensureClubProfile(supabase, clubProfileRow);
 
   if (!profileResult.ok) {
     logSupabaseError("profile insert failed", profileResult.error);
@@ -731,7 +700,7 @@ export async function submitClubOnboardingToSupabase(
   console.info("[club-onboarding] profile insert result:", {
     success: true,
     providerId,
-    publicSlug: profileInput.publicSlug,
+    publicSlug: clubProfileRow.public_slug,
   });
 
   const subscriptionResult = await ensureProviderSubscription(supabase, providerId);

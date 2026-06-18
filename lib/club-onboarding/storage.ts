@@ -433,7 +433,6 @@ async function persistClubOnboardingToSupabase(
     body: JSON.stringify({
       owner: synced.owner,
       club: synced.club,
-      profile: synced.profile,
     }),
   });
 
