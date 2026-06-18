@@ -1,17 +1,11 @@
-import { LoginPage } from "@/components/auth/LoginPage";
-import { TEST_ACCOUNTS } from "@/lib/auth/accounts";
+import { Suspense } from "react";
+import { FranchisorLoginPage } from "@/components/auth/FranchisorLoginPage";
+import { LoadingState } from "@/components/club/LoadingState";
 
-export default function OrganisationLoginPage() {
+export default function OrganisationLoginRoute() {
   return (
-    <LoginPage
-      role="organisation"
-      title="Franchisor login"
-      subtitle="Sign in to manage your franchisee clubs and organisation settings."
-      signupHref="/organisation/signup"
-      signupLabel="Sign up as franchisor"
-      defaultEmail={TEST_ACCOUNTS.organisation.email}
-      backHref="/login"
-      backLabel="← Back to login options"
-    />
+    <Suspense fallback={<LoadingState message="Loading…" />}>
+      <FranchisorLoginPage />
+    </Suspense>
   );
 }

@@ -1,9 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Logo } from "@/components/branding";
+import { ActivoraLoginLayout } from "@/components/auth/ActivoraLoginLayout";
 import { writeAuthSession } from "@/lib/auth/session";
 import {
   clearStaffAccessAttempts,
@@ -15,6 +14,14 @@ import {
 import type { AuthUser } from "@/lib/auth/types";
 
 type SignInMode = "magic-link" | "password";
+
+const ADMIN_BENEFITS = [
+  "Secure staff authentication",
+  "Role-based access control",
+  "Magic link sign-in",
+  "Emergency recovery",
+  "Audit trail",
+] as const;
 
 function formatLockoutRemaining(ms: number): string {
   const minutes = Math.ceil(ms / 60_000);
@@ -199,7 +206,7 @@ export function StaffAccessPage({
       };
 
       if (!response.ok || !payload.ok || !payload.user) {
-        setError(payload.error ?? "Login failed");
+        setError(payload.error ?? "Unable to sign in");
         handleStaffAccessLoginFailure(response.status, payload.code);
         if (isStaffAccessLocked()) {
           setLocked(true);
@@ -249,215 +256,204 @@ export function StaffAccessPage({
   const showPasswordFields = useEmergencyPin || signInMode === "password";
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-violet-950 via-zinc-950 to-zinc-950 px-4 py-12">
-      <div className="w-full max-w-md">
-        <div className="mb-8 flex flex-col items-center text-center">
-          <div className="rounded-2xl bg-white/5 p-4 ring-1 ring-white/10">
-            <Logo size="desktop" />
+    <ActivoraLoginLayout
+      variant="admin"
+      headline="Activora staff access."
+      subtext="Secure access for authorised Activora team members only."
+      benefits={ADMIN_BENEFITS}
+      panelFooter="Unauthorised access attempts are logged and monitored."
+      cardTitle="Staff sign in"
+      cardSubtitle="Authorised personnel only."
+      trustIndicators="secure-only"
+      backHref={backHref}
+      backLabel={backLabel}
+    >
+      <form onSubmit={handleSubmit}>
+        {!useEmergencyPin ? (
+          <div className="mb-5 flex rounded-xl bg-zinc-950/60 p-1 ring-1 ring-violet-500/20">
+            <button
+              type="button"
+              onClick={() => {
+                setSignInMode("magic-link");
+                setError(null);
+                setMagicLinkSent(false);
+                setMagicLinkMessage(null);
+                setForgotPasswordSent(false);
+                setForgotPasswordMessage(null);
+              }}
+              className={`flex-1 rounded-lg px-3 py-2 text-xs font-semibold transition ${
+                signInMode === "magic-link"
+                  ? "bg-violet-600 text-white"
+                  : "text-violet-200/70 hover:text-white"
+              }`}
+            >
+              Email link
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setSignInMode("password");
+                setError(null);
+                setMagicLinkSent(false);
+                setMagicLinkMessage(null);
+                setForgotPasswordSent(false);
+                setForgotPasswordMessage(null);
+              }}
+              className={`flex-1 rounded-lg px-3 py-2 text-xs font-semibold transition ${
+                signInMode === "password"
+                  ? "bg-violet-600 text-white"
+                  : "text-violet-200/70 hover:text-white"
+              }`}
+            >
+              Password
+            </button>
           </div>
-          <h1 className="mt-6 text-2xl font-bold tracking-tight text-white">
-            Activora Staff Access
-          </h1>
-          <p className="mt-2 text-sm text-violet-200/70">
-            Authorised personnel only
-          </p>
-        </div>
+        ) : null}
 
-        <form
-          onSubmit={handleSubmit}
-          className="rounded-2xl border border-violet-500/20 bg-zinc-900/80 p-6 shadow-2xl shadow-violet-950/40 backdrop-blur sm:p-8"
-        >
-          {!useEmergencyPin ? (
-            <div className="mb-5 flex rounded-xl bg-zinc-950/60 p-1 ring-1 ring-violet-500/20">
-              <button
-                type="button"
-                onClick={() => {
-                  setSignInMode("magic-link");
-                  setError(null);
-                  setMagicLinkSent(false);
-                  setMagicLinkMessage(null);
-                  setForgotPasswordSent(false);
-                  setForgotPasswordMessage(null);
-                }}
-                className={`flex-1 rounded-lg px-3 py-2 text-xs font-semibold transition ${
-                  signInMode === "magic-link"
-                    ? "bg-violet-600 text-white"
-                    : "text-violet-200/70 hover:text-white"
-                }`}
-              >
-                Email link
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setSignInMode("password");
-                  setError(null);
-                  setMagicLinkSent(false);
-                  setMagicLinkMessage(null);
-                  setForgotPasswordSent(false);
-                  setForgotPasswordMessage(null);
-                }}
-                className={`flex-1 rounded-lg px-3 py-2 text-xs font-semibold transition ${
-                  signInMode === "password"
-                    ? "bg-violet-600 text-white"
-                    : "text-violet-200/70 hover:text-white"
-                }`}
-              >
-                Password
-              </button>
-            </div>
-          ) : null}
+        <label className="block">
+          <span className="text-sm font-medium text-violet-100">Email</span>
+          <input
+            type="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            autoComplete="username"
+            disabled={formDisabled}
+            className="mt-2 w-full rounded-xl border border-violet-500/20 bg-zinc-950/60 px-4 py-3 text-sm text-white outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-500/30 disabled:opacity-50"
+            required
+          />
+        </label>
 
-          <label className="block">
-            <span className="text-sm font-medium text-violet-100">Email</span>
-            <input
-              type="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              autoComplete="username"
-              disabled={formDisabled}
-              className="mt-1.5 w-full rounded-xl border border-violet-500/20 bg-zinc-950/60 px-4 py-2.5 text-sm text-white outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-500/30 disabled:opacity-50"
-              required
-            />
-          </label>
-
-          {showPasswordFields ? (
-            useEmergencyPin ? (
-              <>
-                <label className="mt-4 block">
-                  <span className="text-sm font-medium text-violet-100">
-                    Emergency PIN
-                  </span>
-                  <input
-                    type="password"
-                    value={pin}
-                    onChange={(event) => setPin(event.target.value)}
-                    autoComplete="off"
-                    disabled={formDisabled}
-                    className="mt-1.5 w-full rounded-xl border border-violet-500/20 bg-zinc-950/60 px-4 py-2.5 text-sm text-white outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-500/30 disabled:opacity-50"
-                    required
-                  />
-                </label>
-                <label className="mt-4 block">
-                  <span className="text-sm font-medium text-violet-100">
-                    New password
-                  </span>
-                  <input
-                    type="password"
-                    value={newPassword}
-                    onChange={(event) => setNewPassword(event.target.value)}
-                    autoComplete="new-password"
-                    disabled={formDisabled}
-                    minLength={8}
-                    className="mt-1.5 w-full rounded-xl border border-violet-500/20 bg-zinc-950/60 px-4 py-2.5 text-sm text-white outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-500/30 disabled:opacity-50"
-                    required
-                  />
-                </label>
-              </>
-            ) : (
-              <label className="mt-4 block">
+        {showPasswordFields ? (
+          useEmergencyPin ? (
+            <>
+              <label className="mt-5 block">
                 <span className="text-sm font-medium text-violet-100">
-                  Password
+                  Emergency PIN
                 </span>
                 <input
                   type="password"
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  autoComplete="current-password"
+                  value={pin}
+                  onChange={(event) => setPin(event.target.value)}
+                  autoComplete="off"
                   disabled={formDisabled}
-                  className="mt-1.5 w-full rounded-xl border border-violet-500/20 bg-zinc-950/60 px-4 py-2.5 text-sm text-white outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-500/30 disabled:opacity-50"
+                  className="mt-2 w-full rounded-xl border border-violet-500/20 bg-zinc-950/60 px-4 py-3 text-sm text-white outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-500/30 disabled:opacity-50"
                   required
                 />
               </label>
-            )
-          ) : null}
+              <label className="mt-5 block">
+                <span className="text-sm font-medium text-violet-100">
+                  New password
+                </span>
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(event) => setNewPassword(event.target.value)}
+                  autoComplete="new-password"
+                  disabled={formDisabled}
+                  minLength={8}
+                  className="mt-2 w-full rounded-xl border border-violet-500/20 bg-zinc-950/60 px-4 py-3 text-sm text-white outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-500/30 disabled:opacity-50"
+                  required
+                />
+              </label>
+            </>
+          ) : (
+            <label className="mt-5 block">
+              <span className="text-sm font-medium text-violet-100">
+                Password
+              </span>
+              <input
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                autoComplete="current-password"
+                disabled={formDisabled}
+                className="mt-2 w-full rounded-xl border border-violet-500/20 bg-zinc-950/60 px-4 py-3 text-sm text-white outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-500/30 disabled:opacity-50"
+                required
+              />
+            </label>
+          )
+        ) : null}
 
-          {signInMode === "password" && !useEmergencyPin ? (
-            <p className="mt-3 text-right">
-              <button
-                type="button"
-                onClick={() => void handleForgotPassword()}
-                disabled={formDisabled || !email.trim()}
-                className="text-xs font-medium text-violet-300/80 underline-offset-2 hover:text-violet-100 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Forgot password?
-              </button>
-            </p>
-          ) : null}
-
-          {magicLinkSent && magicLinkMessage ? (
-            <p className="mt-4 rounded-xl bg-emerald-950/40 px-3 py-2 text-sm text-emerald-300 ring-1 ring-emerald-500/20">
-              {magicLinkMessage}
-            </p>
-          ) : null}
-
-          {forgotPasswordSent && forgotPasswordMessage ? (
-            <p className="mt-4 rounded-xl bg-emerald-950/40 px-3 py-2 text-sm text-emerald-300 ring-1 ring-emerald-500/20">
-              {forgotPasswordMessage}
-            </p>
-          ) : null}
-
-          {error ? (
-            <p className="mt-4 rounded-xl bg-red-950/50 px-3 py-2 text-sm text-red-300 ring-1 ring-red-500/20">
-              {error}
-            </p>
-          ) : null}
-
-          {locked && lockoutMs > 0 ? (
-            <p className="mt-3 text-center text-xs text-violet-300/60">
-              Try again in {formatLockoutRemaining(lockoutMs)}
-            </p>
-          ) : null}
-
-          <button
-            type="submit"
-            disabled={formDisabled}
-            className="mt-6 w-full rounded-xl bg-violet-600 py-3 text-sm font-semibold text-white transition-colors hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {submitting
-              ? useEmergencyPin
-                ? "Recovering access…"
-                : signInMode === "magic-link"
-                  ? "Sending link…"
-                  : "Signing in…"
-              : useEmergencyPin
-                ? "Recover access"
-                : signInMode === "magic-link"
-                  ? "Sign in with email link"
-                  : "Sign in"}
-          </button>
-
-          {emergencyAvailable ? (
-            <p className="mt-4 text-center">
-              <button
-                type="button"
-                onClick={() => {
-                  setUseEmergencyPin((current) => !current);
-                  setError(null);
-                  setPassword("");
-                  setPin("");
-                  setNewPassword("");
-                  setMagicLinkSent(false);
-                  setMagicLinkMessage(null);
-                  setForgotPasswordSent(false);
-                  setForgotPasswordMessage(null);
-                }}
-                className="text-xs font-medium text-violet-300/80 underline-offset-2 hover:text-violet-100 hover:underline"
-              >
-                {useEmergencyPin ? "Use normal sign-in" : "Use emergency PIN"}
-              </button>
-            </p>
-          ) : null}
-        </form>
-
-        {backHref && backLabel ? (
-          <p className="mt-6 text-center text-sm text-violet-200/70">
-            <Link href={backHref} className="font-medium text-violet-200 hover:text-white">
-              {backLabel}
-            </Link>
+        {signInMode === "password" && !useEmergencyPin ? (
+          <p className="mt-3 text-right">
+            <button
+              type="button"
+              onClick={() => void handleForgotPassword()}
+              disabled={formDisabled || !email.trim()}
+              className="text-xs font-medium text-violet-300/80 underline-offset-2 hover:text-violet-100 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Forgot password?
+            </button>
           </p>
         ) : null}
-      </div>
-    </div>
+
+        {magicLinkSent && magicLinkMessage ? (
+          <p className="mt-5 rounded-xl bg-emerald-950/40 px-3 py-2 text-sm text-emerald-300 ring-1 ring-emerald-500/20">
+            {magicLinkMessage}
+          </p>
+        ) : null}
+
+        {forgotPasswordSent && forgotPasswordMessage ? (
+          <p className="mt-5 rounded-xl bg-emerald-950/40 px-3 py-2 text-sm text-emerald-300 ring-1 ring-emerald-500/20">
+            {forgotPasswordMessage}
+          </p>
+        ) : null}
+
+        {error ? (
+          <p
+            role="alert"
+            className="mt-5 rounded-xl bg-red-950/50 px-3 py-2 text-sm text-red-300 ring-1 ring-red-500/20"
+          >
+            {error}
+          </p>
+        ) : null}
+
+        {locked && lockoutMs > 0 ? (
+          <p className="mt-3 text-center text-xs text-violet-300/60">
+            Try again in {formatLockoutRemaining(lockoutMs)}
+          </p>
+        ) : null}
+
+        <button
+          type="submit"
+          disabled={formDisabled}
+          className="mt-6 w-full rounded-xl bg-violet-600 py-3.5 text-sm font-semibold text-white transition-colors hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {submitting
+            ? useEmergencyPin
+              ? "Recovering access…"
+              : signInMode === "magic-link"
+                ? "Sending link…"
+                : "Signing in…"
+            : useEmergencyPin
+              ? "Recover access"
+              : signInMode === "magic-link"
+                ? "Sign in with email link"
+                : "Sign in"}
+        </button>
+
+        {emergencyAvailable ? (
+          <p className="mt-4 text-center">
+            <button
+              type="button"
+              onClick={() => {
+                setUseEmergencyPin((current) => !current);
+                setError(null);
+                setPassword("");
+                setPin("");
+                setNewPassword("");
+                setMagicLinkSent(false);
+                setMagicLinkMessage(null);
+                setForgotPasswordSent(false);
+                setForgotPasswordMessage(null);
+              }}
+              className="text-xs font-medium text-violet-300/80 underline-offset-2 hover:text-violet-100 hover:underline"
+            >
+              {useEmergencyPin ? "Use normal sign-in" : "Use emergency PIN"}
+            </button>
+          </p>
+        ) : null}
+      </form>
+    </ActivoraLoginLayout>
   );
 }
