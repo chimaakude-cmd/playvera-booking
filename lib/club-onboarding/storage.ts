@@ -437,7 +437,7 @@ async function persistClubOnboardingToSupabase(
     }),
   });
 
-  let payload: { error?: string; providerId?: string; authUserId?: string } = {};
+  let payload: { error?: string; step?: string; providerId?: string; authUserId?: string } = {};
   try {
     payload = (await response.json()) as typeof payload;
   } catch {
@@ -445,15 +445,18 @@ async function persistClubOnboardingToSupabase(
   }
 
   if (!response.ok) {
+    const stepLabel = payload.step ? `Failed at step: ${payload.step}. ` : "";
     console.error("[club-onboarding] Supabase submit failed:", {
       status: response.status,
+      step: payload.step,
       error: payload.error ?? "Unknown error",
     });
     return {
       ok: false,
       error:
-        payload.error ??
-        "Could not save your club to the database. Please try again.",
+        stepLabel +
+        (payload.error ??
+          "Could not save your club to the database. Please try again."),
     };
   }
 

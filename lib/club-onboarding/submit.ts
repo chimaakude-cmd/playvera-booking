@@ -1,7 +1,9 @@
 import type { PostgrestError } from "@supabase/supabase-js";
 import { slugifyProviderName } from "@/lib/admin/provider-onboarding";
 import type { ClubProfileInput } from "@/lib/club-profile/types";
+import type { ActivoraSupabaseClient } from "@/lib/supabase";
 import {
+  createSupabaseAuthenticatedClient,
   createSupabaseServiceRoleClient,
   isSupabaseConfigured,
   isSupabaseServiceRoleConfigured,
@@ -32,25 +34,47 @@ export type ClubOnboardingSubmitInput = {
   planId?: PlanId;
 };
 
+export type ClubOnboardingSubmitStep =
+  | "Create sign-in account"
+  | "Create club record"
+  | "Save club profile"
+  | "Save subscription plan"
+  | "Save owner account";
+
 export type ClubOnboardingSubmitResult =
   | {
       ok: true;
       providerId: string;
       authUserId: string;
     }
-  | { ok: false; error: string };
+  | { ok: false; error: string; step: ClubOnboardingSubmitStep };
 
-function logSupabaseError(context: string, error: PostgrestError | null): void {
+function logSupabaseError(
+  context: string,
+  error: PostgrestError | null,
+): void {
   if (!error) {
     return;
   }
+
+  const isRlsOrAuth =
+    error.code === "42501" ||
+    /permission denied|row-level security|policy/i.test(error.message);
 
   console.error(`[club-onboarding] ${context}:`, {
     message: error.message,
     code: error.code,
     details: error.details,
     hint: error.hint,
+    ...(isRlsOrAuth ? { rlsOrAuth: true } : {}),
   });
+}
+
+function formatStepError(
+  step: ClubOnboardingSubmitStep,
+  message: string,
+): string {
+  return `${step}: ${message}`;
 }
 
 function mapBusinessTypeToOrganisationType(
@@ -68,6 +92,10 @@ function isEmailAlreadyRegistered(message: string, code?: string): boolean {
     code === "email_exists" ||
     /already (been )?registered|already exists/i.test(message)
   );
+}
+
+function isUniqueViolation(error: PostgrestError | null): boolean {
+  return error?.code === "23505";
 }
 
 async function findAuthUserIdByEmail(email: string): Promise<string | null> {
@@ -204,6 +232,59 @@ async function ensureClubOwnerAuthUser(
   };
 }
 
+async function signInClubOwnerForOnboarding(
+  email: string,
+  password: string,
+): Promise<{ accessToken: string } | { error: string }> {
+  const supabase = createSupabaseServiceRoleClient();
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: email.trim().toLowerCase(),
+    password,
+  });
+
+  if (error || !data.session?.access_token) {
+    console.error("[club-onboarding] owner sign-in failed:", {
+      message: error?.message,
+      code: error?.code,
+    });
+    return {
+      error:
+        error?.message ||
+        "Could not sign in as the new club owner. Please try again.",
+    };
+  }
+
+  return { accessToken: data.session.access_token };
+}
+
+async function createOnboardingDatabaseClient(
+  email: string,
+  password: string,
+): Promise<
+  | { client: ActivoraSupabaseClient; mode: "authenticated" | "service_role" }
+  | { error: string }
+> {
+  const signIn = await signInClubOwnerForOnboarding(email, password);
+  if ("error" in signIn) {
+    if (!isSupabaseServiceRoleConfigured()) {
+      return { error: signIn.error };
+    }
+
+    console.warn(
+      "[club-onboarding] Falling back to service role for database writes after sign-in failure.",
+    );
+    return {
+      client: createSupabaseServiceRoleClient(),
+      mode: "service_role",
+    };
+  }
+
+  return {
+    client: createSupabaseAuthenticatedClient(signIn.accessToken),
+    mode: "authenticated",
+  };
+}
+
 function mapProfileToClubProfilesRow(
   providerId: string,
   profileInput: ClubProfileInput,
@@ -239,9 +320,9 @@ function mapProfileToClubProfilesRow(
 }
 
 async function resolveUniqueProviderSlug(
+  supabase: ActivoraSupabaseClient,
   clubName: string,
 ): Promise<string> {
-  const supabase = createSupabaseServiceRoleClient();
   const baseSlug = slugifyProviderName(clubName);
 
   for (let attempt = 0; attempt < 5; attempt += 1) {
@@ -265,9 +346,266 @@ async function resolveUniqueProviderSlug(
   return `${baseSlug}-${Date.now()}`;
 }
 
-async function deleteProviderCascade(providerId: string): Promise<void> {
-  const supabase = createSupabaseServiceRoleClient();
-  await supabase.from("providers").delete().eq("id", providerId);
+async function ensureProviderForOwner(
+  supabase: ActivoraSupabaseClient,
+  authUserId: string,
+  clubName: string,
+  owner: OnboardingOwner,
+  businessType: ClubBusinessType | "",
+): Promise<
+  | { ok: true; providerId: string; slug: string; created: boolean }
+  | { ok: false; error: PostgrestError | null }
+> {
+  const { data: existing, error: existingError } = await supabase
+    .from("providers")
+    .select("id, slug")
+    .eq("auth_user_id", authUserId)
+    .maybeSingle();
+
+  if (existingError) {
+    return { ok: false, error: existingError };
+  }
+
+  if (existing?.id) {
+    console.info("[club-onboarding] reusing existing provider for auth user:", {
+      providerId: existing.id,
+      authUserId,
+    });
+    return {
+      ok: true,
+      providerId: existing.id,
+      slug: existing.slug ?? slugifyProviderName(clubName),
+      created: false,
+    };
+  }
+
+  const slug = await resolveUniqueProviderSlug(supabase, clubName);
+  const starterPlan = getPlanByIdOrDefault(DEFAULT_PLAN_ID);
+
+  const { data: provider, error: providerError } = await supabase
+    .from("providers")
+    .insert({
+      name: clubName,
+      slug,
+      email: owner.email.trim(),
+      phone: owner.phone.trim(),
+      auth_user_id: authUserId,
+      organisation_type: mapBusinessTypeToOrganisationType(businessType),
+      account_status: "active",
+      platform_fee_percent: starterPlan.platformFeePercent,
+    })
+    .select("id")
+    .single();
+
+  if (providerError || !provider?.id) {
+    if (isUniqueViolation(providerError)) {
+      const { data: raced } = await supabase
+        .from("providers")
+        .select("id, slug")
+        .eq("auth_user_id", authUserId)
+        .maybeSingle();
+
+      if (raced?.id) {
+        return {
+          ok: true,
+          providerId: raced.id,
+          slug: raced.slug ?? slug,
+          created: false,
+        };
+      }
+    }
+
+    return { ok: false, error: providerError };
+  }
+
+  return {
+    ok: true,
+    providerId: provider.id,
+    slug,
+    created: true,
+  };
+}
+
+async function ensureClubProfile(
+  supabase: ActivoraSupabaseClient,
+  providerId: string,
+  profileInput: ClubProfileInput,
+): Promise<{ ok: true } | { ok: false; error: PostgrestError | null }> {
+  const row = mapProfileToClubProfilesRow(providerId, profileInput);
+
+  const { data: existing, error: existingError } = await supabase
+    .from("club_profiles")
+    .select("id")
+    .eq("provider_id", providerId)
+    .maybeSingle();
+
+  if (existingError) {
+    return { ok: false, error: existingError };
+  }
+
+  if (existing?.id) {
+    const { error: updateError } = await supabase
+      .from("club_profiles")
+      .update(row)
+      .eq("provider_id", providerId);
+
+    if (updateError) {
+      return { ok: false, error: updateError };
+    }
+
+    return { ok: true };
+  }
+
+  const { error: insertError } = await supabase.from("club_profiles").insert(row);
+
+  if (insertError && isUniqueViolation(insertError)) {
+    const { error: updateError } = await supabase
+      .from("club_profiles")
+      .update(row)
+      .eq("provider_id", providerId);
+
+    if (!updateError) {
+      return { ok: true };
+    }
+
+    return { ok: false, error: updateError };
+  }
+
+  if (insertError) {
+    return { ok: false, error: insertError };
+  }
+
+  return { ok: true };
+}
+
+async function ensureProviderSubscription(
+  supabase: ActivoraSupabaseClient,
+  providerId: string,
+): Promise<{ ok: true } | { ok: false; error: PostgrestError | null }> {
+  const { data: existing, error: existingError } = await supabase
+    .from("provider_subscriptions")
+    .select("id")
+    .eq("provider_id", providerId)
+    .maybeSingle();
+
+  if (existingError) {
+    return { ok: false, error: existingError };
+  }
+
+  if (existing?.id) {
+    const { error: updateError } = await supabase
+      .from("provider_subscriptions")
+      .update({
+        plan: DEFAULT_PLAN_ID,
+        status: "active",
+      })
+      .eq("provider_id", providerId);
+
+    if (updateError) {
+      return { ok: false, error: updateError };
+    }
+
+    return { ok: true };
+  }
+
+  const { error: insertError } = await supabase
+    .from("provider_subscriptions")
+    .insert({
+      provider_id: providerId,
+      plan: DEFAULT_PLAN_ID,
+      status: "active",
+    });
+
+  if (insertError && isUniqueViolation(insertError)) {
+    const { error: updateError } = await supabase
+      .from("provider_subscriptions")
+      .update({
+        plan: DEFAULT_PLAN_ID,
+        status: "active",
+      })
+      .eq("provider_id", providerId);
+
+    if (!updateError) {
+      return { ok: true };
+    }
+
+    return { ok: false, error: updateError };
+  }
+
+  if (insertError) {
+    return { ok: false, error: insertError };
+  }
+
+  return { ok: true };
+}
+
+async function ensureOwnerTeamMember(
+  supabase: ActivoraSupabaseClient,
+  providerId: string,
+  authUserId: string,
+  owner: OnboardingOwner,
+): Promise<{ ok: true } | { ok: false; error: PostgrestError | null }> {
+  const ownerEmail = owner.email.trim();
+  const ownerRow = {
+    provider_id: providerId,
+    auth_user_id: authUserId,
+    first_name: owner.firstName.trim(),
+    last_name: [owner.middleName.trim(), owner.lastName.trim()]
+      .filter(Boolean)
+      .join(" "),
+    email: ownerEmail,
+    is_owner: true,
+    status: "active" as const,
+    role: "owner" as const,
+  };
+
+  const { data: existing, error: existingError } = await supabase
+    .from("club_team_members")
+    .select("id")
+    .eq("provider_id", providerId)
+    .eq("email", ownerEmail)
+    .maybeSingle();
+
+  if (existingError) {
+    return { ok: false, error: existingError };
+  }
+
+  if (existing?.id) {
+    const { error: updateError } = await supabase
+      .from("club_team_members")
+      .update(ownerRow)
+      .eq("id", existing.id);
+
+    if (updateError) {
+      return { ok: false, error: updateError };
+    }
+
+    return { ok: true };
+  }
+
+  const { error: insertError } = await supabase
+    .from("club_team_members")
+    .insert(ownerRow);
+
+  if (insertError && isUniqueViolation(insertError)) {
+    const { error: updateError } = await supabase
+      .from("club_team_members")
+      .update(ownerRow)
+      .eq("provider_id", providerId)
+      .eq("email", ownerEmail);
+
+    if (!updateError) {
+      return { ok: true };
+    }
+
+    return { ok: false, error: updateError };
+  }
+
+  if (insertError) {
+    return { ok: false, error: insertError };
+  }
+
+  return { ok: true };
 }
 
 export async function submitClubOnboardingToSupabase(
@@ -276,16 +614,22 @@ export async function submitClubOnboardingToSupabase(
   if (!isSupabaseConfigured()) {
     return {
       ok: false,
-      error:
+      step: "Create club record",
+      error: formatStepError(
+        "Create club record",
         "Supabase is not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.",
+      ),
     };
   }
 
   if (!isSupabaseServiceRoleConfigured()) {
     return {
       ok: false,
-      error:
+      step: "Create sign-in account",
+      error: formatStepError(
+        "Create sign-in account",
         "Club onboarding is not configured for production. Set SUPABASE_SERVICE_ROLE_KEY on the server.",
+      ),
     };
   }
 
@@ -301,66 +645,86 @@ export async function submitClubOnboardingToSupabase(
 
   const validationErrors = validateOnboardingForCompletion(state);
   if (validationErrors.length > 0) {
-    return { ok: false, error: validationErrors.join(" ") };
+    return {
+      ok: false,
+      step: "Create club record",
+      error: validationErrors.join(" "),
+    };
   }
 
   const authResult = await ensureClubOwnerAuthUser(state.owner);
   if ("error" in authResult) {
-    return { ok: false, error: authResult.error };
+    return {
+      ok: false,
+      step: "Create sign-in account",
+      error: formatStepError("Create sign-in account", authResult.error),
+    };
   }
 
   const authUserId = authResult.authUserId;
   const clubName = state.club.name.trim();
-  const slug = await resolveUniqueProviderSlug(clubName);
   const profileInput = buildClubProfileInput(state);
-  const supabase = createSupabaseServiceRoleClient();
-
   const starterPlan = getPlanByIdOrDefault(DEFAULT_PLAN_ID);
 
-  const { data: provider, error: providerError } = await supabase
-    .from("providers")
-    .insert({
-      name: clubName,
-      slug,
-      email: state.owner.email.trim(),
-      phone: state.owner.phone.trim(),
-      auth_user_id: authUserId,
-      organisation_type: mapBusinessTypeToOrganisationType(state.club.businessType),
-      account_status: "active",
-      platform_fee_percent: starterPlan.platformFeePercent,
-    })
-    .select("id")
-    .single();
+  const dbClientResult = await createOnboardingDatabaseClient(
+    state.owner.email,
+    state.owner.password,
+  );
 
-  if (providerError || !provider?.id) {
-    logSupabaseError("club/provider insert failed", providerError);
+  if ("error" in dbClientResult) {
     return {
       ok: false,
-      error:
-        providerError?.message ||
-        "Could not create your club record. Please try again.",
+      step: "Create sign-in account",
+      error: formatStepError("Create sign-in account", dbClientResult.error),
     };
   }
 
-  const providerId = provider.id;
+  const { client: supabase, mode: dbClientMode } = dbClientResult;
+  console.info("[club-onboarding] database client mode:", dbClientMode);
+
+  const providerResult = await ensureProviderForOwner(
+    supabase,
+    authUserId,
+    clubName,
+    state.owner,
+    state.club.businessType,
+  );
+
+  if (!providerResult.ok) {
+    logSupabaseError("club/provider insert failed", providerResult.error);
+    return {
+      ok: false,
+      step: "Create club record",
+      error: formatStepError(
+        "Create club record",
+        providerResult.error?.message ||
+          "Could not create your club record. Please try again.",
+      ),
+    };
+  }
+
+  const { providerId, slug, created: providerCreated } = providerResult;
   console.info("[club-onboarding] club/provider insert result:", {
     success: true,
     providerId,
     slug,
+    providerCreated,
+    authUserId,
+    dbClientMode,
   });
 
-  const { error: profileError } = await supabase.from("club_profiles").insert(
-    mapProfileToClubProfilesRow(providerId, profileInput),
-  );
+  const profileResult = await ensureClubProfile(supabase, providerId, profileInput);
 
-  if (profileError) {
-    logSupabaseError("profile insert failed", profileError);
-    await deleteProviderCascade(providerId);
+  if (!profileResult.ok) {
+    logSupabaseError("profile insert failed", profileResult.error);
     return {
       ok: false,
-      error:
-        profileError.message ||
-        "Could not save your club profile. Please try again.",
+      step: "Save club profile",
+      error: formatStepError(
+        "Save club profile",
+        profileResult.error?.message ||
+          "Could not save your club profile. Please try again.",
+      ),
     };
   }
 
@@ -370,22 +734,21 @@ export async function submitClubOnboardingToSupabase(
     publicSlug: profileInput.publicSlug,
   });
 
-  const { error: subscriptionError } = await supabase
-    .from("provider_subscriptions")
-    .insert({
-      provider_id: providerId,
-      plan: DEFAULT_PLAN_ID,
-      status: "active",
-    });
+  const subscriptionResult = await ensureProviderSubscription(supabase, providerId);
 
-  if (subscriptionError) {
-    logSupabaseError("provider subscription insert failed", subscriptionError);
-    await deleteProviderCascade(providerId);
+  if (!subscriptionResult.ok) {
+    logSupabaseError(
+      "provider subscription insert failed",
+      subscriptionResult.error,
+    );
     return {
       ok: false,
-      error:
-        subscriptionError.message ||
-        "Could not save your subscription plan. Please try again.",
+      step: "Save subscription plan",
+      error: formatStepError(
+        "Save subscription plan",
+        subscriptionResult.error?.message ||
+          "Could not save your subscription plan. Please try again.",
+      ),
     };
   }
 
@@ -397,27 +760,23 @@ export async function submitClubOnboardingToSupabase(
     platformFeePercent: starterPlan.platformFeePercent,
   });
 
-  const { error: ownerError } = await supabase.from("club_team_members").insert({
-    provider_id: providerId,
-    auth_user_id: authUserId,
-    first_name: state.owner.firstName.trim(),
-    last_name: [state.owner.middleName.trim(), state.owner.lastName.trim()]
-      .filter(Boolean)
-      .join(" "),
-    email: state.owner.email.trim(),
-    is_owner: true,
-    status: "active",
-    role: "owner",
-  });
+  const ownerResult = await ensureOwnerTeamMember(
+    supabase,
+    providerId,
+    authUserId,
+    state.owner,
+  );
 
-  if (ownerError) {
-    logSupabaseError("club team owner insert failed", ownerError);
-    await deleteProviderCascade(providerId);
+  if (!ownerResult.ok) {
+    logSupabaseError("club team owner insert failed", ownerResult.error);
     return {
       ok: false,
-      error:
-        ownerError.message ||
-        "Could not save your owner account. Please try again.",
+      step: "Save owner account",
+      error: formatStepError(
+        "Save owner account",
+        ownerResult.error?.message ||
+          "Could not save your owner account. Please try again.",
+      ),
     };
   }
 
