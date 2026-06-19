@@ -77,8 +77,8 @@ export const FOOTER_SUPPORT_LINKS: FooterLinkItem[] = [
 export const FOOTER_TRUST_LINKS: FooterLinkItem[] = [
   { label: "GDPR", href: "/security" },
   { label: "Stripe payments", href: "/security" },
-  { label: "Built in UK", href: "/contact" },
-  { label: "Support hours", href: "/contact" },
+  { label: "Built in UK", href: "/built-in-uk" },
+  { label: "Support hours", href: "/support-hours" },
 ];
 
 export const FOOTER_LINK_COLUMNS: FooterColumnConfig[] = [
