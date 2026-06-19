@@ -5,6 +5,8 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 import {
   BadgeCheck,
   Headphones,
+  Loader2,
+  MapPin,
   RotateCcw,
   ShieldCheck,
 } from "lucide-react";
@@ -21,6 +23,11 @@ import {
   type HomeSearchFilters,
 } from "@/lib/home/search-url";
 import { useTranslation } from "@/lib/i18n";
+import {
+  NEARBY_SEARCH_RADIUS,
+  requestUserLocation,
+  reverseGeocodeUk,
+} from "@/lib/home/use-my-location";
 import { HOME_BUTTON, HOME_CARD, HOME_SHADOW, HOME_SHADOW_LG } from "./shared";
 
 type HomeHeroSearchProps = {
@@ -106,6 +113,7 @@ export function HomeHeroSearch({ filters, onFiltersChange }: HomeHeroSearchProps
   const { t } = useTranslation("homepage");
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [locating, setLocating] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
   const [activeSlide, setActiveSlide] = useState(0);
   const suggestionsRef = useRef<HTMLDivElement>(null);
 
@@ -135,24 +143,25 @@ export function HomeHeroSearch({ filters, onFiltersChange }: HomeHeroSearchProps
     window.location.href = buildSessionsUrl(filters);
   }
 
-  function handleUseLocation() {
-    if (!navigator.geolocation) {
-      onFiltersChange({ location: "London" });
-      return;
-    }
-
+  async function handleUseLocation() {
+    setLocationError(null);
     setLocating(true);
-    navigator.geolocation.getCurrentPosition(
-      () => {
-        onFiltersChange({ location: "Near me" });
-        setLocating(false);
-      },
-      () => {
-        onFiltersChange({ location: "London" });
-        setLocating(false);
-      },
-      { timeout: 8000 },
-    );
+
+    try {
+      const position = await requestUserLocation();
+      const { label } = await reverseGeocodeUk(
+        position.coords.latitude,
+        position.coords.longitude,
+      );
+      onFiltersChange({
+        location: `${label} ✓`,
+        radius: NEARBY_SEARCH_RADIUS,
+      });
+    } catch {
+      setLocationError(t("hero.locationUnavailable"));
+    } finally {
+      setLocating(false);
+    }
   }
 
   const filteredSuggestions = ACTIVITY_SUGGESTIONS.filter((item) =>
@@ -185,25 +194,49 @@ export function HomeHeroSearch({ filters, onFiltersChange }: HomeHeroSearchProps
                 >
                   {t("hero.location")}
                 </label>
-                <input
-                  id="home-location"
-                  type="text"
-                  value={filters.location}
-                  onChange={(event) =>
-                    onFiltersChange({ location: event.target.value })
-                  }
-                  placeholder={t("hero.locationPlaceholder")}
-                  className={INPUT_CLASS}
-                />
-                <button
-                  type="button"
-                  onClick={handleUseLocation}
-                  disabled={locating}
-                  className="mt-2 text-xs font-semibold hover:underline disabled:opacity-60"
-                  style={{ color: ACTIVORA_ACCENT }}
-                >
-                  {locating ? t("hero.locating") : t("hero.useLocation")}
-                </button>
+                <div className="relative">
+                  <input
+                    id="home-location"
+                    type="text"
+                    value={filters.location}
+                    onChange={(event) => {
+                      setLocationError(null);
+                      onFiltersChange({ location: event.target.value });
+                    }}
+                    placeholder={t("hero.locationPlaceholder")}
+                    className={`${INPUT_CLASS} pr-11`}
+                    aria-describedby={
+                      locationError ? "home-location-error" : undefined
+                    }
+                  />
+                  <button
+                    type="button"
+                    onClick={handleUseLocation}
+                    disabled={locating}
+                    className={`absolute right-1.5 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center text-slate-500 transition-colors hover:bg-slate-100 hover:text-[#F87128] disabled:opacity-60 ${HOME_BUTTON}`}
+                    aria-label={t("hero.useLocationAria")}
+                    title={t("hero.useLocation")}
+                  >
+                    {locating ? (
+                      <Loader2
+                        className="h-4 w-4 animate-spin"
+                        style={{ color: ACTIVORA_ACTION }}
+                        aria-hidden
+                      />
+                    ) : (
+                      <MapPin className="h-4 w-4" aria-hidden />
+                    )}
+                  </button>
+                </div>
+                {locationError ? (
+                  <p
+                    id="home-location-error"
+                    className="mt-1.5 text-xs font-medium text-amber-700"
+                    role="status"
+                  >
+                    {locationError}
+                  </p>
+                ) : null}
               </div>
 
               <div>
