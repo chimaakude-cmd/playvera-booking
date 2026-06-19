@@ -4,7 +4,7 @@
   --background: #f8fafc;
   --foreground: #0f172a;
   --activora-primary: #0f172a;
-  --activora-action: #2563eb;
+  --activora-action: #f87128;
   --activora-accent: #14b8a6;
   --activora-background: #f8fafc;
 }
@@ -13,7 +13,7 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-activora-primary: #0f172a;
-  --color-activora-action: #2563eb;
+  --color-activora-action: #f87128;
   --color-activora-accent: #14b8a6;
   --color-activora-bg: #f8fafc;
   --font-sans: var(--font-inter);

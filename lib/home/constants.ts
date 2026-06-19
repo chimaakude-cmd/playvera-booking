@@ -5,7 +5,7 @@ import {
 
 /** Activora Premium Homepage design tokens */
 export const ACTIVORA_PRIMARY = "#0F172A";
-export const ACTIVORA_ACTION = "#2563EB";
+export const ACTIVORA_ACTION = "#F87128";
 export const ACTIVORA_ACCENT = "#14B8A6";
 export const ACTIVORA_BACKGROUND = "#F8FAFC";
 

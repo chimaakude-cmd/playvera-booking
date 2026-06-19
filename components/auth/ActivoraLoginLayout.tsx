@@ -182,8 +182,8 @@ export function ActivoraLoginLayout({
         />
 
         <div className="relative">
-          <div className="inline-flex rounded-2xl bg-white/5 p-3 ring-1 ring-white/10">
-            <Logo size="desktop" href="/" />
+          <div className="inline-flex">
+            <Logo size={48} href="/" priority />
           </div>
 
           <h1 className="mt-8 max-w-xl text-3xl font-bold tracking-tight text-white sm:text-4xl xl:text-[2.5rem] xl:leading-tight">
@@ -224,7 +224,7 @@ export function ActivoraLoginLayout({
       >
         <div className="w-full max-w-[520px]">
           <div className="mb-8 lg:hidden">
-            <Logo size="desktop" href="/" />
+            <Logo size={48} href="/" priority />
           </div>
 
           <div className="mb-6">

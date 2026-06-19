@@ -4,7 +4,7 @@ import Link from "next/link";
 import { ChevronDown, MapPin, Shield, ShieldCheck } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { LanguageSelector } from "@/components/i18n/LanguageSelector";
-import { LogoMark } from "@/components/branding";
+import { Logo } from "@/components/branding";
 import { BRAND_NAME } from "@/lib/brand";
 import { ACTIVORA_ACCENT } from "@/lib/home/constants";
 import {
@@ -20,15 +20,7 @@ import { SocialPlatformIcon } from "@/components/club/public/SocialPlatformIcon"
 import { translateFooterColumnTitle, useTranslation } from "@/lib/i18n";
 
 function FooterLogo() {
-  return (
-    <Link
-      href="/"
-      className="group inline-flex shrink-0 items-center gap-2.5 transition-opacity duration-200 hover:opacity-90"
-    >
-      <LogoMark size={40} />
-      <span className="text-xl font-bold tracking-tight text-white">{BRAND_NAME}</span>
-    </Link>
-  );
+  return <Logo size={28} href="/" />;
 }
 
 function FooterNavLink({

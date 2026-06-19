@@ -1,24 +1,25 @@
 /** Public paths for Activora brand assets. */
-export const BRAND_LOGO_FULL = "/branding/activora-logo.png";
+export const BRAND_LOGO_FULL = "/branding/activora-logo-compact.png";
 export const BRAND_LOGO_COMPACT = "/branding/activora-logo-compact.png";
 export const BRAND_MARK_PNG = "/branding/activora-mark.png";
+export const BRAND_HERO = "/branding/activora-hero.png";
 
-/** Full horizontal logo with tagline (1024×506). */
-export const BRAND_LOGO_FULL_WIDTH = 1024;
-export const BRAND_LOGO_FULL_HEIGHT = 506;
+/** Trimmed wordmark (icons + ACTIVORA). Updated by `npm run generate:brand`. */
+export const BRAND_LOGO_FULL_WIDTH = 287;
+export const BRAND_LOGO_FULL_HEIGHT = 131;
 
-/** Icon + wordmark, no tagline (1024×370). */
-export const BRAND_LOGO_COMPACT_WIDTH = 1024;
-export const BRAND_LOGO_COMPACT_HEIGHT = 370;
+/** Same asset as full — no separate tagline row in current artwork. */
+export const BRAND_LOGO_COMPACT_WIDTH = BRAND_LOGO_FULL_WIDTH;
+export const BRAND_LOGO_COMPACT_HEIGHT = BRAND_LOGO_FULL_HEIGHT;
 
-export const BRAND_MARK_SIZE = 506;
+export const BRAND_MARK_SIZE = 287;
 
 export const BRAND_TAGLINE_SHORT = "Every child. Every activity. Every day.";
 
-/** Desktop header target height (px). */
-export const LOGO_HEIGHT_DESKTOP = 42;
-/** Mobile header target height (px). */
-export const LOGO_HEIGHT_MOBILE = 34;
+/** Desktop header target height (px) — matches h-10. */
+export const LOGO_HEIGHT_DESKTOP = 40;
+/** Mobile header target height (px) — matches h-8. */
+export const LOGO_HEIGHT_MOBILE = 32;
 
 export function logoWidthForHeight(
   height: number,

@@ -52,7 +52,7 @@ export function AuthChoicePage({ mode }: { mode: AuthMode }) {
     <div className="flex min-h-screen flex-col items-center justify-center bg-[#f6f7f9] px-4 py-8 sm:py-12">
       <div className="w-full max-w-5xl">
         <div className="mb-8 flex flex-col items-center text-center">
-          <Logo size="desktop" />
+          <Logo size={48} priority />
           <h1 className="mt-6 text-2xl font-bold tracking-tight text-zinc-900">
             {t(`${prefix}.heading`)}
           </h1>

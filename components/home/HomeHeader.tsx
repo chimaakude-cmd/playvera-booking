@@ -31,13 +31,8 @@ export function HomeHeader() {
 
   return (
     <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-[#F8FAFC]/95 backdrop-blur-sm">
-      <nav className="mx-auto flex max-w-6xl items-center gap-4 px-4 py-3 sm:px-6">
-        <div className="sm:hidden">
-          <Logo size="mobile" priority />
-        </div>
-        <div className="hidden sm:block">
-          <Logo size="desktop" priority />
-        </div>
+      <nav className="mx-auto flex max-w-6xl items-center gap-4 px-4 py-3.5 sm:px-6">
+        <Logo priority className="h-8 w-auto md:h-10" />
 
         <div className="hidden flex-1 items-center justify-center gap-1 lg:flex">
           {NAV_LINKS.map((link) => (

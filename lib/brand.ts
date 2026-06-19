@@ -7,5 +7,6 @@ export {
   BRAND_LOGO_COMPACT,
   BRAND_LOGO_FULL,
   BRAND_MARK_PNG,
+  BRAND_HERO,
   BRAND_TAGLINE_SHORT,
 } from "@/lib/branding/constants";

@@ -21,7 +21,7 @@ export function buildEmailLogoHeaderHtml(logoUrl?: string): string {
         src="${src}"
         alt="${BRAND_NAME}"
         width="220"
-        height="80"
+        height="100"
         style="display:block;height:auto;max-width:220px;width:100%;border:0;"
       />
     </td>
