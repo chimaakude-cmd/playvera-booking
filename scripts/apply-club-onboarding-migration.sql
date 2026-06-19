@@ -278,3 +278,14 @@ where schemaname = 'public'
   )
   and policyname like 'authenticated_%'
 order by tablename, policyname;
+
+-- ---------------------------------------------------------------------------
+-- 00046 — Franchise guardrails (managed_by_franchisor)
+-- See also: scripts/fix-ch-sports-franchise.sql
+-- ---------------------------------------------------------------------------
+
+alter table public.providers
+  add column if not exists managed_by_franchisor boolean not null default false;
+
+comment on column public.providers.managed_by_franchisor is
+  'When true and parent_provider_id is set, the club is managed by the franchisor parent provider.';

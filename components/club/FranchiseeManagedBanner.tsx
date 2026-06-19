@@ -2,10 +2,17 @@
 
 import { useFranchiseePolicy } from "@/lib/organisation";
 
-export function FranchiseeManagedBanner() {
-  const { isManaged, organisation } = useFranchiseePolicy();
+type FranchiseeManagedBannerProps = {
+  providerId?: string;
+};
 
-  if (!isManaged || !organisation) {
+export function FranchiseeManagedBanner({
+  providerId,
+}: FranchiseeManagedBannerProps) {
+  const { isManaged, organisation, franchiseStatusLoaded } =
+    useFranchiseePolicy(providerId);
+
+  if (!franchiseStatusLoaded || !isManaged || !organisation?.name) {
     return null;
   }
 

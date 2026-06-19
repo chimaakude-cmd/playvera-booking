@@ -8,13 +8,15 @@ import {
   isSupabaseServiceRoleConfigured,
 } from "@/lib/supabase";
 import {
+  INDEPENDENT_CLUB_ORGANISATION_FIELDS,
+} from "@/lib/organisation/franchise-status";
+import {
   DEFAULT_PLAN_ID,
   getPlanByIdOrDefault,
   type PlanId,
 } from "@/src/config/pricing";
 import {
   formatOwnerFullLegalName,
-  type ClubBusinessType,
   type ClubOnboardingState,
   type OnboardingClub,
   type OnboardingOwner,
@@ -81,15 +83,6 @@ function formatStepError(
   return `${step}: ${message}`;
 }
 
-function mapBusinessTypeToOrganisationType(
-  businessType: ClubBusinessType | "",
-): "club" | "franchise" | "enterprise" {
-  if (businessType === "franchise") {
-    return "franchise";
-  }
-
-  return "club";
-}
 
 function isEmailAlreadyRegistered(message: string, code?: string): boolean {
   return (
@@ -316,16 +309,21 @@ async function resolveUniqueProviderSlug(
   return `${baseSlug}-${Date.now()}`;
 }
 
+function independentClubProviderFields() {
+  return { ...INDEPENDENT_CLUB_ORGANISATION_FIELDS };
+}
+
 async function ensureProviderForOwner(
   supabase: ActivoraSupabaseClient,
   authUserId: string,
   clubName: string,
   owner: OnboardingOwner,
-  businessType: ClubBusinessType | "",
 ): Promise<
   | { ok: true; providerId: string; slug: string; created: boolean }
   | { ok: false; error: PostgrestError | null }
 > {
+  const independentFields = independentClubProviderFields();
+
   const { data: existing, error: existingError } = await supabase
     .from("providers")
     .select("id, slug")
@@ -337,9 +335,19 @@ async function ensureProviderForOwner(
   }
 
   if (existing?.id) {
+    const { error: resetError } = await supabase
+      .from("providers")
+      .update(independentFields)
+      .eq("id", existing.id);
+
+    if (resetError) {
+      return { ok: false, error: resetError };
+    }
+
     console.info("[club-onboarding] reusing existing provider for auth user:", {
       providerId: existing.id,
       authUserId,
+      independentClub: true,
     });
     return {
       ok: true,
@@ -360,7 +368,7 @@ async function ensureProviderForOwner(
       email: owner.email.trim(),
       phone: owner.phone.trim(),
       auth_user_id: authUserId,
-      organisation_type: mapBusinessTypeToOrganisationType(businessType),
+      ...independentFields,
       account_status: "active",
       platform_fee_percent: starterPlan.platformFeePercent,
     })
@@ -655,7 +663,6 @@ export async function submitClubOnboardingToSupabase(
     authUserId,
     clubName,
     state.owner,
-    state.club.businessType,
   );
 
   if (!providerResult.ok) {

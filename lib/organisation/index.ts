@@ -4,4 +4,5 @@ export * from "./storage";
 export * from "./dashboard";
 export * from "./permissions";
 export * from "./franchisee-guard";
+export * from "./franchise-status";
 export * from "./network";
