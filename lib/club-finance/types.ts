@@ -1,7 +1,7 @@
 /**
  * Club finance domain types.
  *
- * Storage (today): static mock data in mock-data.ts
+ * Storage (today): empty in production; dev-only demo data via data.ts
  * Database: future tables in supabase/migrations/00011_club_finance.sql
  */
 

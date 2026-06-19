@@ -3,7 +3,7 @@
 import {
   ACCOUNTING_INTEGRATIONS,
   BOOKKEEPING_SYNC_ITEMS,
-} from "@/lib/club-finance/mock-data";
+} from "@/lib/club-finance";
 import {
   canUseBookkeepingIntegrations,
   STRIPE_CONNECT_STATUS_LABELS,

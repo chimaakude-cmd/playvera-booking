@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { isDevelopmentEnvironment } from "@/lib/admin-users/production-gates";
 import { formatMoney } from "@/lib/payments";
 import type {
   FailedPaymentRetryStatus,
@@ -241,9 +242,16 @@ export function stubAction(label: string) {
 
 export function stubExportCsv(filename: string) {
   return () => {
-    const blob = new Blob(["Activora finance export — demo data only\n"], {
-      type: "text/csv",
-    });
+    const blob = new Blob(
+      [
+        isDevelopmentEnvironment()
+          ? "Activora finance export — demo data only\n"
+          : "Activora finance export\n",
+      ],
+      {
+        type: "text/csv",
+      },
+    );
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;

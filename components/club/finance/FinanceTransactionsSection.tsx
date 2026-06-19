@@ -5,9 +5,9 @@ import Link from "next/link";
 import {
   FINANCE_TRANSACTIONS,
   getFinanceFilterOptions,
-} from "@/lib/club-finance/mock-data";
+  formatFinanceDate,
+} from "@/lib/club-finance";
 import type { PaymentStatus, PayoutStatus } from "@/lib/club-finance/types";
-import { formatFinanceDate } from "@/lib/club-finance";
 import { formatMoney } from "@/lib/payments";
 import { PaginationControls } from "@/components/ui/PaginationControls";
 import { paginateItems } from "@/lib/pagination";
@@ -73,6 +73,8 @@ export function FinanceTransactionsSection() {
     () => paginateItems(filtered, page, 10),
     [filtered, page],
   );
+
+  const hasAnyTransactions = FINANCE_TRANSACTIONS.length > 0;
 
   return (
     <FinanceSection
@@ -164,7 +166,17 @@ export function FinanceTransactionsSection() {
         </FilterField>
       </div>
 
-      {pagination.totalItems === 0 ? (
+      {pagination.totalItems === 0 && !hasAnyTransactions ? (
+        <FinanceEmptyState
+          title="No transactions yet"
+          description="Start accepting bookings to see finance data."
+          action={
+            <Link href="/club/create-session">
+              <FinanceButton>Create activity</FinanceButton>
+            </Link>
+          }
+        />
+      ) : pagination.totalItems === 0 ? (
         <FinanceEmptyState
           title="No transactions match"
           description="Try adjusting your filters or date range."

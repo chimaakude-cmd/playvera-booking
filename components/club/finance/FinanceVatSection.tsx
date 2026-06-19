@@ -261,19 +261,25 @@ export function FinanceVatSection() {
         title="Rolling 12-month revenue"
         description="Activora tracks taxable turnover through the platform for threshold monitoring only."
       >
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {MONTHLY_REVENUE_HISTORY.map((point) => (
-            <div
-              key={point.month}
-              className="rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-3"
-            >
-              <p className="text-xs font-medium text-zinc-400">{point.month}</p>
-              <p className="mt-1 text-sm font-semibold text-zinc-900">
-                £{point.revenue.toLocaleString("en-GB")}
-              </p>
-            </div>
-          ))}
-        </div>
+        {MONTHLY_REVENUE_HISTORY.length === 0 ? (
+          <p className="text-sm text-zinc-500">
+            No revenue recorded yet. Completed booking payments will appear here.
+          </p>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {MONTHLY_REVENUE_HISTORY.map((point) => (
+              <div
+                key={point.month}
+                className="rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-3"
+              >
+                <p className="text-xs font-medium text-zinc-400">{point.month}</p>
+                <p className="mt-1 text-sm font-semibold text-zinc-900">
+                  £{point.revenue.toLocaleString("en-GB")}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
       </FinanceSection>
 
       <HmrcVatCard />

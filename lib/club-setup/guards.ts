@@ -41,7 +41,7 @@ export function getPaidSessionBlockMessage(): string {
 }
 
 export function getPayoutBlockMessage(): string {
-  return "Configure payouts in Finance after connecting Stripe to receive withdrawals.";
+  return "Connect Stripe to receive payouts";
 }
 
 export function getVatBlockMessage(): string {

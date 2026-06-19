@@ -1,3 +1,5 @@
+/** @internal Development-only demo finance dataset — never import directly in UI. */
+
 import type {
   AccountingIntegration,
   FailedPayment,
@@ -501,16 +503,3 @@ export const ACCOUNTING_INTEGRATIONS = [
     syncItems: [...BOOKKEEPING_SYNC_ITEMS],
   },
 ] as const satisfies readonly AccountingIntegration[];
-
-export function getFinanceFilterOptions(): {
-  activities: string[];
-  venues: string[];
-} {
-  const activities = [
-    ...new Set(FINANCE_TRANSACTIONS.map((t) => t.activityName)),
-  ].sort();
-  const venues = [
-    ...new Set(FINANCE_TRANSACTIONS.map((t) => t.venue)),
-  ].sort();
-  return { activities, venues };
-}

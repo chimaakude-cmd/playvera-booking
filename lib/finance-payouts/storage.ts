@@ -1,3 +1,4 @@
+import { isDevelopmentEnvironment } from "@/lib/admin-users/production-gates";
 import { getOrganisation } from "@/lib/organisation/storage";
 import {
   estimateNextPayoutDate,
@@ -123,14 +124,29 @@ export function saveFranchisorFeeSettings(
 export function getClubPayoutPreferences(
   clubId: string = DEFAULT_CLUB_PAYOUT_PREFERENCES.clubId,
 ): ClubPayoutPreferences {
+  const emptyPrefs: ClubPayoutPreferences = {
+    ...DEFAULT_CLUB_PAYOUT_PREFERENCES,
+    clubId,
+    availableBalance: 0,
+    pendingBalance: 0,
+  };
+  const seedDefaults = isDevelopmentEnvironment()
+    ? {
+        [DEFAULT_CLUB_PAYOUT_PREFERENCES.clubId]:
+          DEFAULT_CLUB_PAYOUT_PREFERENCES,
+      }
+    : {
+        [DEFAULT_CLUB_PAYOUT_PREFERENCES.clubId]: emptyPrefs,
+      };
+
   const all = seedIfEmpty<Record<string, ClubPayoutPreferences>>(
     CLUB_PAYOUT_PREFERENCES_KEY,
-    {
-      [DEFAULT_CLUB_PAYOUT_PREFERENCES.clubId]: DEFAULT_CLUB_PAYOUT_PREFERENCES,
-    },
+    seedDefaults,
   );
   const prefs = all[clubId] ?? {
-    ...DEFAULT_CLUB_PAYOUT_PREFERENCES,
+    ...(isDevelopmentEnvironment()
+      ? DEFAULT_CLUB_PAYOUT_PREFERENCES
+      : emptyPrefs),
     clubId,
   };
   return withComputedClubPayout(prefs);
@@ -156,6 +172,9 @@ export function saveClubPayoutPreferences(
 }
 
 export function getFinanceReports(): FinanceReportRow[] {
+  if (!isDevelopmentEnvironment()) {
+    return seedIfEmpty(FINANCE_REPORTS_KEY, []);
+  }
   return seedIfEmpty(FINANCE_REPORTS_KEY, DEFAULT_FINANCE_REPORTS);
 }
 

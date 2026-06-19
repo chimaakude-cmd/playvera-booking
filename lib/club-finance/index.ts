@@ -1,5 +1,5 @@
 export * from "./types";
-export * from "./mock-data";
+export * from "./data";
 export * from "./vat-settings";
 export * from "./vat";
 export * from "./hmrc-links";
