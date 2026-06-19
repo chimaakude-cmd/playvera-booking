@@ -3,10 +3,8 @@
 import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
-import { ConfirmDialog } from "@/components/club/ConfirmDialog";
 import { ShareClubModal } from "@/components/club/share/ShareClubModal";
 import {
-  archiveActivities,
   computeActivityMetrics,
   DEFAULT_ACTIVITY_FILTERS,
   extractFilterOptions,
@@ -20,6 +18,15 @@ import {
   type ActivityRow,
   type ActivityViewTab,
 } from "@/lib/club-activities";
+import {
+  archiveSessionActivity,
+  bulkArchiveSessions,
+  bulkDeleteSessions,
+  bulkPublishSessions,
+  canHardDeleteSession,
+  deleteSessionActivity,
+  getActiveBookingCount,
+} from "@/lib/club-activities/session-actions";
 import { getClubProfile } from "@/lib/club-profile";
 import { dataLayer, loadSessionsWithMeta } from "@/lib/data";
 import { paginateItems } from "@/lib/pagination";
@@ -30,6 +37,7 @@ import { ActivitiesHeader } from "./ActivitiesHeader";
 import { ActivitiesMetrics } from "./ActivitiesMetrics";
 import { ActivitiesSkeleton } from "./ActivitiesSkeleton";
 import { ActivitiesTable } from "./ActivitiesTable";
+import { SessionDeleteDialog } from "./SessionDeleteDialog";
 
 const ActivityOverviewDrawer = dynamic(
   () =>
@@ -59,8 +67,9 @@ function ActivitiesPageContent({
   );
   const [page, setPage] = useState(1);
   const [selectedRow, setSelectedRow] = useState<ActivityRow | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [deleteTarget, setDeleteTarget] = useState<ActivityRow | null>(null);
-  const [deleting, setDeleting] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [showCreated, setShowCreated] = useState(showCreatedProp);
   const [showUpdated, setShowUpdated] = useState(showUpdatedProp);
@@ -139,6 +148,15 @@ function ActivitiesPageContent({
     [filtered, page],
   );
 
+  const selectedRows = useMemo(
+    () => rows.filter((row) => selectedIds.includes(row.id)),
+    [rows, selectedIds],
+  );
+
+  const deleteHasBookings = deleteTarget
+    ? !canHardDeleteSession(deleteTarget)
+    : false;
+
   function handleResetFilters() {
     setFilters(resetActivityFilters());
     setViewTab("all");
@@ -149,17 +167,43 @@ function ActivitiesPageContent({
     setRefreshKey((current) => current + 1);
   }
 
+  async function handleArchive(row: ActivityRow) {
+    setActionLoading(true);
+    setError(null);
+
+    try {
+      await archiveSessionActivity(row);
+      setActionMessage(`"${row.title}" archived.`);
+      setDeleteTarget(null);
+      setSelectedRow(null);
+      setSelectedIds((current) => current.filter((id) => id !== row.id));
+      handleRefresh();
+    } catch (archiveError) {
+      setError(
+        archiveError instanceof Error
+          ? archiveError.message
+          : "Could not archive this activity.",
+      );
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
   async function handleDeleteConfirm() {
     if (!deleteTarget) {
       return;
     }
 
-    setDeleting(true);
+    setActionLoading(true);
 
     try {
-      await dataLayer.sessions.delete(deleteTarget.id);
+      await deleteSessionActivity(deleteTarget);
+      setActionMessage(`"${deleteTarget.title}" deleted.`);
       setDeleteTarget(null);
       setSelectedRow(null);
+      setSelectedIds((current) =>
+        current.filter((id) => id !== deleteTarget.id),
+      );
       handleRefresh();
     } catch (deleteError) {
       setError(
@@ -168,7 +212,7 @@ function ActivitiesPageContent({
           : "Could not delete this activity.",
       );
     } finally {
-      setDeleting(false);
+      setActionLoading(false);
     }
   }
 
@@ -202,40 +246,122 @@ function ActivitiesPageContent({
     setShareOpen(true);
   }
 
-  function handleBulkAction(action: "archive" | "export") {
-    if (action === "archive") {
-      const drafts = rows.filter((row) => row.status === "draft");
-      archiveActivities(drafts.map((row) => row.id));
-      setActionMessage(
-        drafts.length > 0
-          ? `Archived ${drafts.length} draft${drafts.length === 1 ? "" : "s"}.`
-          : "No drafts to archive.",
+  function handleDeleteRequest(row: ActivityRow) {
+    if (row.status === "draft" && canHardDeleteSession(row)) {
+      const confirmed = window.confirm(
+        `Delete "${row.title}"? This action cannot be undone.`,
       );
-      handleRefresh();
+      if (confirmed) {
+        void handleDeleteConfirmForRow(row);
+      }
       return;
     }
 
-    const csv = [
-      ["Title", "Status", "Venue", "Bookings", "Capacity"].join(","),
-      ...filtered.map((row) =>
-        [
-          `"${row.title.replace(/"/g, '""')}"`,
-          row.status,
-          `"${row.venueName.replace(/"/g, '""')}"`,
-          row.occupancy.filled,
-          row.occupancy.capacity,
-        ].join(","),
-      ),
-    ].join("\n");
+    setDeleteTarget(row);
+  }
 
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "activities-export.csv";
-    link.click();
-    URL.revokeObjectURL(url);
-    setActionMessage("Activity list exported.");
+  async function handleDeleteConfirmForRow(row: ActivityRow) {
+    setActionLoading(true);
+
+    try {
+      await deleteSessionActivity(row);
+      setActionMessage(`"${row.title}" deleted.`);
+      setDeleteTarget(null);
+      setSelectedRow(null);
+      setSelectedIds((current) => current.filter((id) => id !== row.id));
+      handleRefresh();
+    } catch (deleteError) {
+      setError(
+        deleteError instanceof Error
+          ? deleteError.message
+          : "Could not delete this activity.",
+      );
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
+  async function handleBulkAction(
+    action: "delete" | "archive" | "publish" | "export",
+  ) {
+    if (action === "export") {
+      const csv = [
+        ["Title", "Status", "Venue", "Bookings", "Capacity"].join(","),
+        ...filtered.map((row) =>
+          [
+            `"${row.title.replace(/"/g, '""')}"`,
+            row.status,
+            `"${row.venueName.replace(/"/g, '""')}"`,
+            row.occupancy.filled,
+            row.occupancy.capacity,
+          ].join(","),
+        ),
+      ].join("\n");
+
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "activities-export.csv";
+      link.click();
+      URL.revokeObjectURL(url);
+      setActionMessage("Activity list exported.");
+      return;
+    }
+
+    if (selectedRows.length === 0) {
+      setActionMessage("Select at least one activity first.");
+      return;
+    }
+
+    setActionLoading(true);
+    setError(null);
+
+    try {
+      if (action === "archive") {
+        const count = await bulkArchiveSessions(selectedRows);
+        setActionMessage(
+          `Archived ${count} activit${count === 1 ? "y" : "ies"}.`,
+        );
+      }
+
+      if (action === "publish") {
+        const count = await bulkPublishSessions(selectedRows);
+        setActionMessage(
+          `Published ${count} activit${count === 1 ? "y" : "ies"}.`,
+        );
+      }
+
+      if (action === "delete") {
+        const blocked = selectedRows.filter(
+          (row) => getActiveBookingCount(row) > 0,
+        );
+        if (blocked.length === selectedRows.length) {
+          setDeleteTarget(blocked[0]);
+          return;
+        }
+
+        const { deleted, skipped } = await bulkDeleteSessions(selectedRows);
+        setActionMessage(
+          deleted > 0
+            ? `Deleted ${deleted} activit${deleted === 1 ? "y" : "ies"}${
+                skipped > 0 ? `. ${skipped} skipped due to bookings.` : "."
+              }`
+            : "No activities could be deleted.",
+        );
+      }
+
+      setSelectedIds([]);
+      handleRefresh();
+    } catch (bulkError) {
+      setError(
+        bulkError instanceof Error
+          ? bulkError.message
+          : "Could not complete bulk action.",
+      );
+    } finally {
+      setActionLoading(false);
+    }
   }
 
   function handleVisibilityToggle(row: ActivityRow) {
@@ -249,7 +375,10 @@ function ActivitiesPageContent({
 
   return (
     <div className="space-y-6">
-      <ActivitiesHeader onBulkAction={handleBulkAction} />
+      <ActivitiesHeader
+        selectedCount={selectedIds.length}
+        onBulkAction={handleBulkAction}
+      />
       <ActivitiesMetrics metrics={metrics} />
 
       {error ? (
@@ -306,13 +435,15 @@ function ActivitiesPageContent({
           totalItems={pagination.totalItems}
           startIndex={pagination.startIndex}
           endIndex={pagination.endIndex}
+          selectedIds={selectedIds}
+          onSelectionChange={setSelectedIds}
           onPageChange={setPage}
           onRowClick={setSelectedRow}
           onVisibilityToggle={handleVisibilityToggle}
           onPreview={handlePreview}
-          onShare={handleShare}
           onDuplicate={handleDuplicate}
-          onDelete={setDeleteTarget}
+          onArchive={(row) => void handleArchive(row)}
+          onDelete={handleDeleteRequest}
         />
       )}
 
@@ -322,12 +453,17 @@ function ActivitiesPageContent({
         onShare={handleShare}
       />
 
-      <ConfirmDialog
+      <SessionDeleteDialog
         open={Boolean(deleteTarget)}
-        title="Delete activity?"
-        description={`Are you sure you want to delete "${deleteTarget?.title}"? This action cannot be undone.`}
-        confirmLabel={deleting ? "Deleting..." : "Delete activity"}
-        onConfirm={() => void handleDeleteConfirm()}
+        title="Delete session?"
+        hasBookings={deleteHasBookings}
+        loading={actionLoading}
+        onConfirmDelete={() => void handleDeleteConfirm()}
+        onArchiveInstead={() => {
+          if (deleteTarget) {
+            void handleArchive(deleteTarget);
+          }
+        }}
         onCancel={() => setDeleteTarget(null)}
       />
 

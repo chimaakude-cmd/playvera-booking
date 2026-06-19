@@ -46,3 +46,14 @@ export {
   mapSessionToActivityRow,
   mapSessionsToActivityRows,
 } from "./map-session";
+
+export {
+  bulkArchiveSessions,
+  bulkDeleteSessions,
+  bulkPublishSessions,
+  canHardDeleteSession,
+  deleteSessionActivity,
+  getActiveBookingCount,
+  archiveSessionActivity,
+  publishSessionActivity,
+} from "./session-actions";

@@ -110,12 +110,14 @@ type ActivitiesTableProps = {
   totalItems: number;
   startIndex: number;
   endIndex: number;
+  selectedIds: string[];
+  onSelectionChange: (ids: string[]) => void;
   onPageChange: (page: number) => void;
   onRowClick: (row: ActivityRow) => void;
   onVisibilityToggle: (row: ActivityRow) => void;
   onPreview: (row: ActivityRow) => void;
-  onShare: (row: ActivityRow) => void;
   onDuplicate: (row: ActivityRow) => void;
+  onArchive: (row: ActivityRow) => void;
   onDelete: (row: ActivityRow) => void;
 };
 
@@ -126,20 +128,57 @@ export function ActivitiesTable({
   totalItems,
   startIndex,
   endIndex,
+  selectedIds,
+  onSelectionChange,
   onPageChange,
   onRowClick,
   onVisibilityToggle,
   onPreview,
-  onShare,
   onDuplicate,
+  onArchive,
   onDelete,
 }: ActivitiesTableProps) {
+  const allSelected =
+    rows.length > 0 && rows.every((row) => selectedIds.includes(row.id));
+
+  function toggleRow(id: string) {
+    onSelectionChange(
+      selectedIds.includes(id)
+        ? selectedIds.filter((selectedId) => selectedId !== id)
+        : [...selectedIds, id],
+    );
+  }
+
+  function toggleAll() {
+    if (allSelected) {
+      onSelectionChange(
+        selectedIds.filter((id) => !rows.some((row) => row.id === id)),
+      );
+      return;
+    }
+
+    const next = new Set(selectedIds);
+    for (const row of rows) {
+      next.add(row.id);
+    }
+    onSelectionChange(Array.from(next));
+  }
+
   return (
     <div className="overflow-hidden rounded-2xl border border-zinc-200/80 bg-white shadow-sm">
       <div className="hidden overflow-x-auto lg:block">
         <table className="min-w-full divide-y divide-zinc-100">
           <thead>
             <tr className="bg-zinc-50/80">
+              <th scope="col" className="w-10 px-3 py-3">
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  onChange={toggleAll}
+                  aria-label="Select all activities on this page"
+                  className="h-4 w-4 rounded border-zinc-300 text-teal-600 focus:ring-teal-500"
+                />
+              </th>
               {[
                 "Activity",
                 "Dates",
@@ -171,6 +210,18 @@ export function ActivitiesTable({
                   onClick={() => onRowClick(row)}
                   className="group relative cursor-pointer hover:bg-zinc-50/60"
                 >
+                  <td
+                    className="px-3 py-4"
+                    onClick={(event) => event.stopPropagation()}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.includes(row.id)}
+                      onChange={() => toggleRow(row.id)}
+                      aria-label={`Select ${row.title}`}
+                      className="h-4 w-4 rounded border-zinc-300 text-teal-600 focus:ring-teal-500"
+                    />
+                  </td>
                   <td className="px-4 py-4">
                     <div className="flex items-center gap-3">
                       <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg border border-zinc-200 bg-zinc-50">
@@ -265,9 +316,8 @@ export function ActivitiesTable({
                     <div className="lg:group-hover:hidden">
                       <ActivityRowActions
                         row={row}
-                        onPreview={onPreview}
-                        onShare={onShare}
                         onDuplicate={onDuplicate}
+                        onArchive={onArchive}
                         onDelete={onDelete}
                       />
                     </div>
@@ -312,6 +362,18 @@ export function ActivitiesTable({
               className="cursor-pointer p-4"
             >
               <div className="flex gap-3">
+                <div
+                  className="pt-1"
+                  onClick={(event) => event.stopPropagation()}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.includes(row.id)}
+                    onChange={() => toggleRow(row.id)}
+                    aria-label={`Select ${row.title}`}
+                    className="h-4 w-4 rounded border-zinc-300 text-teal-600 focus:ring-teal-500"
+                  />
+                </div>
                 <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-zinc-200">
                   <SafeImage
                     src={imageUrl}
@@ -346,9 +408,8 @@ export function ActivitiesTable({
                     <div onClick={(event) => event.stopPropagation()}>
                       <ActivityRowActions
                         row={row}
-                        onPreview={onPreview}
-                        onShare={onShare}
                         onDuplicate={onDuplicate}
+                        onArchive={onArchive}
                         onDelete={onDelete}
                       />
                     </div>
