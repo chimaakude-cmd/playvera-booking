@@ -196,7 +196,7 @@ export function ChildRegisterDrawer({
 
           {entry.isDemo ? (
             <p className="mb-4 rounded-xl bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">
-              Demo register data — actions update locally until real bookings exist.
+              Example register — actions update locally until real bookings exist.
             </p>
           ) : null}
 

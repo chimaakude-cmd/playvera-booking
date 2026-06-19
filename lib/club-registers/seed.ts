@@ -258,7 +258,7 @@ export const DEMO_REGISTER_CHILD_COUNT = DEMO_REGISTER_CHILDREN.length;
 export const DEMO_BLOCK_SESSION_OPTION: RegisterSessionOption = {
   id: `${DEMO_BLOCK_SESSION_ID}__2026-06-18__16:00`,
   sessionId: DEMO_BLOCK_SESSION_ID,
-  activityTitle: "Summer Skills Block (Demo)",
+  activityTitle: "Summer Skills Block (Example)",
   venue: "Riverside Sports Hall",
   date: "2026-06-18",
   startTime: "16:00",

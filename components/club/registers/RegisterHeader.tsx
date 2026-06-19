@@ -28,11 +28,11 @@ export function RegisterHeader({
       <div className="flex flex-col gap-4 border-b border-zinc-100 p-4 sm:p-5">
         <div className="flex flex-wrap items-center gap-3">
           <Link
-            href="/club/activities"
+            href="/club/registers"
             className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-zinc-200 px-3 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 print:hidden"
           >
             <span aria-hidden>←</span>
-            Back to Activities
+            Back to registers
           </Link>
           {meta.isBlockMode ? (
             <span className="rounded-full bg-teal-50 px-2.5 py-1 text-xs font-semibold text-teal-800 ring-1 ring-teal-200">
@@ -73,7 +73,7 @@ export function RegisterHeader({
             </dl>
             {meta.usingDemoData ? (
               <p className="mt-2 text-xs font-medium text-amber-700">
-                Demo register data — includes block booking and filter test scenarios.
+                Example register — includes block booking and example booking scenarios.
               </p>
             ) : null}
           </div>

@@ -58,16 +58,15 @@ export function ActivityRowHoverActions({
       >
         Register
       </Link>
-      <button
-        type="button"
-        onClick={(event) => {
-          event.stopPropagation();
-          onPreview(row);
-        }}
+      <Link
+        href={`/book/${row.id}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={(event) => event.stopPropagation()}
         className={shortcutClass}
       >
-        Test booking
-      </button>
+        Example booking
+      </Link>
       <button
         type="button"
         onClick={(event) => {
