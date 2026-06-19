@@ -79,3 +79,35 @@ export function copyContactPhones(contacts: ParentContact[]): string {
     .filter(Boolean)
     .join(", ");
 }
+
+export function exportContactsCsv(contacts: ParentContact[]): string {
+  const header = ["Name", "Email", "Phone"].join(",");
+  const rows = contacts.map((contact) =>
+    [
+      `"${contact.name.replace(/"/g, '""')}"`,
+      `"${contact.email.replace(/"/g, '""')}"`,
+      `"${contact.phone.replace(/"/g, '""')}"`,
+    ].join(","),
+  );
+  return [header, ...rows].join("\n");
+}
+
+export function buildSmsLink(
+  contacts: ParentContact[],
+  body: string,
+): string {
+  const phones = contacts
+    .map((contact) => contact.phone.trim().replace(/\s+/g, ""))
+    .filter(Boolean);
+
+  if (phones.length === 0) {
+    return "";
+  }
+
+  const encodedBody = encodeURIComponent(body);
+  if (phones.length === 1) {
+    return `sms:${phones[0]}?body=${encodedBody}`;
+  }
+
+  return `sms:${phones.join(",")}?body=${encodedBody}`;
+}
