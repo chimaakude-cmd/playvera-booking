@@ -3,16 +3,17 @@
 import {
   calculateRemainingSessionCost,
   createEmptyTicket,
+  fromTicketPaymentType,
   getActiveWizardDates,
   getRemainingSessionCount,
+  isTicketPriceEditable,
+  parsePriceFromTicketName,
+  SESSION_TICKET_SUBSCRIPTION_ENABLED,
+  toTicketPaymentType,
+  TicketPaymentType,
   WizardFormData,
 } from "@/lib/session-wizard";
-import {
-  formatMoney,
-  formatTicketPriceType,
-  SessionTicket,
-  TicketPriceType,
-} from "@/lib/sessions";
+import { formatMoney, SessionTicket, TicketPriceType } from "@/lib/sessions";
 import {
   StepSection,
   StepperButton,
@@ -26,12 +27,20 @@ type TicketsStepProps = {
   onChange: (updates: Partial<WizardFormData>) => void;
 };
 
-const priceTypeOptions: TicketPriceType[] = [
-  "free",
-  "per_session",
-  "term_block",
-  "subscription",
-  "free_trial",
+const paymentTypeOptions: Array<{
+  value: TicketPaymentType;
+  label: string;
+  disabled?: boolean;
+}> = [
+  { value: "one_off", label: "One-off payment" },
+  {
+    value: "monthly_subscription",
+    label: SESSION_TICKET_SUBSCRIPTION_ENABLED
+      ? "Monthly subscription"
+      : "Monthly subscription (Coming soon)",
+    disabled: !SESSION_TICKET_SUBSCRIPTION_ENABLED,
+  },
+  { value: "free_session", label: "Free session" },
 ];
 
 function updateTicket(
@@ -42,6 +51,21 @@ function updateTicket(
   return tickets.map((ticket) =>
     ticket.id === ticketId ? { ...ticket, ...updates } : ticket,
   );
+}
+
+function oneOffPriceHint(
+  priceType: TicketPriceType,
+  bookingStructure: WizardFormData["bookingStructure"],
+): string | undefined {
+  if (priceType === "term_block") {
+    return "One fixed price for the whole block.";
+  }
+  if (priceType === "per_session") {
+    return bookingStructure === "block"
+      ? "Parents pay only for remaining sessions if joining part-way through."
+      : "Parents pay this amount per session.";
+  }
+  return undefined;
 }
 
 export function TicketsStep({ data, onChange }: TicketsStepProps) {
@@ -56,14 +80,14 @@ export function TicketsStep({ data, onChange }: TicketsStepProps) {
     onChange({ tickets: data.tickets.filter((ticket) => ticket.id !== ticketId) });
   }
 
-  function handlePriceTypeChange(ticketId: string, priceType: TicketPriceType) {
+  function handlePaymentTypeChange(
+    ticketId: string,
+    paymentType: TicketPaymentType,
+  ) {
+    const priceType = fromTicketPaymentType(paymentType, data.bookingStructure);
     const updates: Partial<SessionTicket> = { priceType };
 
-    if (
-      priceType === "free" ||
-      priceType === "free_trial" ||
-      priceType === "subscription"
-    ) {
+    if (!isTicketPriceEditable(priceType)) {
       updates.price = 0;
     }
 
@@ -72,26 +96,26 @@ export function TicketsStep({ data, onChange }: TicketsStepProps) {
     });
   }
 
+  function handleTicketNameChange(ticket: SessionTicket, name: string) {
+    const updates: Partial<SessionTicket> = { name };
+
+    if (isTicketPriceEditable(ticket.priceType)) {
+      const parsedPrice = parsePriceFromTicketName(name);
+      if (parsedPrice !== null && ticket.price === 0) {
+        updates.price = parsedPrice;
+      }
+    }
+
+    onChange({
+      tickets: updateTicket(data.tickets, ticket.id, updates),
+    });
+  }
+
   return (
     <StepSection
       title="Tickets & pricing"
-      description="Create ticket options for parents. Per-session tickets auto-calculate remaining-session cost."
+      description="Set up how parents book and pay for this session."
     >
-      <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-600 sm:p-5">
-        <p>
-          <strong className="text-zinc-900">Block price</strong> — one fixed price
-          for the whole block.
-        </p>
-        <p className="mt-2">
-          <strong className="text-zinc-900">Per session</strong> — parents pay only
-          for remaining sessions if joining part-way through.
-        </p>
-        <p className="mt-2">
-          <strong className="text-zinc-900">Subscription</strong> — placeholder for
-          recurring membership billing (payments coming later).
-        </p>
-      </div>
-
       <div className="flex items-center justify-between gap-3">
         <p className="text-sm text-zinc-500">
           {remainingCount} remaining session{remainingCount === 1 ? "" : "s"} from
@@ -107,10 +131,13 @@ export function TicketsStep({ data, onChange }: TicketsStepProps) {
       ) : (
         <div className="space-y-4">
           {data.tickets.map((ticket, index) => {
-            const priceLocked =
-              ticket.priceType === "free" ||
-              ticket.priceType === "free_trial" ||
-              ticket.priceType === "subscription";
+            const paymentType = toTicketPaymentType(ticket.priceType);
+            const priceEditable = isTicketPriceEditable(ticket.priceType);
+            const priceHint = priceEditable
+              ? oneOffPriceHint(ticket.priceType, data.bookingStructure)
+              : paymentType === "monthly_subscription"
+                ? "Recurring billing is not available yet."
+                : "No payment required.";
             const remainingCost =
               ticket.priceType === "per_session"
                 ? calculateRemainingSessionCost(ticket.price, activeDates)
@@ -140,19 +167,15 @@ export function TicketsStep({ data, onChange }: TicketsStepProps) {
                       id={`ticket-name-${ticket.id}`}
                       value={ticket.name}
                       onChange={(event) =>
-                        onChange({
-                          tickets: updateTicket(data.tickets, ticket.id, {
-                            name: event.target.value,
-                          }),
-                        })
+                        handleTicketNameChange(ticket, event.target.value)
                       }
-                      placeholder="e.g. Full term, Drop-in, Free trial"
+                      placeholder="e.g. Full term, Drop-in, Monthly subscription – £20"
                       className={wizardInputClassName}
                     />
                   </WizardField>
 
                   <WizardField
-                    label="Ticket description"
+                    label="Description"
                     htmlFor={`ticket-description-${ticket.id}`}
                   >
                     <textarea
@@ -170,45 +193,46 @@ export function TicketsStep({ data, onChange }: TicketsStepProps) {
                     />
                   </WizardField>
 
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <WizardField label="Price type" htmlFor={`ticket-type-${ticket.id}`}>
-                      <select
-                        id={`ticket-type-${ticket.id}`}
-                        value={ticket.priceType}
-                        onChange={(event) =>
-                          handlePriceTypeChange(
-                            ticket.id,
-                            event.target.value as TicketPriceType,
-                          )
-                        }
-                        className={wizardInputClassName}
-                      >
-                        {priceTypeOptions.map((option) => (
-                          <option key={option} value={option}>
-                            {formatTicketPriceType(option)}
-                          </option>
-                        ))}
-                      </select>
-                    </WizardField>
-
-                    <WizardField
-                      label="Price amount"
-                      htmlFor={`ticket-price-${ticket.id}`}
-                      hint={
-                        priceLocked
-                          ? ticket.priceType === "subscription"
-                            ? "Subscription billing coming later"
-                            : "Automatically set to £0"
-                          : undefined
+                  <WizardField label="Payment type" htmlFor={`ticket-type-${ticket.id}`}>
+                    <select
+                      id={`ticket-type-${ticket.id}`}
+                      value={paymentType}
+                      onChange={(event) =>
+                        handlePaymentTypeChange(
+                          ticket.id,
+                          event.target.value as TicketPaymentType,
+                        )
                       }
+                      className={wizardInputClassName}
                     >
+                      {paymentTypeOptions.map((option) => (
+                        <option
+                          key={option.value}
+                          value={option.value}
+                          disabled={option.disabled}
+                        >
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </WizardField>
+
+                  <WizardField
+                    label="Price"
+                    htmlFor={`ticket-price-${ticket.id}`}
+                    hint={priceHint}
+                  >
+                    <div className="relative">
+                      <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-sm text-zinc-500">
+                        £
+                      </span>
                       <input
                         id={`ticket-price-${ticket.id}`}
                         type="number"
                         min={0}
                         step="0.01"
-                        value={priceLocked ? 0 : ticket.price}
-                        disabled={priceLocked}
+                        value={priceEditable ? ticket.price : 0}
+                        disabled={!priceEditable}
                         onChange={(event) =>
                           onChange({
                             tickets: updateTicket(data.tickets, ticket.id, {
@@ -216,10 +240,10 @@ export function TicketsStep({ data, onChange }: TicketsStepProps) {
                             }),
                           })
                         }
-                        className={`${wizardInputClassName} disabled:bg-zinc-100 disabled:text-zinc-500`}
+                        className={`${wizardInputClassName} pl-8 disabled:bg-zinc-100 disabled:text-zinc-500`}
                       />
-                    </WizardField>
-                  </div>
+                    </div>
+                  </WizardField>
 
                   {remainingCost !== null ? (
                     <div className="rounded-xl border border-pink-200 bg-pink-50 px-4 py-3 text-sm text-pink-900">
@@ -229,7 +253,10 @@ export function TicketsStep({ data, onChange }: TicketsStepProps) {
                     </div>
                   ) : null}
 
-                  <div className="grid gap-3 sm:grid-cols-2">
+                  <fieldset className="space-y-3">
+                    <legend className="text-sm font-medium text-zinc-900">
+                      Display options
+                    </legend>
                     <label className="flex items-start gap-3 rounded-xl border border-zinc-200 px-4 py-3">
                       <input
                         type="checkbox"
@@ -245,10 +272,11 @@ export function TicketsStep({ data, onChange }: TicketsStepProps) {
                       />
                       <span>
                         <span className="block text-sm font-medium text-zinc-900">
-                          Low spaces trigger
+                          Show limited spaces badge
                         </span>
                         <span className="mt-1 block text-xs text-zinc-500">
-                          Show urgency when 5 or fewer places remain.
+                          Display &ldquo;Limited spaces remaining&rdquo; to parents when
+                          capacity is low.
                         </span>
                       </span>
                     </label>
@@ -268,14 +296,15 @@ export function TicketsStep({ data, onChange }: TicketsStepProps) {
                       />
                       <span>
                         <span className="block text-sm font-medium text-zinc-900">
-                          Recent booking flag
+                          Show popularity badge
                         </span>
                         <span className="mt-1 block text-xs text-zinc-500">
-                          Placeholder for future map promotional messages.
+                          Display &ldquo;Recently booked&rdquo; or &ldquo;Popular
+                          choice&rdquo;.
                         </span>
                       </span>
                     </label>
-                  </div>
+                  </fieldset>
                 </div>
               </article>
             );

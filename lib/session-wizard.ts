@@ -28,7 +28,71 @@ import {
   SessionDateSlot,
   SessionSchedule,
   SessionTicket,
+  TicketPriceType,
 } from "./sessions";
+
+/** Session ticket subscriptions are not billed yet (provider GoCardless only). */
+export const SESSION_TICKET_SUBSCRIPTION_ENABLED = false;
+
+export type TicketPaymentType = "one_off" | "monthly_subscription" | "free_session";
+
+export function toTicketPaymentType(
+  priceType: TicketPriceType,
+): TicketPaymentType {
+  if (priceType === "free" || priceType === "free_trial") {
+    return "free_session";
+  }
+  if (priceType === "subscription") {
+    return "monthly_subscription";
+  }
+  return "one_off";
+}
+
+export function fromTicketPaymentType(
+  paymentType: TicketPaymentType,
+  bookingStructure: BookingStructureType | null,
+): TicketPriceType {
+  switch (paymentType) {
+    case "free_session":
+      return "free";
+    case "monthly_subscription":
+      return "subscription";
+    case "one_off":
+      return bookingStructure === "block" ? "term_block" : "per_session";
+  }
+}
+
+export function parsePriceFromTicketName(name: string): number | null {
+  const trimmed = name.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  const poundMatch = trimmed.match(/£\s*(\d+(?:\.\d{1,2})?)/);
+  if (poundMatch) {
+    return Number(poundMatch[1]);
+  }
+
+  const dashMatch = trimmed.match(/[–-]\s*£?\s*(\d+(?:\.\d{1,2})?)\s*$/);
+  if (dashMatch) {
+    return Number(dashMatch[1]);
+  }
+
+  const trailingAmount = trimmed.match(/(\d+(?:\.\d{1,2})?)\s*(?:pounds?|gbp)\b/i);
+  if (trailingAmount) {
+    return Number(trailingAmount[1]);
+  }
+
+  return null;
+}
+
+export function isTicketPriceEditable(priceType: TicketPriceType): boolean {
+  return (
+    priceType !== "free" &&
+    priceType !== "free_trial" &&
+    priceType !== "subscription"
+  );
+}
 
 export type WizardStep = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
 
@@ -645,7 +709,10 @@ export function summarizeTickets(data: WizardFormData): string {
         ticket.priceType === "free_trial" ||
         ticket.priceType === "subscription"
       ) {
-        return `${ticket.name}: ${ticket.priceType === "subscription" ? "Subscription placeholder" : "Free"}`;
+        if (ticket.priceType === "subscription") {
+          return `${ticket.name}: Monthly subscription (coming soon)`;
+        }
+        return `${ticket.name}: Free`;
       }
 
       if (ticket.priceType === "term_block") {

@@ -192,7 +192,7 @@ export function getTicketPriceSummary(session: ClubSession): string {
     }
 
     if (ticket.priceType === "subscription") {
-      return `${ticket.name}: Subscription (coming soon)`;
+      return `${ticket.name}: Monthly subscription (coming soon)`;
     }
 
     return `${ticket.name}: ${formatMoney(ticket.price)}/session`;
@@ -331,11 +331,11 @@ export function formatActivityType(type: string): string {
 }
 
 export const ticketPriceTypeLabels: Record<TicketPriceType, string> = {
-  free: "Free",
-  term_block: "Block price",
-  per_session: "Per session",
-  free_trial: "Free trial",
-  subscription: "Subscription (placeholder)",
+  free: "Free session",
+  term_block: "One-off payment",
+  per_session: "One-off payment",
+  free_trial: "Free session",
+  subscription: "Monthly subscription",
 };
 
 export function formatTicketPriceType(type: TicketPriceType): string {
