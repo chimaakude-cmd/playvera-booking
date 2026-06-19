@@ -447,11 +447,15 @@ type CompleteClubOnboardingResult = {
   success: boolean;
   errors: string[];
   providerId?: string;
+  publicSlug?: string;
 };
 
 async function persistClubOnboardingToSupabase(
   synced: ClubOnboardingState,
-): Promise<{ ok: true; providerId: string; authUserId: string } | { ok: false; error: string }> {
+): Promise<
+  | { ok: true; providerId: string; authUserId: string; publicSlug: string }
+  | { ok: false; error: string }
+> {
   console.info("[club-onboarding] Submitting onboarding to Supabase API");
 
   const response = await fetch("/api/club/onboarding/complete", {
@@ -463,7 +467,13 @@ async function persistClubOnboardingToSupabase(
     }),
   });
 
-  let payload: { error?: string; step?: string; providerId?: string; authUserId?: string } = {};
+  let payload: {
+    error?: string;
+    step?: string;
+    providerId?: string;
+    authUserId?: string;
+    publicSlug?: string;
+  } = {};
   try {
     payload = (await response.json()) as typeof payload;
   } catch {
@@ -486,7 +496,7 @@ async function persistClubOnboardingToSupabase(
     };
   }
 
-  if (!payload.providerId || !payload.authUserId) {
+  if (!payload.providerId || !payload.authUserId || !payload.publicSlug) {
     console.error("[club-onboarding] Supabase submit returned incomplete payload:", payload);
     return {
       ok: false,
@@ -497,20 +507,24 @@ async function persistClubOnboardingToSupabase(
   console.info("[club-onboarding] Supabase submit succeeded:", {
     providerId: payload.providerId,
     authUserId: payload.authUserId,
+    publicSlug: payload.publicSlug,
   });
 
   return {
     ok: true,
     providerId: payload.providerId,
     authUserId: payload.authUserId,
+    publicSlug: payload.publicSlug,
   };
 }
 
 function finalizeClubOnboardingLocally(
   synced: ClubOnboardingState,
-  options?: { authUserId?: string; providerId?: string },
+  options?: { authUserId?: string; providerId?: string; publicSlug?: string },
 ): CompleteClubOnboardingResult {
-  const profileInput = buildClubProfileInput(synced);
+  const profileInput = buildClubProfileInput(synced, {
+    publicSlug: options?.publicSlug,
+  });
 
   try {
     saveClubProfile(profileInput, { providerId: options?.providerId });
@@ -549,6 +563,7 @@ function finalizeClubOnboardingLocally(
     success: true,
     errors: [],
     providerId: options?.providerId,
+    publicSlug: options?.publicSlug,
   };
 }
 
@@ -580,6 +595,7 @@ export async function completeClubOnboarding(
     return finalizeClubOnboardingLocally(synced, {
       authUserId: supabaseResult.authUserId,
       providerId: supabaseResult.providerId,
+      publicSlug: supabaseResult.publicSlug,
     });
   }
 

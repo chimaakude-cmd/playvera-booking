@@ -19,6 +19,7 @@ import { SessionCapacityWidget } from "./SessionCapacityWidget";
 import { ReviewInsightsCard } from "./ReviewInsightsCard";
 import { SharePromptBanner } from "@/components/club/share/SharePromptBanner";
 import { FirstActivityCelebration } from "./FirstActivityCelebration";
+import { IncompleteProfileLiveBanner } from "./IncompleteProfileLiveBanner";
 import { LaunchReadinessCard } from "./LaunchReadinessCard";
 import { NewClubAnalyticsPlaceholders } from "./NewClubAnalyticsPlaceholders";
 import { NewClubHero } from "./NewClubHero";
@@ -26,7 +27,9 @@ import { NewClubShareSection } from "./NewClubShareSection";
 import { PublicProfilePreview } from "./PublicProfilePreview";
 import { SetupChecklist } from "./SetupChecklist";
 import { getBookings, getRecentBookings } from "@/lib/bookings";
+import { fetchClubProfileFromApi } from "@/lib/club-profile/client";
 import { getClubProfile } from "@/lib/club-profile";
+import type { ClubProfileVisibility } from "@/lib/club-profile/types";
 import { DEMO_PROVIDER_ID } from "@/lib/club-widget";
 import {
   getNewClubModeState,
@@ -54,36 +57,61 @@ function DashboardHomeContent() {
   const [profileSlug, setProfileSlug] = useState("playvera-juniors");
   const [providerId, setProviderId] = useState(DEMO_PROVIDER_ID);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [profileVisibility, setProfileVisibility] =
+    useState<ClubProfileVisibility>("draft");
+  const [profilePublished, setProfilePublished] = useState(false);
+  const [liveProfile, setLiveProfile] = useState(getClubProfile());
   const [newClubState, setNewClubState] = useState<NewClubModeState | null>(
     null,
   );
   const [showCelebration, setShowCelebration] = useState(false);
 
   useEffect(() => {
-    const loadedSessions = getSessions();
-    setSessions(loadedSessions);
+    let cancelled = false;
 
-    const profile = getClubProfile();
-    if (profile?.clubName) {
-      setClubName(profile.clubName);
-      setProfileSlug(profile.publicSlug);
-      setProviderId(profile.providerId || DEMO_PROVIDER_ID);
-      setLogoUrl(profile.logoUrl);
+    async function loadDashboardProfile() {
+      const loadedSessions = getSessions();
+      if (!cancelled) {
+        setSessions(loadedSessions);
+      }
+
+      const apiResult = await fetchClubProfileFromApi();
+      const profile = apiResult.ok ? apiResult.profile : getClubProfile();
+
+      if (cancelled) {
+        return;
+      }
+
+      if (profile?.clubName) {
+        setClubName(profile.clubName);
+        setProfileSlug(profile.publicSlug);
+        setProviderId(profile.providerId || DEMO_PROVIDER_ID);
+        setLogoUrl(profile.logoUrl);
+        setProfileVisibility(profile.visibility);
+        setProfilePublished(profile.published);
+        setLiveProfile(profile);
+      }
+
+      const state = getNewClubModeState(loadedSessions);
+      setNewClubState(state);
+
+      if (
+        state.showFirstActivityCelebration ||
+        searchParams.get("success") === "1"
+      ) {
+        setShowCelebration(true);
+        markFirstActivityCelebrated();
+      }
+
+      storePublishedActivityCount(state.publishedActivityCount);
+      setLoading(false);
     }
 
-    const state = getNewClubModeState(loadedSessions);
-    setNewClubState(state);
+    void loadDashboardProfile();
 
-    if (
-      state.showFirstActivityCelebration ||
-      searchParams.get("success") === "1"
-    ) {
-      setShowCelebration(true);
-      markFirstActivityCelebrated();
-    }
-
-    storePublishedActivityCount(state.publishedActivityCount);
-    setLoading(false);
+    return () => {
+      cancelled = true;
+    };
   }, [searchParams]);
 
   useEffect(() => {
@@ -136,6 +164,8 @@ function DashboardHomeContent() {
           checklist={newClubState.checklist}
         />
 
+        <IncompleteProfileLiveBanner profile={liveProfile} />
+
         <LaunchReadinessCard items={newClubState.launchReadiness} />
 
         <SetupChecklist />
@@ -143,6 +173,15 @@ function DashboardHomeContent() {
         <PublicProfilePreview
           profile={newClubState.profile}
           visibleToParents={newClubState.profileVisibleToParents}
+        />
+
+        <NewClubShareSection
+          clubName={clubName}
+          slug={profileSlug}
+          providerId={providerId}
+          logoUrl={logoUrl}
+          visibility={profileVisibility}
+          published={profilePublished}
         />
 
         <DashboardSectionQuickActions variant="new-club" />
@@ -162,9 +201,13 @@ function DashboardHomeContent() {
           slug={profileSlug}
           providerId={providerId}
           logoUrl={logoUrl}
+          visibility={profileVisibility}
+          published={profilePublished}
           onDismiss={() => setShowCelebration(false)}
         />
       ) : null}
+
+      <IncompleteProfileLiveBanner profile={liveProfile} />
 
       <DashboardHeader
         clubName={clubName}
@@ -211,6 +254,8 @@ function DashboardHomeContent() {
           slug={profileSlug}
           providerId={providerId}
           logoUrl={logoUrl}
+          visibility={profileVisibility}
+          published={profilePublished}
         />
       ) : (
         <SharePromptBanner
@@ -218,6 +263,8 @@ function DashboardHomeContent() {
           slug={profileSlug}
           providerId={providerId}
           logoUrl={logoUrl}
+          visibility={profileVisibility}
+          published={profilePublished}
         />
       )}
 

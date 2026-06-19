@@ -5,6 +5,7 @@ import { DEFAULT_CLUB_LOCATIONS } from "@/lib/club-profile/defaults";
 import {
   formatClubAddress,
   getMainClubLocation,
+  isPubliclyAccessibleProfile,
   type ClubProfile,
 } from "@/lib/club-profile/types";
 import { getClubTeamState } from "@/lib/club-team/storage";
@@ -179,7 +180,7 @@ function hasAccountingConnected(): boolean {
 
 export function isProfileVisibleToParents(profile: ClubProfile): boolean {
   return (
-    profile.published &&
+    isPubliclyAccessibleProfile(profile) &&
     profile.profileDesign?.settings?.publicVisible !== false
   );
 }

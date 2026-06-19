@@ -3,12 +3,15 @@
 import { useEffect, useState } from "react";
 import { ShareClubButton } from "@/components/club/share/ShareClubButton";
 import { getSharePrompt, type SharePrompt } from "@/lib/club-share";
+import type { ClubProfileVisibility } from "@/lib/club-profile/types";
 
 type SharePromptBannerProps = {
   clubName: string;
   slug: string;
   providerId: string;
   logoUrl?: string | null;
+  visibility?: ClubProfileVisibility;
+  published?: boolean;
 };
 
 export function SharePromptBanner({
@@ -16,6 +19,8 @@ export function SharePromptBanner({
   slug,
   providerId,
   logoUrl,
+  visibility,
+  published,
 }: SharePromptBannerProps) {
   const [prompt, setPrompt] = useState<SharePrompt | null>(null);
 
@@ -41,6 +46,8 @@ export function SharePromptBanner({
         slug={slug}
         providerId={providerId}
         logoUrl={logoUrl}
+        visibility={visibility}
+        published={published}
         variant="teal"
         label={prompt.ctaLabel}
       />

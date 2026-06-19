@@ -2,12 +2,15 @@
 
 import Link from "next/link";
 import { ShareClubButton } from "@/components/club/share/ShareClubButton";
+import type { ClubProfileVisibility } from "@/lib/club-profile/types";
 
 type FirstActivityCelebrationProps = {
   clubName: string;
   slug: string;
   providerId: string;
   logoUrl?: string | null;
+  visibility?: ClubProfileVisibility;
+  published?: boolean;
   onDismiss: () => void;
 };
 
@@ -16,6 +19,8 @@ export function FirstActivityCelebration({
   slug,
   providerId,
   logoUrl,
+  visibility,
+  published,
   onDismiss,
 }: FirstActivityCelebrationProps) {
   return (
@@ -51,6 +56,8 @@ export function FirstActivityCelebration({
           slug={slug}
           providerId={providerId}
           logoUrl={logoUrl}
+          visibility={visibility}
+          published={published}
           variant="teal"
           label="Share activity"
         />

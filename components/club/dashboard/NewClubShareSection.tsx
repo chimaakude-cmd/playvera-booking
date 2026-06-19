@@ -2,12 +2,15 @@
 
 import { ShareClubButton } from "@/components/club/share/ShareClubButton";
 import { getClubPublicUrl } from "@/lib/club-share";
+import type { ClubProfileVisibility } from "@/lib/club-profile/types";
 
 type NewClubShareSectionProps = {
   clubName: string;
   slug: string;
   providerId: string;
   logoUrl?: string | null;
+  visibility?: ClubProfileVisibility;
+  published?: boolean;
 };
 
 export function NewClubShareSection({
@@ -15,6 +18,8 @@ export function NewClubShareSection({
   slug,
   providerId,
   logoUrl,
+  visibility,
+  published,
 }: NewClubShareSectionProps) {
   const shareUrl =
     typeof window !== "undefined"
@@ -53,6 +58,8 @@ export function NewClubShareSection({
             slug={slug}
             providerId={providerId}
             logoUrl={logoUrl}
+            visibility={visibility}
+            published={published}
             variant="teal"
             label="Share"
           />

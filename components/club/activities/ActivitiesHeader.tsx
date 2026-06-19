@@ -127,6 +127,8 @@ export function ActivitiesHeader({
           logoUrl={profile.logoUrl}
           primaryColor={profile.branding.primaryColor}
           secondaryColor={profile.branding.secondaryColor}
+          visibility={profile.visibility}
+          published={profile.published}
           variant="default"
           label="Share"
         />

@@ -19,25 +19,60 @@ export type MinimalClubProfilesRow = {
   provider_id: string;
   club_name: string;
   public_slug: string;
+  tagline: string;
+  short_description: string;
+  long_description: string;
+  meta_title: string;
+  meta_description: string;
+  categories: string[];
+  age_ranges: string[];
   email: string;
   phone: string;
   verified: boolean;
   published: boolean;
+  visibility: "published";
 };
 
-/** Minimum club_profiles row for onboarding submit — no contact/social_links jsonb. */
+function buildOnboardingDescriptionFallbacks(
+  state: Pick<ClubOnboardingState, "club">,
+): { tagline: string; description: string } {
+  const clubName = state.club.name.trim();
+  const tagline =
+    state.club.suggestedTagline.trim() ||
+    `Activities and clubs with ${clubName}`;
+  const description =
+    state.club.suggestedDescription.trim() ||
+    `${clubName} offers children's activities and clubs. Book sessions and find out more on our public profile.`;
+
+  return { tagline, description };
+}
+
+/** Minimum club_profiles row for onboarding submit — auto-published with available data. */
 export function buildMinimalClubProfilesRow(
   providerId: string,
+  publicSlug: string,
   state: Pick<ClubOnboardingState, "owner" | "club">,
 ): MinimalClubProfilesRow {
+  const clubName = state.club.name.trim();
+  const slug = publicSlug.trim() || slugifyClubName(clubName);
+  const { tagline, description } = buildOnboardingDescriptionFallbacks(state);
+
   return {
     provider_id: providerId,
-    club_name: state.club.name.trim(),
-    public_slug: slugifyClubName(state.club.name),
+    club_name: clubName,
+    public_slug: slug,
+    tagline,
+    short_description: description.slice(0, 200),
+    long_description: description,
+    meta_title: `${clubName} | Activeora`,
+    meta_description: tagline,
+    categories: getClubCategories(state.club),
+    age_ranges: state.club.ageRanges,
     email: state.owner.email.trim(),
     phone: state.owner.phone.trim(),
     verified: false,
-    published: false,
+    published: true,
+    visibility: "published",
   };
 }
 
@@ -52,9 +87,12 @@ export function stripImageDataUrls(
   };
 }
 
-export function buildClubProfileInput(state: ClubOnboardingState): ClubProfileInput {
+export function buildClubProfileInput(
+  state: ClubOnboardingState,
+  options?: { publicSlug?: string },
+): ClubProfileInput {
   const defaults = createDefaultClubProfile();
-  const slug = slugifyClubName(state.club.name);
+  const slug = options?.publicSlug?.trim() || slugifyClubName(state.club.name);
   const aboutText =
     state.profile.aboutText.trim() || state.club.suggestedDescription.trim();
   const tagline =

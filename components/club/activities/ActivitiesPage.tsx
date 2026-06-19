@@ -505,6 +505,8 @@ function ActivitiesPageContent({
           logoUrl={profile.logoUrl}
           primaryColor={profile.branding?.primaryColor}
           secondaryColor={profile.branding?.secondaryColor}
+          visibility={profile.visibility}
+          published={profile.published}
         />
       ) : null}
     </div>

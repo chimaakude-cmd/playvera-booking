@@ -54,6 +54,7 @@ export async function POST(request: NextRequest) {
       {
         providerId: result.providerId,
         authUserId: result.authUserId,
+        publicSlug: result.publicSlug,
       },
       { status: 201 },
     );

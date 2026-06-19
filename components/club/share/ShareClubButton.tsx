@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import type { ClubProfileVisibility } from "@/lib/club-profile/types";
 import { ShareClubModal } from "./ShareClubModal";
 
 type ShareClubButtonProps = {
@@ -10,6 +11,8 @@ type ShareClubButtonProps = {
   logoUrl?: string | null;
   primaryColor?: string;
   secondaryColor?: string;
+  visibility?: ClubProfileVisibility;
+  published?: boolean;
   variant?: "default" | "primary" | "teal";
   label?: string;
   className?: string;
@@ -22,6 +25,8 @@ export function ShareClubButton({
   logoUrl,
   primaryColor,
   secondaryColor,
+  visibility,
+  published,
   variant = "default",
   label = "Share club",
   className = "",
@@ -54,6 +59,8 @@ export function ShareClubButton({
         logoUrl={logoUrl}
         primaryColor={primaryColor}
         secondaryColor={secondaryColor}
+        visibility={visibility}
+        published={published}
       />
     </>
   );

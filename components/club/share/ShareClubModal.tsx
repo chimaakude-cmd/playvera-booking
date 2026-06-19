@@ -22,6 +22,7 @@ import {
   type SharePlatform,
 } from "@/lib/club-share";
 import { getClubProfile } from "@/lib/club-profile";
+import type { ClubProfileVisibility } from "@/lib/club-profile/types";
 import { SharePlatformButton } from "./SharePlatformButton";
 import {
   ShareInstagramImage,
@@ -37,6 +38,8 @@ type ShareClubModalProps = {
   logoUrl?: string | null;
   primaryColor?: string;
   secondaryColor?: string;
+  visibility?: ClubProfileVisibility;
+  published?: boolean;
 };
 
 type TabId = "share" | "embed";
@@ -50,6 +53,8 @@ export function ShareClubModal({
   logoUrl,
   primaryColor = "#0d9488",
   secondaryColor = "#14b8a6",
+  visibility: visibilityProp,
+  published: publishedProp,
 }: ShareClubModalProps) {
   const [tab, setTab] = useState<TabId>("share");
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
@@ -65,15 +70,15 @@ export function ShareClubModal({
     setMounted(true);
   }, []);
 
-  const profile = getClubProfile();
+  const cachedProfile = getClubProfile();
   const shareValidation = useMemo(
     () =>
       validateClubShareTarget({
         slug,
-        visibility: profile.visibility,
-        published: profile.published,
+        visibility: visibilityProp ?? cachedProfile.visibility,
+        published: publishedProp ?? cachedProfile.published,
       }),
-    [slug, profile.visibility, profile.published],
+    [slug, visibilityProp, publishedProp, cachedProfile.visibility, cachedProfile.published],
   );
   const canShare = shareValidation.ok;
 

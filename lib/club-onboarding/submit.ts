@@ -52,6 +52,7 @@ export type ClubOnboardingSubmitResult =
       ok: true;
       providerId: string;
       authUserId: string;
+      publicSlug: string;
     }
   | { ok: false; error: string; step: ClubOnboardingSubmitStep };
 
@@ -688,7 +689,7 @@ export async function submitClubOnboardingToSupabase(
     dbClientMode,
   });
 
-  const clubProfileRow = buildMinimalClubProfilesRow(providerId, state);
+  const clubProfileRow = buildMinimalClubProfilesRow(providerId, slug, state);
   const profileResult = await ensureClubProfile(supabase, clubProfileRow);
 
   if (!profileResult.ok) {
@@ -704,10 +705,30 @@ export async function submitClubOnboardingToSupabase(
     };
   }
 
+  const { error: slugSyncError } = await supabase
+    .from("providers")
+    .update({ slug: clubProfileRow.public_slug })
+    .eq("id", providerId);
+
+  if (slugSyncError) {
+    logSupabaseError("provider slug sync failed", slugSyncError);
+    return {
+      ok: false,
+      step: "Save club profile",
+      error: formatStepError(
+        "Save club profile",
+        slugSyncError.message ||
+          "Could not sync your public club URL. Please try again.",
+      ),
+    };
+  }
+
   console.info("[club-onboarding] profile insert result:", {
     success: true,
     providerId,
     publicSlug: clubProfileRow.public_slug,
+    published: clubProfileRow.published,
+    visibility: clubProfileRow.visibility,
   });
 
   const subscriptionResult = await ensureProviderSubscription(supabase, providerId);
@@ -766,6 +787,7 @@ export async function submitClubOnboardingToSupabase(
     ok: true,
     providerId,
     authUserId,
+    publicSlug: clubProfileRow.public_slug,
   };
 }
 
