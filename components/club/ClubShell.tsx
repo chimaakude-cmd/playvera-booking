@@ -22,6 +22,30 @@ import {
 } from "@/lib/club/new-club-mode";
 import { translateClubNavLabel, useTranslation } from "@/lib/i18n";
 
+function SidebarHeader({
+  onLogoClick,
+  showBell = true,
+  bellVariant = "drawer",
+}: {
+  onLogoClick?: () => void;
+  showBell?: boolean;
+  bellVariant?: "drawer" | "dropdown";
+}) {
+  return (
+    <div className="border-b border-zinc-100 px-6 py-5">
+      <Logo size="desktop" href="/" onClick={onLogoClick} />
+      <div className="mt-1 flex items-center justify-between gap-3">
+        <p className="text-xs font-medium uppercase tracking-wide text-teal-700">
+          Club dashboard
+        </p>
+        {showBell ? (
+          <NotificationBell variant={bellVariant} className="shrink-0" />
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 function NavLinks({
   pathname,
   groups,
@@ -133,13 +157,8 @@ export function ClubShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-full bg-[#f6f7f9] text-zinc-900">
       <div className="lg:flex">
-        <aside className="hidden w-72 shrink-0 border-r border-zinc-200/80 bg-white lg:fixed lg:inset-y-0 lg:flex lg:flex-col">
-          <div className="border-b border-zinc-100 px-6 py-5">
-            <Logo size="desktop" href="/" />
-            <p className="mt-1 text-xs font-medium uppercase tracking-wide text-teal-700">
-              Club dashboard
-            </p>
-          </div>
+        <aside className="hidden w-72 shrink-0 border-r border-zinc-200/80 bg-white lg:fixed lg:inset-y-0 lg:z-40 lg:flex lg:flex-col">
+          <SidebarHeader />
           <div className="flex-1 overflow-y-auto px-4 py-6">
             <NavLinks pathname={pathname} groups={navGroups} inboxUnread={inboxUnread} newClubMode={newClubMode} />
           </div>
@@ -157,16 +176,10 @@ export function ClubShell({ children }: { children: React.ReactNode }) {
               onClick={() => setMobileOpen(false)}
             />
             <aside className="relative flex h-full w-80 flex-col bg-white shadow-xl">
-              <div className="border-b border-zinc-100 px-6 py-5">
-                <Logo
-                  size="desktop"
-                  href="/"
-                  onClick={() => setMobileOpen(false)}
-                />
-                <p className="mt-1 text-xs font-medium uppercase tracking-wide text-teal-700">
-                  Club dashboard
-                </p>
-              </div>
+              <SidebarHeader
+                onLogoClick={() => setMobileOpen(false)}
+                showBell={false}
+              />
               <div className="flex-1 overflow-y-auto px-4 py-6">
                 <NavLinks
                   pathname={pathname}
@@ -197,15 +210,9 @@ export function ClubShell({ children }: { children: React.ReactNode }) {
               >
                 <LogoMark size={34} />
               </Link>
-              <NotificationBell />
+              <NotificationBell variant="drawer" />
             </div>
           </header>
-
-          <div className="hidden lg:block">
-            <div className="fixed right-8 top-6 z-30">
-              <NotificationBell />
-            </div>
-          </div>
 
           <main className="flex-1 px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-8">
             {children}
