@@ -10,6 +10,7 @@ import {
   type RefObject,
 } from "react";
 import { usePathname } from "next/navigation";
+import { LogoMark } from "@/components/branding";
 import { isCompactLauncherRoute } from "@/lib/support/launcher-routes";
 import { useDraggableLauncher } from "./useDraggableLauncher";
 
@@ -54,8 +55,10 @@ function PlaceholderLauncher({
         compact ? "p-2" : "px-4 py-2.5"
       } ${isDragging ? "cursor-grabbing shadow-xl" : "cursor-grab"}`}
     >
-      <span className="relative flex h-8 w-8 items-center justify-center rounded-full bg-[#0F172A] text-xs font-bold text-white">
-        PV
+      <span className="relative shrink-0">
+        <span className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-white ring-2 ring-violet-100">
+          <LogoMark size={28} className="h-7 w-7" />
+        </span>
         <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-emerald-500" />
       </span>
       {compact ? null : <span className="hidden sm:inline">Need assistance?</span>}

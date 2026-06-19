@@ -4,7 +4,7 @@ import Link from "next/link";
 import { BadgeCheck } from "lucide-react";
 import { ACTIVORA_ACCENT, ACTIVORA_ACTION, POPULAR_CLUBS } from "@/lib/home/constants";
 import { useTranslation } from "@/lib/i18n";
-import { HOME_BUTTON, HOME_CARD, HOME_SECTION, StarRating } from "./shared";
+import { HOME_BUTTON, HOME_CARD, HOME_SECTION, HOME_SHADOW, StarRating } from "./shared";
 
 type HomePopularClubsProps = {
   radius: string;
@@ -37,7 +37,7 @@ export function HomePopularClubs({ radius }: HomePopularClubsProps) {
           {POPULAR_CLUBS.map((club) => (
             <article
               key={club.name}
-              className={`w-[280px] shrink-0 overflow-hidden border border-slate-200 bg-white shadow-md transition-shadow hover:shadow-lg sm:w-[300px] ${HOME_CARD}`}
+              className={`w-[280px] shrink-0 overflow-hidden border border-slate-200/80 bg-white transition-shadow hover:shadow-lg sm:w-[300px] ${HOME_CARD} ${HOME_SHADOW}`}
             >
               <div className="relative aspect-[16/11] overflow-hidden">
                 <img

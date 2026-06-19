@@ -15,8 +15,8 @@
     }
   },
   "hero": {
-    "title": "AUTO DEPLOY TEST - LIVE",
-    "subtitle": "Search local clubs, camps and classes — book in minutes, not hours.",
+    "title": "Find and book children's activities near you",
+    "subtitle": "Discover local clubs, camps and classes — book safely in minutes.",
     "location": "Location",
     "locationPlaceholder": "City or postcode",
     "useLocation": "Use My Location",
@@ -30,7 +30,13 @@
     "searchActivities": "Find Activities",
     "seeAllResults": "See all results →",
     "trustedBy": "Trusted by families",
-    "heroImageAlt": "Children participating in sports activities"
+    "heroImageAlt": "Children participating in sports activities",
+    "trustSignals": {
+      "verified": "Verified providers",
+      "payments": "Secure payments",
+      "refunds": "Easy refunds",
+      "support": "Parent support"
+    }
   },
   "chips": {
     "title": "Browse by activity",

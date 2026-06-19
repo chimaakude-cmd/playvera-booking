@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { LogoMark } from "@/components/branding";
+import { ACTIVORA_GRADIENT } from "@/lib/home/constants";
 import { isThreadEnded } from "@/lib/support";
 import { THREAD_ENDED_MESSAGE } from "@/lib/support/defaults";
 import { canUseAi } from "@/lib/support/routing";
@@ -79,16 +80,19 @@ export function SupportDrawer() {
     <>
       <div
         role="dialog"
-        aria-label="PlayVera Support"
-        className="fixed bottom-4 right-4 z-[70] flex h-[min(560px,calc(100vh-2rem))] w-[calc(100%-2rem)] max-w-[380px] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl sm:bottom-6 sm:right-6"
+        aria-label="Activora Support Centre"
+        className="fixed bottom-4 right-4 z-[70] flex h-[min(560px,calc(100vh-2rem))] w-[calc(100%-2rem)] max-w-[380px] flex-col overflow-hidden rounded-2xl bg-white shadow-[0_16px_48px_rgba(15,23,42,0.12)] sm:bottom-6 sm:right-6"
       >
-        <header className="flex shrink-0 items-center gap-3 border-b border-zinc-100 bg-[#0F172A] px-4 py-3 text-white">
+        <header
+          className="flex shrink-0 items-center gap-3 px-4 py-3.5 text-white"
+          style={{ background: ACTIVORA_GRADIENT }}
+        >
           <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white">
             <LogoMark size={32} className="h-8 w-8" />
           </div>
           <div className="min-w-0 flex-1">
-            <h2 className="text-sm font-semibold leading-tight">PlayVera Support</h2>
-            <p className="text-[11px] text-zinc-300">{statusLabel}</p>
+            <h2 className="text-sm font-semibold leading-tight">Activora Support</h2>
+            <p className="text-[11px] text-white/80">{statusLabel}</p>
           </div>
           {inChat && !chatEnded ? (
             <button

@@ -27,3 +27,7 @@ export function SectionHeading({
 export const HOME_SECTION = "py-24 lg:py-[120px]";
 export const HOME_CARD = "rounded-[20px]";
 export const HOME_BUTTON = "rounded-xl";
+export const HOME_SHADOW =
+  "shadow-[0_8px_32px_rgba(15,23,42,0.06)]";
+export const HOME_SHADOW_LG =
+  "shadow-[0_16px_48px_rgba(15,23,42,0.08)]";

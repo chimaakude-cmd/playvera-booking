@@ -226,6 +226,10 @@ export function StaffAccessPage({
 
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
+    if (submitting) {
+      return;
+    }
+
     setError(null);
     setMagicLinkSent(false);
     setMagicLinkMessage(null);
@@ -252,7 +256,8 @@ export function StaffAccessPage({
   }
 
   const lockoutMs = locked ? getStaffAccessLockoutRemainingMs() : 0;
-  const formDisabled = locked || submitting;
+  const inputsDisabled = locked;
+  const submitDisabled = locked || submitting;
   const showPasswordFields = useEmergencyPin || signInMode === "password";
 
   return (
@@ -315,9 +320,12 @@ export function StaffAccessPage({
           <input
             type="email"
             value={email}
-            onChange={(event) => setEmail(event.target.value)}
+            onChange={(event) => {
+              setEmail(event.target.value);
+              setError(null);
+            }}
             autoComplete="username"
-            disabled={formDisabled}
+            disabled={inputsDisabled}
             className="mt-2 w-full rounded-xl border border-violet-500/20 bg-zinc-950/60 px-4 py-3 text-sm text-white outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-500/30 disabled:opacity-50"
             required
           />
@@ -333,9 +341,12 @@ export function StaffAccessPage({
                 <input
                   type="password"
                   value={pin}
-                  onChange={(event) => setPin(event.target.value)}
+                  onChange={(event) => {
+                    setPin(event.target.value);
+                    setError(null);
+                  }}
                   autoComplete="off"
-                  disabled={formDisabled}
+                  disabled={inputsDisabled}
                   className="mt-2 w-full rounded-xl border border-violet-500/20 bg-zinc-950/60 px-4 py-3 text-sm text-white outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-500/30 disabled:opacity-50"
                   required
                 />
@@ -347,9 +358,12 @@ export function StaffAccessPage({
                 <input
                   type="password"
                   value={newPassword}
-                  onChange={(event) => setNewPassword(event.target.value)}
+                  onChange={(event) => {
+                    setNewPassword(event.target.value);
+                    setError(null);
+                  }}
                   autoComplete="new-password"
-                  disabled={formDisabled}
+                  disabled={inputsDisabled}
                   minLength={8}
                   className="mt-2 w-full rounded-xl border border-violet-500/20 bg-zinc-950/60 px-4 py-3 text-sm text-white outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-500/30 disabled:opacity-50"
                   required
@@ -364,9 +378,12 @@ export function StaffAccessPage({
               <input
                 type="password"
                 value={password}
-                onChange={(event) => setPassword(event.target.value)}
+                onChange={(event) => {
+                  setPassword(event.target.value);
+                  setError(null);
+                }}
                 autoComplete="current-password"
-                disabled={formDisabled}
+                disabled={inputsDisabled}
                 className="mt-2 w-full rounded-xl border border-violet-500/20 bg-zinc-950/60 px-4 py-3 text-sm text-white outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-500/30 disabled:opacity-50"
                 required
               />
@@ -379,7 +396,7 @@ export function StaffAccessPage({
             <button
               type="button"
               onClick={() => void handleForgotPassword()}
-              disabled={formDisabled || !email.trim()}
+              disabled={submitDisabled || !email.trim()}
               className="text-xs font-medium text-violet-300/80 underline-offset-2 hover:text-violet-100 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
             >
               Forgot password?
@@ -416,7 +433,7 @@ export function StaffAccessPage({
 
         <button
           type="submit"
-          disabled={formDisabled}
+          disabled={submitDisabled}
           className="mt-6 w-full rounded-xl bg-violet-600 py-3.5 text-sm font-semibold text-white transition-colors hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {submitting

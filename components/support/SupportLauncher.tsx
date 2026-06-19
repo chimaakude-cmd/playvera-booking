@@ -46,7 +46,7 @@ export function SupportLauncher() {
       } ${isDragging ? "cursor-grabbing shadow-xl" : "cursor-grab"}`}
     >
       <span className="relative shrink-0">
-        <span className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-[#0F172A] ring-2 ring-blue-100 sm:h-9 sm:w-9">
+        <span className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-white ring-2 ring-violet-100 sm:h-9 sm:w-9">
           <LogoMark size={28} className="h-7 w-7 sm:h-8 sm:w-8" />
         </span>
         <span
@@ -62,7 +62,7 @@ export function SupportLauncher() {
             <span className="text-sm font-semibold text-zinc-900">
               Need assistance?
             </span>
-            <span className="text-[11px] text-zinc-500">{label}</span>
+            <span className="text-[11px] font-medium text-violet-600">{label}</span>
           </span>
           <span className="text-sm font-semibold text-zinc-900 sm:hidden">
             Need assistance?

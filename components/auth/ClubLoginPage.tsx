@@ -5,8 +5,9 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ActivoraLoginLayout } from "@/components/auth/ActivoraLoginLayout";
 import { ClubLoginErrorAlert } from "@/components/auth/ClubLoginErrorAlert";
-import { login } from "@/lib/auth";
+import { login, logout } from "@/lib/auth";
 import type { ClubLoginErrorKind } from "@/lib/auth/club-login-messages";
+import { usePortalLoginForm } from "@/lib/auth/use-portal-login-form";
 import { resolveSafeReturnPath } from "@/lib/booking-flow/redirect";
 import { loadOnboardingDraft } from "@/lib/club-onboarding/storage";
 
@@ -61,6 +62,7 @@ export function ClubLoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<ClubLoginErrorKind | null>(null);
   const [hasDraft, setHasDraft] = useState(false);
+  const { loading, runSubmit } = usePortalLoginForm();
 
   useEffect(() => {
     setHasDraft(hasSavedOnboardingDraft());
@@ -68,20 +70,31 @@ export function ClubLoginPage() {
 
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
-    setError(null);
-
-    const user = login(email, password);
-    if (!user) {
-      setError("invalidCredentials");
+    if (loading) {
       return;
     }
 
-    if (user.role !== "club") {
-      setError("notFound");
-      return;
-    }
+    void runSubmit(async () => {
+      setError(null);
 
-    router.push(resolveSafeReturnPath(returnTo, CLUB_DASHBOARD_PATH));
+      try {
+        const user = login(email, password);
+        if (!user) {
+          setError("invalidCredentials");
+          return;
+        }
+
+        if (user.role !== "club") {
+          logout();
+          setError("notFound");
+          return;
+        }
+
+        router.push(resolveSafeReturnPath(returnTo, CLUB_DASHBOARD_PATH));
+      } catch {
+        setError("invalidCredentials");
+      }
+    });
   }
 
   const onboardingHref = returnTo
@@ -138,7 +151,11 @@ export function ClubLoginPage() {
           <input
             type="email"
             value={email}
-            onChange={(event) => setEmail(event.target.value)}
+            onChange={(event) => {
+              setEmail(event.target.value);
+              setError(null);
+            }}
+            disabled={loading}
             autoComplete="username"
             className="mt-2 w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-violet-300 focus:ring-2 focus:ring-violet-500/20"
             required
@@ -150,7 +167,11 @@ export function ClubLoginPage() {
           <input
             type="password"
             value={password}
-            onChange={(event) => setPassword(event.target.value)}
+            onChange={(event) => {
+              setPassword(event.target.value);
+              setError(null);
+            }}
+            disabled={loading}
             autoComplete="current-password"
             className="mt-2 w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-violet-300 focus:ring-2 focus:ring-violet-500/20"
             required
@@ -163,9 +184,10 @@ export function ClubLoginPage() {
 
         <button
           type="submit"
-          className="mt-6 w-full rounded-xl bg-violet-600 py-3.5 text-sm font-semibold text-white transition-colors hover:bg-violet-500"
+          disabled={loading}
+          className="mt-6 w-full rounded-xl bg-violet-600 py-3.5 text-sm font-semibold text-white transition-colors hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          Sign in
+          {loading ? "Signing in…" : "Sign in"}
         </button>
       </form>
     </ActivoraLoginLayout>
