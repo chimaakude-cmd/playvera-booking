@@ -440,7 +440,7 @@ export function validateWizardStep(
       errors.push("Main session image is required");
     }
     if (!data.parentsBring.trim()) {
-      errors.push("What parents need to bring is required");
+      errors.push("What children should bring is required");
     }
     if (!data.clubProvides.trim()) {
       errors.push("What the club provides is required");

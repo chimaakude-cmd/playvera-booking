@@ -233,7 +233,7 @@ export function SessionDetailsStep({ data, onChange }: SessionDetailsStepProps) 
         />
       </div>
 
-      <WizardField label="What parents need to bring" htmlFor="parents-bring">
+      <WizardField label="What children should bring" htmlFor="parents-bring">
         <textarea
           id="parents-bring"
           value={data.parentsBring}
