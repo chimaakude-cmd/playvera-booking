@@ -8,16 +8,16 @@ type PortalLoginErrorAlertProps = {
   kind: PortalLoginErrorKind;
   signupHref?: string;
   signupLabel?: string;
-  resetPasswordHref?: string;
 };
 
 export function PortalLoginErrorAlert({
   kind,
   signupHref,
   signupLabel = "Create account",
-  resetPasswordHref,
 }: PortalLoginErrorAlertProps) {
   const content = PORTAL_LOGIN_ERRORS[kind];
+  const showRecoveryLinks =
+    kind === "wrongPassword" || kind === "noAccount" || kind === "invalidEmail";
 
   return (
     <div
@@ -26,16 +26,8 @@ export function PortalLoginErrorAlert({
     >
       <p className="font-semibold text-red-900">{content.title}</p>
       <p className="mt-1">{content.body}</p>
-      {kind === "invalidCredentials" ? (
+      {showRecoveryLinks ? (
         <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1">
-          {resetPasswordHref ? (
-            <Link
-              href={resetPasswordHref}
-              className="font-medium text-violet-700 hover:text-violet-900"
-            >
-              Reset password
-            </Link>
-          ) : null}
           {signupHref ? (
             <Link
               href={signupHref}

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { validateAdminEmailForMagicLink } from "@/lib/admin-users/magic-link-auth";
 import { resolveServerAppBaseUrl } from "@/lib/app-url";
+import { FORGOT_PASSWORD_SUCCESS_MESSAGE } from "@/lib/auth/login-messages";
 import { createSupabaseCookieClient } from "@/lib/supabase-ssr";
 import { isSupabaseConfigured } from "@/lib/supabase";
 
@@ -8,8 +9,7 @@ type ForgotPasswordBody = {
   email?: string;
 };
 
-const GENERIC_SUCCESS_MESSAGE =
-  "If this email is registered for admin access, password reset instructions have been sent.";
+const GENERIC_SUCCESS_MESSAGE = FORGOT_PASSWORD_SUCCESS_MESSAGE;
 
 export async function POST(request: Request) {
   if (!isSupabaseConfigured()) {
@@ -43,7 +43,7 @@ export async function POST(request: Request) {
       });
     }
 
-    const redirectTo = `${resolveServerAppBaseUrl(request)}/admin/login`;
+    const redirectTo = `${resolveServerAppBaseUrl(request)}/auth/reset-password/callback?portal=admin`;
     const supabase = await createSupabaseCookieClient();
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo,

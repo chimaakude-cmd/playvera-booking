@@ -3,9 +3,10 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { ActivoraLoginLayout } from "@/components/auth/ActivoraLoginLayout";
+import { PortalForgotPasswordPanel } from "@/components/auth/PortalForgotPasswordPanel";
 import { PortalLoginErrorAlert } from "@/components/auth/PortalLoginErrorAlert";
-import { login, logout } from "@/lib/auth";
 import type { PortalLoginErrorKind } from "@/lib/auth/portal-login-messages";
+import { submitPortalLogin } from "@/lib/auth/portal-login-client";
 import { usePortalLoginForm } from "@/lib/auth/use-portal-login-form";
 import { resolveSafeReturnPath } from "@/lib/booking-flow/redirect";
 
@@ -42,23 +43,15 @@ export function ParentLoginPage() {
     void runSubmit(async () => {
       setError(null);
 
-      try {
-        const user = login(email, password);
-        if (!user) {
-          setError("invalidCredentials");
-          return;
-        }
-
-        if (user.role !== "parent") {
-          logout();
-          setError("wrongPortal");
-          return;
-        }
-
-        router.push(resolveSafeReturnPath(returnTo, PARENT_DASHBOARD_PATH));
-      } catch {
-        setError("invalidCredentials");
+      const result = await submitPortalLogin("parent", email, password);
+      if (!result.ok) {
+        setError(result.kind);
+        return;
       }
+
+      router.push(
+        resolveSafeReturnPath(returnTo, result.redirectTo),
+      );
     });
   }
 
@@ -110,6 +103,12 @@ export function ParentLoginPage() {
             required
           />
         </label>
+
+        <PortalForgotPasswordPanel
+          portal="parent"
+          email={email}
+          disabled={loading}
+        />
 
         {error ? (
           <PortalLoginErrorAlert

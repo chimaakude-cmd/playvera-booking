@@ -3,6 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ActivoraLoginLayout } from "@/components/auth/ActivoraLoginLayout";
+import { PortalForgotPasswordPanel } from "@/components/auth/PortalForgotPasswordPanel";
 import { writeAuthSession } from "@/lib/auth/session";
 import {
   clearStaffAccessAttempts,
@@ -49,10 +50,6 @@ export function StaffAccessPage({
   const [signInMode, setSignInMode] = useState<SignInMode>("magic-link");
   const [magicLinkSent, setMagicLinkSent] = useState(false);
   const [magicLinkMessage, setMagicLinkMessage] = useState<string | null>(null);
-  const [forgotPasswordSent, setForgotPasswordSent] = useState(false);
-  const [forgotPasswordMessage, setForgotPasswordMessage] = useState<
-    string | null
-  >(null);
 
   useEffect(() => {
     const urlError = searchParams.get("error");
@@ -82,8 +79,6 @@ export function StaffAccessPage({
     setSubmitting(true);
     setMagicLinkSent(false);
     setMagicLinkMessage(null);
-    setForgotPasswordSent(false);
-    setForgotPasswordMessage(null);
 
     try {
       const response = await fetch("/api/admin/auth/magic-link", {
@@ -110,42 +105,6 @@ export function StaffAccessPage({
       );
     } catch {
       setError("Unable to send sign-in link right now. Please try again.");
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  async function handleForgotPassword() {
-    setSubmitting(true);
-    setForgotPasswordSent(false);
-    setForgotPasswordMessage(null);
-    setError(null);
-
-    try {
-      const response = await fetch("/api/admin/auth/forgot-password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim() }),
-      });
-
-      const payload = (await response.json()) as {
-        ok?: boolean;
-        message?: string;
-        error?: string;
-      };
-
-      if (!response.ok || !payload.ok) {
-        setError(payload.error ?? "Unable to send reset instructions.");
-        return;
-      }
-
-      setForgotPasswordSent(true);
-      setForgotPasswordMessage(
-        payload.message ??
-          "If this email is registered for admin access, password reset instructions have been sent.",
-      );
-    } catch {
-      setError("Unable to send reset instructions right now. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -233,8 +192,6 @@ export function StaffAccessPage({
     setError(null);
     setMagicLinkSent(false);
     setMagicLinkMessage(null);
-    setForgotPasswordSent(false);
-    setForgotPasswordMessage(null);
 
     if (isStaffAccessLocked()) {
       setLocked(true);
@@ -283,8 +240,6 @@ export function StaffAccessPage({
                 setError(null);
                 setMagicLinkSent(false);
                 setMagicLinkMessage(null);
-                setForgotPasswordSent(false);
-                setForgotPasswordMessage(null);
               }}
               className={`flex-1 rounded-lg px-3 py-2 text-xs font-semibold transition ${
                 signInMode === "magic-link"
@@ -301,8 +256,6 @@ export function StaffAccessPage({
                 setError(null);
                 setMagicLinkSent(false);
                 setMagicLinkMessage(null);
-                setForgotPasswordSent(false);
-                setForgotPasswordMessage(null);
               }}
               className={`flex-1 rounded-lg px-3 py-2 text-xs font-semibold transition ${
                 signInMode === "password"
@@ -392,27 +345,17 @@ export function StaffAccessPage({
         ) : null}
 
         {signInMode === "password" && !useEmergencyPin ? (
-          <p className="mt-3 text-right">
-            <button
-              type="button"
-              onClick={() => void handleForgotPassword()}
-              disabled={submitDisabled || !email.trim()}
-              className="text-xs font-medium text-violet-300/80 underline-offset-2 hover:text-violet-100 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Forgot password?
-            </button>
-          </p>
+          <PortalForgotPasswordPanel
+            portal="admin"
+            email={email}
+            disabled={submitDisabled}
+            variant="dark"
+          />
         ) : null}
 
         {magicLinkSent && magicLinkMessage ? (
           <p className="mt-5 rounded-xl bg-emerald-950/40 px-3 py-2 text-sm text-emerald-300 ring-1 ring-emerald-500/20">
             {magicLinkMessage}
-          </p>
-        ) : null}
-
-        {forgotPasswordSent && forgotPasswordMessage ? (
-          <p className="mt-5 rounded-xl bg-emerald-950/40 px-3 py-2 text-sm text-emerald-300 ring-1 ring-emerald-500/20">
-            {forgotPasswordMessage}
           </p>
         ) : null}
 
@@ -461,8 +404,6 @@ export function StaffAccessPage({
                 setNewPassword("");
                 setMagicLinkSent(false);
                 setMagicLinkMessage(null);
-                setForgotPasswordSent(false);
-                setForgotPasswordMessage(null);
               }}
               className="text-xs font-medium text-violet-300/80 underline-offset-2 hover:text-violet-100 hover:underline"
             >

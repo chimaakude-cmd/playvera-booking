@@ -5,8 +5,9 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ActivoraLoginLayout } from "@/components/auth/ActivoraLoginLayout";
 import { ClubLoginErrorAlert } from "@/components/auth/ClubLoginErrorAlert";
-import { login, logout } from "@/lib/auth";
+import { PortalForgotPasswordPanel } from "@/components/auth/PortalForgotPasswordPanel";
 import type { ClubLoginErrorKind } from "@/lib/auth/club-login-messages";
+import { submitPortalLogin } from "@/lib/auth/portal-login-client";
 import { usePortalLoginForm } from "@/lib/auth/use-portal-login-form";
 import { resolveSafeReturnPath } from "@/lib/booking-flow/redirect";
 import { loadOnboardingDraft } from "@/lib/club-onboarding/storage";
@@ -77,23 +78,15 @@ export function ClubLoginPage() {
     void runSubmit(async () => {
       setError(null);
 
-      try {
-        const user = login(email, password);
-        if (!user) {
-          setError("invalidCredentials");
-          return;
-        }
-
-        if (user.role !== "club") {
-          logout();
-          setError("notFound");
-          return;
-        }
-
-        router.push(resolveSafeReturnPath(returnTo, CLUB_DASHBOARD_PATH));
-      } catch {
-        setError("invalidCredentials");
+      const result = await submitPortalLogin("club", email, password);
+      if (!result.ok) {
+        setError(result.kind);
+        return;
       }
+
+      router.push(
+        resolveSafeReturnPath(returnTo, result.redirectTo),
+      );
     });
   }
 
@@ -177,6 +170,12 @@ export function ClubLoginPage() {
             required
           />
         </label>
+
+        <PortalForgotPasswordPanel
+          portal="club"
+          email={email}
+          disabled={loading}
+        />
 
         {error ? (
           <ClubLoginErrorAlert kind={error} onboardingHref={onboardingHref} />

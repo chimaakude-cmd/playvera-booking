@@ -14,6 +14,8 @@ export function ClubLoginErrorAlert({
   onboardingHref,
 }: ClubLoginErrorAlertProps) {
   const content = CLUB_LOGIN_ERRORS[kind];
+  const showRecoveryLinks =
+    kind === "wrongPassword" || kind === "noAccount" || kind === "invalidEmail";
 
   return (
     <div
@@ -22,7 +24,7 @@ export function ClubLoginErrorAlert({
     >
       <p className="font-semibold text-red-900">{content.title}</p>
       <p className="mt-1">{content.body}</p>
-      {kind === "invalidCredentials" ? (
+      {showRecoveryLinks ? (
         <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1">
           <Link
             href={onboardingHref}

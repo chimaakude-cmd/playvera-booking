@@ -3,9 +3,10 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { ActivoraLoginLayout } from "@/components/auth/ActivoraLoginLayout";
+import { PortalForgotPasswordPanel } from "@/components/auth/PortalForgotPasswordPanel";
 import { PortalLoginErrorAlert } from "@/components/auth/PortalLoginErrorAlert";
-import { login, logout } from "@/lib/auth";
 import type { PortalLoginErrorKind } from "@/lib/auth/portal-login-messages";
+import { submitPortalLogin } from "@/lib/auth/portal-login-client";
 import { usePortalLoginForm } from "@/lib/auth/use-portal-login-form";
 import { resolveSafeReturnPath } from "@/lib/booking-flow/redirect";
 
@@ -42,25 +43,15 @@ export function FranchisorLoginPage() {
     void runSubmit(async () => {
       setError(null);
 
-      try {
-        const user = login(email, password);
-        if (!user) {
-          setError("invalidCredentials");
-          return;
-        }
-
-        if (user.role !== "organisation") {
-          logout();
-          setError("wrongPortal");
-          return;
-        }
-
-        router.push(
-          resolveSafeReturnPath(returnTo, ORGANISATION_DASHBOARD_PATH),
-        );
-      } catch {
-        setError("invalidCredentials");
+      const result = await submitPortalLogin("organisation", email, password);
+      if (!result.ok) {
+        setError(result.kind);
+        return;
       }
+
+      router.push(
+        resolveSafeReturnPath(returnTo, result.redirectTo),
+      );
     });
   }
 
@@ -112,6 +103,12 @@ export function FranchisorLoginPage() {
             required
           />
         </label>
+
+        <PortalForgotPasswordPanel
+          portal="organisation"
+          email={email}
+          disabled={loading}
+        />
 
         {error ? (
           <PortalLoginErrorAlert

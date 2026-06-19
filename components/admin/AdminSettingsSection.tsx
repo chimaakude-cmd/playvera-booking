@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { ChangePasswordSection } from "@/components/auth/ChangePasswordSection";
 import { BookingQuestionsSettings } from "@/components/admin/settings/BookingQuestionsSettings";
 import { PlatformFeeStructureSection } from "@/components/admin/settings/PlatformFeeStructureSection";
 import { PageHeader } from "@/components/club/PageHeader";
@@ -348,6 +349,11 @@ export function AdminSettingsSection() {
         </div>
       </form>
       ) : null}
+
+      <ChangePasswordSection
+        title="Staff account password"
+        description="Update your Activora staff sign-in password."
+      />
     </div>
   );
 }

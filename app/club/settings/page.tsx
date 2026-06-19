@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { ChangePasswordSection } from "@/components/auth/ChangePasswordSection";
 import { SavedVenuesList } from "@/components/club/SavedVenuesList";
 import { LanguageSettingsSection } from "@/components/i18n/LanguageSettingsSection";
 import { PageHeader } from "@/components/club/PageHeader";
@@ -221,6 +222,8 @@ export default function ClubSettingsPage() {
       </div>
 
       <LanguageSettingsSection />
+
+      <ChangePasswordSection />
 
       <SavedVenuesSection />
     </div>

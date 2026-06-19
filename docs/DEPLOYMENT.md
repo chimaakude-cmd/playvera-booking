@@ -174,7 +174,7 @@ See [Stripe environment verification](#stripe-environment-verification-productio
 
 Full list: `.env.local.example`.
 
-### Supabase Auth (admin magic-link)
+### Supabase Auth (admin magic-link and password reset)
 
 In **Supabase Dashboard → Authentication → URL Configuration**:
 
@@ -184,6 +184,12 @@ In **Supabase Dashboard → Authentication → URL Configuration**:
 | **Redirect URLs** | `https://activora.uk/**`, `https://www.activora.uk/**` |
 
 Admin magic links use `https://activora.uk/admin/auth/callback`.
+
+Password reset links for all portals (club, parent, franchisor, admin) use:
+
+`https://activora.uk/auth/reset-password/callback?portal=<portal>`
+
+where `<portal>` is `club`, `parent`, `organisation`, or `admin`. Users complete the reset on `https://activora.uk/auth/reset-password` and are redirected to the correct portal login.
 
 **Production fix (admin_users table missing):** run `scripts/apply-admin-users-migration.sql` in Supabase SQL Editor, ensure `SUPABASE_SERVICE_ROLE_KEY` is set on the server, then restart the app.
 
