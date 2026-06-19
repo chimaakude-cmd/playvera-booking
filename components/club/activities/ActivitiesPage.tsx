@@ -247,38 +247,7 @@ function ActivitiesPageContent({
   }
 
   function handleDeleteRequest(row: ActivityRow) {
-    if (row.status === "draft" && canHardDeleteSession(row)) {
-      const confirmed = window.confirm(
-        `Delete "${row.title}"? This action cannot be undone.`,
-      );
-      if (confirmed) {
-        void handleDeleteConfirmForRow(row);
-      }
-      return;
-    }
-
     setDeleteTarget(row);
-  }
-
-  async function handleDeleteConfirmForRow(row: ActivityRow) {
-    setActionLoading(true);
-
-    try {
-      await deleteSessionActivity(row);
-      setActionMessage(`"${row.title}" deleted.`);
-      setDeleteTarget(null);
-      setSelectedRow(null);
-      setSelectedIds((current) => current.filter((id) => id !== row.id));
-      handleRefresh();
-    } catch (deleteError) {
-      setError(
-        deleteError instanceof Error
-          ? deleteError.message
-          : "Could not delete this activity.",
-      );
-    } finally {
-      setActionLoading(false);
-    }
   }
 
   async function handleBulkAction(

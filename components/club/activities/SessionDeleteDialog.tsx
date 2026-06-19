@@ -26,7 +26,7 @@ export function SessionDeleteDialog({
   }
 
   const description = hasBookings
-    ? "This session has existing bookings and cannot be permanently deleted."
+    ? "This session has existing bookings. Please archive it instead so booking history is kept."
     : "This action cannot be undone.";
 
   return (
@@ -48,7 +48,7 @@ export function SessionDeleteDialog({
                 onClick={onCancel}
                 className="rounded-lg border border-zinc-200 px-4 py-2.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
               >
-                Go Back
+                Cancel
               </button>
               <button
                 type="button"

@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { SafeImage } from "@/components/ui/SafeImage";
 import { PaginationControls } from "@/components/ui/PaginationControls";
 import {
@@ -9,6 +8,7 @@ import {
 } from "@/lib/club-activities";
 import { imageStorage } from "@/lib/image-storage";
 import { ActivityRowActions } from "./ActivityRowActions";
+import { ActivityRowHoverActions } from "./ActivityRowHoverActions";
 
 const STATUS_STYLES = {
   published: "bg-emerald-50 text-emerald-700 ring-emerald-200",
@@ -310,38 +310,23 @@ export function ActivitiesTable({
                     </button>
                   </td>
                   <td
-                    className="relative px-4 py-4"
+                    className="relative whitespace-nowrap px-4 py-4"
                     onClick={(event) => event.stopPropagation()}
                   >
-                    <div className="lg:group-hover:hidden">
+                    <div className="flex items-center justify-end gap-1">
+                      <ActivityRowHoverActions
+                        row={row}
+                        onPreview={onPreview}
+                        onDuplicate={onDuplicate}
+                        onArchive={onArchive}
+                        onDelete={onDelete}
+                      />
                       <ActivityRowActions
                         row={row}
                         onDuplicate={onDuplicate}
                         onArchive={onArchive}
                         onDelete={onDelete}
                       />
-                    </div>
-                    <div className="hidden items-center gap-1 lg:group-hover:flex">
-                      <button
-                        type="button"
-                        onClick={() => onPreview(row)}
-                        className="rounded-lg border border-zinc-200 px-2 py-1 text-[10px] font-semibold text-zinc-700 hover:bg-zinc-50"
-                      >
-                        Test booking
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => onPreview(row)}
-                        className="rounded-lg border border-zinc-200 px-2 py-1 text-[10px] font-semibold text-zinc-700 hover:bg-zinc-50"
-                      >
-                        Preview
-                      </button>
-                      <Link
-                        href={`/club/registers?session=${row.id}`}
-                        className="rounded-lg bg-teal-600 px-2 py-1 text-[10px] font-semibold text-white hover:bg-teal-700"
-                      >
-                        Register
-                      </Link>
                     </div>
                   </td>
                 </tr>
