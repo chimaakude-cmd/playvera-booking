@@ -131,7 +131,7 @@ body {
 }
 
 .discovery-search-bar:focus-within {
-  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.12);
+  box-shadow: 0 8px 24px rgba(248, 113, 40, 0.12);
 }
 
 .discovery-category-card:active {
@@ -141,18 +141,45 @@ body {
 .discovery-session-card {
   transition:
     transform 0.2s ease,
-    box-shadow 0.2s ease,
-    border-color 0.2s ease;
+    box-shadow 0.2s ease;
 }
 
 .discovery-floating-map {
-  transition: box-shadow 0.25s ease;
+  transition:
+    box-shadow 0.25s ease,
+    opacity 0.35s ease,
+    transform 0.35s ease;
 }
 
 .discovery-floating-map:hover {
   box-shadow:
-    0 24px 48px rgba(15, 23, 42, 0.12),
-    0 8px 16px rgba(37, 99, 235, 0.08);
+    0 20px 40px rgba(15, 23, 42, 0.08),
+    0 8px 16px rgba(248, 113, 40, 0.1);
+}
+
+.discovery-map-panel {
+  transition:
+    opacity 0.35s ease,
+    transform 0.35s ease,
+    width 0.35s ease,
+    max-height 0.35s ease;
+}
+
+.discovery-map-panel--visible {
+  opacity: 1;
+  transform: translateY(0);
+  max-height: 2000px;
+}
+
+.discovery-map-panel--hidden {
+  opacity: 0;
+  transform: translateY(8px);
+  max-height: 0;
+  pointer-events: none;
+}
+
+.discovery-empty-recommendation {
+  border: 1px solid rgba(248, 113, 40, 0.12);
 }
 
 .discovery-map-control {
@@ -164,10 +191,10 @@ body {
 .discovery-social-proof {
   background: linear-gradient(
     90deg,
-    rgba(37, 99, 235, 0.06),
-    rgba(20, 184, 166, 0.06)
+    rgba(248, 113, 40, 0.06),
+    rgba(66, 165, 255, 0.06)
   );
-  border: 1px solid rgba(37, 99, 235, 0.1);
+  border: 1px solid rgba(248, 113, 40, 0.1);
 }
 
 .discovery-preview-panel {
@@ -211,6 +238,7 @@ body {
 
   .discovery-session-card,
   .discovery-floating-map,
+  .discovery-map-panel,
   .discovery-preview-panel,
   .discovery-search-input,
   .discovery-search-bar {

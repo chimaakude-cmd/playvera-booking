@@ -33,7 +33,7 @@ export function SmartSearchSuggestions({
             role="option"
             onMouseDown={(event) => event.preventDefault()}
             onClick={() => onSelect(item.label)}
-            className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-[#0F172A] transition-colors hover:bg-blue-50"
+            className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-[#0F172A] transition-colors hover:bg-orange-50"
           >
             <span aria-hidden>{item.icon}</span>
             <span className="font-medium">{item.label}</span>

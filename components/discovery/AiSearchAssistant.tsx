@@ -128,9 +128,7 @@ export function AiSearchAssistant({ onApplyFilters }: AiSearchAssistantProps) {
                   type="submit"
                   disabled={loading || !query.trim()}
                   className={`inline-flex items-center px-4 py-2 text-xs font-semibold text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-50 ${DISCOVERY_RADIUS.button}`}
-                  style={{
-                    background: `linear-gradient(135deg, ${ACTIVORA_ACTION}, ${ACTIVORA_ACCENT})`,
-                  }}
+                  style={{ backgroundColor: ACTIVORA_ACTION }}
                 >
                   {loading ? "Understanding…" : "Apply to search filters"}
                 </button>

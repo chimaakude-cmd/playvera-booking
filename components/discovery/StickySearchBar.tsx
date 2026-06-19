@@ -1,30 +1,47 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { MapPin, Navigation, Search } from "lucide-react";
-import {
-  ACTIVORA_ACTION,
-  ACTIVORA_ACCENT,
-} from "@/lib/home/constants";
+import { MapPin, Navigation, Pencil, Search } from "lucide-react";
+import { ACTIVORA_ACTION } from "@/lib/home/constants";
 import type { HomeSearchFilters } from "@/lib/home/search-url";
-import { HOME_CARD } from "@/components/home/shared";
 import { DISCOVERY_RADIUS } from "@/lib/discovery/constants";
 import { SmartSearchSuggestions } from "./SmartSearchSuggestions";
 
-const INPUT_CLASS = `discovery-search-input h-10 w-full ${DISCOVERY_RADIUS.input} border border-slate-200 bg-white px-3 text-sm text-[#0F172A] placeholder:text-slate-400 transition-all duration-200 focus:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-100`;
+const INPUT_CLASS = `discovery-search-input h-10 w-full ${DISCOVERY_RADIUS.input} border border-orange-100/80 bg-white px-3 text-sm text-[#0F172A] placeholder:text-slate-400 transition-all duration-200 focus:border-orange-300 focus:outline-none focus:ring-2 focus:ring-orange-100`;
 
 type StickySearchBarProps = {
   filters: HomeSearchFilters;
   onFiltersChange: (updates: Partial<HomeSearchFilters>) => void;
   onSearch: () => void;
   searchError?: string | null;
+  collapsed?: boolean;
+  onExpand?: () => void;
 };
+
+function buildSearchSummary(filters: HomeSearchFilters): string {
+  const parts: string[] = [];
+  if (filters.location.trim()) {
+    parts.push(filters.location.trim());
+  }
+  if (filters.activity.trim()) {
+    parts.push(filters.activity.trim());
+  }
+  if (filters.childAge.trim()) {
+    parts.push(`Age ${filters.childAge}`);
+  }
+  if (filters.radius) {
+    parts.push(`${filters.radius} mi`);
+  }
+  return parts.length > 0 ? parts.join(" · ") : "All activities";
+}
 
 export function StickySearchBar({
   filters,
   onFiltersChange,
   onSearch,
   searchError,
+  collapsed = false,
+  onExpand,
 }: StickySearchBarProps) {
   const [locating, setLocating] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -63,8 +80,28 @@ export function StickySearchBar({
     );
   }
 
+  if (collapsed) {
+    return (
+      <div className="sticky top-0 z-30 border-b border-orange-100/60 bg-[#FFFBF7]/95 backdrop-blur-md">
+        <div className="mx-auto flex max-w-[1400px] items-center justify-between gap-3 px-4 py-2.5 sm:px-6">
+          <p className="min-w-0 truncate text-sm text-slate-600">
+            {buildSearchSummary(filters)}
+          </p>
+          <button
+            type="button"
+            onClick={onExpand}
+            className={`inline-flex shrink-0 items-center gap-1.5 border border-orange-200/80 bg-white px-3.5 py-2 text-xs font-semibold text-[#0F172A] transition-colors hover:border-orange-300 hover:bg-orange-50 ${DISCOVERY_RADIUS.button}`}
+          >
+            <Pencil className="h-3.5 w-3.5 text-[#F87128]" aria-hidden />
+            Edit Search
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="sticky top-0 z-30 border-b border-slate-200/80 bg-[#F8FAFC]/90 backdrop-blur-md">
+    <div className="sticky top-0 z-30 border-b border-orange-100/60 bg-[#FFFBF7]/95 backdrop-blur-md">
       <div className="mx-auto max-w-[1400px] px-4 sm:px-6">
         {searchError ? (
           <p className="pt-2 text-xs font-medium text-red-600">{searchError}</p>
@@ -74,7 +111,7 @@ export function StickySearchBar({
             event.preventDefault();
             onSearch();
           }}
-          className={`discovery-search-bar my-3 flex min-h-[72px] items-center gap-2 border border-slate-200/90 bg-white/95 px-3 py-2 shadow-sm shadow-slate-900/5 backdrop-blur-sm transition-all duration-200 sm:gap-3 sm:px-4 ${DISCOVERY_RADIUS.searchPill}`}
+          className={`discovery-search-bar my-3 flex min-h-[64px] items-center gap-2 border border-orange-100/80 bg-white px-3 py-2 shadow-sm shadow-orange-900/5 transition-all duration-200 sm:gap-3 sm:px-4 ${DISCOVERY_RADIUS.searchPill}`}
         >
           <div className="hidden min-w-0 flex-1 sm:block">
             <label htmlFor="discovery-location" className="sr-only">
@@ -82,7 +119,7 @@ export function StickySearchBar({
             </label>
             <div className="relative">
               <MapPin
-                className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+                className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-orange-400"
                 aria-hidden
               />
               <input
@@ -135,7 +172,7 @@ export function StickySearchBar({
             </label>
             <div className="relative">
               <Search
-                className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+                className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-orange-400"
                 aria-hidden
               />
               <input
@@ -185,7 +222,7 @@ export function StickySearchBar({
           <button
             type="button"
             onClick={handleUseLocation}
-            className={`hidden shrink-0 items-center gap-1.5 border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-[#0F172A] transition-colors hover:border-blue-200 hover:bg-blue-50 lg:inline-flex ${DISCOVERY_RADIUS.button}`}
+            className={`hidden shrink-0 items-center gap-1.5 border border-orange-100/80 bg-white px-3 py-2 text-xs font-semibold text-[#0F172A] transition-colors hover:border-orange-200 hover:bg-orange-50 lg:inline-flex ${DISCOVERY_RADIUS.button}`}
           >
             <Navigation className="h-3.5 w-3.5" aria-hidden />
             {locating ? "Locating…" : "Use my location"}
@@ -194,9 +231,7 @@ export function StickySearchBar({
           <button
             type="submit"
             className={`inline-flex h-10 shrink-0 items-center justify-center gap-1.5 px-4 text-xs font-semibold text-white transition-opacity hover:opacity-90 sm:px-5 ${DISCOVERY_RADIUS.button}`}
-            style={{
-              background: `linear-gradient(135deg, ${ACTIVORA_ACTION}, ${ACTIVORA_ACCENT})`,
-            }}
+            style={{ backgroundColor: ACTIVORA_ACTION }}
           >
             <Search className="h-3.5 w-3.5 sm:hidden" aria-hidden />
             <span>Search</span>

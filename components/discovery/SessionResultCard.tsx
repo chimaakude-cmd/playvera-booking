@@ -9,7 +9,6 @@ import { StarRating } from "@/components/home/shared";
 import { ACTIVORA_ACTION } from "@/lib/home/constants";
 import {
   DISCOVERY_RADIUS,
-  DISCOVERY_TRUST_OVERLAY,
 } from "@/lib/discovery/constants";
 import {
   getDemoRating,
@@ -65,22 +64,22 @@ export function SessionResultCard({
       onClick={onTap}
     >
       <article
-        className={`discovery-session-card overflow-hidden border bg-white transition-all duration-200 ${DISCOVERY_RADIUS.sessionCard} ${
+        className={`discovery-session-card overflow-hidden bg-white transition-all duration-200 ${DISCOVERY_RADIUS.sessionCard} ${
           isActive
-            ? "border-blue-300 shadow-lg shadow-blue-100/80 ring-2 ring-blue-100"
-            : "border-slate-200 shadow-sm hover:-translate-y-0.5 hover:shadow-lg hover:shadow-slate-200/60"
+            ? "shadow-lg shadow-orange-100/60 ring-2 ring-orange-100/80"
+            : "shadow-sm hover:-translate-y-0.5 hover:shadow-md hover:shadow-orange-50/80"
         }`}
       >
-        <div className="relative aspect-video w-full overflow-hidden">
+        <div className="relative aspect-[16/10] w-full overflow-hidden sm:aspect-[16/9]">
           <SessionImage
             imageId={mainImageId}
             alt={session.sessionTitle}
-            fallbackClassName="flex h-full w-full items-center justify-center bg-gradient-to-br from-blue-50 to-teal-50 text-sm font-medium text-slate-400"
+            fallbackClassName="flex h-full w-full items-center justify-center bg-gradient-to-br from-orange-50 to-amber-50 text-sm font-medium text-slate-400"
           />
 
           {isVerified ? (
             <span
-              className={`absolute left-3 top-3 border border-blue-100 bg-blue-50/95 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-[#2563EB] backdrop-blur-sm sm:text-xs ${DISCOVERY_RADIUS.button}`}
+              className={`absolute left-3 top-3 bg-white/95 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-[#F87128] backdrop-blur-sm sm:text-xs ${DISCOVERY_RADIUS.button}`}
             >
               Verified
             </span>
@@ -96,23 +95,9 @@ export function SessionResultCard({
             </div>
           ) : null}
 
-          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#0F172A]/90 via-[#0F172A]/50 to-transparent px-3 pb-2.5 pt-8">
-            <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-0.5 text-[9px] font-medium text-white/90 sm:text-[10px]">
-              {DISCOVERY_TRUST_OVERLAY.map((item, index) => (
-                <span key={item} className="inline-flex items-center gap-1">
-                  {index > 0 ? (
-                    <span className="text-white/40" aria-hidden>
-                      |
-                    </span>
-                  ) : null}
-                  {item}
-                </span>
-              ))}
-            </div>
-          </div>
         </div>
 
-        <div className="p-4 sm:p-5">
+        <div className="p-5 sm:p-6">
           <div className="min-w-0">
             <h2 className="truncate text-base font-bold text-[#0F172A] sm:text-lg">
               {session.sessionTitle}

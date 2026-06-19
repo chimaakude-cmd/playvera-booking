@@ -1,139 +1,162 @@
 "use client";
 
 import Link from "next/link";
-import { Bell, Globe, MapPin, Sparkles, TrendingUp } from "lucide-react";
-import { LogoMark } from "@/components/branding";
-import { buildSessionsUrl } from "@/lib/home/search-url";
+import { ACTIVORA_ACTION } from "@/lib/home/constants";
 import { DISCOVERY_RADIUS } from "@/lib/discovery/constants";
 import type { HomeSearchFilters } from "@/lib/home/search-url";
-import { getNoResultsSuggestions } from "@/lib/ai/search-assistant";
+import { EmptyRecommendations } from "./EmptyRecommendations";
 
 type SessionsEmptyStateProps = {
   filters: HomeSearchFilters;
   onClearFilters: () => void;
   onAdjustFilters?: (updates: Partial<HomeSearchFilters>) => void;
+  onBrowsePopular?: () => void;
 };
 
-const FALLBACK_SECTIONS = [
-  {
-    title: "Popular near you",
-    icon: MapPin,
-    query: "Football",
-    description: "Top-rated football clubs families book every week.",
-  },
-  {
-    title: "Trending nationally",
-    icon: TrendingUp,
-    query: "Swimming",
-    description: "Swimming lessons climbing the charts across the UK.",
-  },
-  {
-    title: "Online activities",
-    icon: Globe,
-    query: "tutoring",
-    description: "Live online tutoring and creative workshops from home.",
-  },
-  {
-    title: "Nearby schools",
-    icon: Sparkles,
-    query: "wraparound",
-    description: "After-school clubs running at schools near you.",
-  },
-] as const;
+const RADIUS_STEPS = ["5", "10", "15", "25"] as const;
+const MAX_RADIUS = 25;
+
+function getNextRadius(current: string): string | null {
+  const index = RADIUS_STEPS.indexOf(current as (typeof RADIUS_STEPS)[number]);
+  if (index === -1 || index >= RADIUS_STEPS.length - 1) {
+    return null;
+  }
+  return RADIUS_STEPS[index + 1];
+}
+
+function incrementRadius(current: string, miles: number): string | null {
+  const currentNum = Number(current) || 10;
+  if (currentNum >= MAX_RADIUS) {
+    return null;
+  }
+  return String(Math.min(currentNum + miles, MAX_RADIUS));
+}
+
+function isSearchTooNarrow(filters: HomeSearchFilters): boolean {
+  return Boolean(
+    filters.activity.trim() ||
+      filters.childAge.trim() ||
+      filters.date.trim() ||
+      (Number(filters.radius) || 10) < MAX_RADIUS,
+  );
+}
 
 export function SessionsEmptyState({
   filters,
   onClearFilters,
   onAdjustFilters,
+  onBrowsePopular,
 }: SessionsEmptyStateProps) {
+  const nextRadius = getNextRadius(filters.radius);
+  const plusFive = incrementRadius(filters.radius, 5);
+  const plusTen = incrementRadius(filters.radius, 10);
   const locationLabel = filters.location.trim() || "you";
-  const suggestions = getNoResultsSuggestions(filters);
+  const showSmartEmpty = isSearchTooNarrow(filters);
 
   return (
-    <div className="space-y-6">
+    <div className="w-full space-y-8">
       <div
-        className={`mx-auto max-w-lg border border-dashed border-slate-200 bg-white px-6 py-10 text-center ${DISCOVERY_RADIUS.card}`}
+        className={`mx-auto w-full border border-orange-100/80 bg-white px-6 py-10 text-center shadow-sm sm:px-10 ${DISCOVERY_RADIUS.card}`}
       >
-        <div className="mx-auto flex h-16 w-16 items-center justify-center">
-          <LogoMark size={64} />
-        </div>
-
-        <h2 className="mt-5 text-xl font-bold text-[#0F172A]">
-          No exact matches — try these instead
+        <h2 className="text-xl font-bold text-[#0F172A] sm:text-2xl">
+          No activities found
         </h2>
-        <p className="mt-2 text-sm leading-relaxed text-slate-600">
-          We couldn&apos;t find activities matching every filter. Explore
-          popular options near {locationLabel} or widen your search.
+        <p className="mx-auto mt-2 max-w-lg text-sm leading-relaxed text-slate-600">
+          We couldn&apos;t find activities matching your search near{" "}
+          {locationLabel}. Try adjusting your filters or explore suggestions
+          below.
         </p>
 
-        <div className="mt-5 flex flex-wrap justify-center gap-2">
-          {suggestions.map((suggestion) => (
-            <button
-              key={suggestion.label}
-              type="button"
-              onClick={() => onAdjustFilters?.(suggestion.updates)}
-              className={`inline-flex items-center border border-blue-200 bg-blue-50 px-4 py-2 text-xs font-semibold text-[#2563EB] transition-colors hover:border-blue-300 hover:bg-blue-100 ${DISCOVERY_RADIUS.button}`}
-            >
-              {suggestion.label}
-            </button>
-          ))}
+        {showSmartEmpty ? (
+          <div className="mx-auto mt-6 max-w-xl rounded-2xl border border-orange-100/60 bg-[#FFFBF7] px-4 py-4 sm:px-5">
+            <p className="text-sm font-semibold text-[#0F172A]">
+              Try widening your search to discover more activities.
+            </p>
+            <div className="mt-3 flex flex-wrap justify-center gap-2">
+              {plusFive && onAdjustFilters ? (
+                <button
+                  type="button"
+                  onClick={() => onAdjustFilters({ radius: plusFive })}
+                  className={`inline-flex items-center border border-orange-200/80 bg-white px-3 py-2 text-xs font-semibold text-[#2563EB] transition-colors hover:border-orange-300 hover:bg-orange-50 ${DISCOVERY_RADIUS.button}`}
+                >
+                  +5 miles
+                </button>
+              ) : null}
+              {plusTen &&
+              onAdjustFilters &&
+              plusTen !== plusFive ? (
+                <button
+                  type="button"
+                  onClick={() => onAdjustFilters({ radius: plusTen })}
+                  className={`inline-flex items-center border border-orange-200/80 bg-white px-3 py-2 text-xs font-semibold text-[#2563EB] transition-colors hover:border-orange-300 hover:bg-orange-50 ${DISCOVERY_RADIUS.button}`}
+                >
+                  +10 miles
+                </button>
+              ) : null}
+              {filters.childAge.trim() && onAdjustFilters ? (
+                <button
+                  type="button"
+                  onClick={() => onAdjustFilters({ childAge: "" })}
+                  className={`inline-flex items-center border border-orange-200/80 bg-white px-3 py-2 text-xs font-semibold text-[#2563EB] transition-colors hover:border-orange-300 hover:bg-orange-50 ${DISCOVERY_RADIUS.button}`}
+                >
+                  Remove age filter
+                </button>
+              ) : null}
+              {filters.activity.trim() && onAdjustFilters ? (
+                <button
+                  type="button"
+                  onClick={() => onAdjustFilters({ activity: "" })}
+                  className={`inline-flex items-center border border-orange-200/80 bg-white px-3 py-2 text-xs font-semibold text-[#2563EB] transition-colors hover:border-orange-300 hover:bg-orange-50 ${DISCOVERY_RADIUS.button}`}
+                >
+                  Remove activity filter
+                </button>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
+
+        <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
             type="button"
             onClick={onClearFilters}
-            className={`inline-flex items-center border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-[#0F172A] transition-colors hover:border-blue-200 hover:bg-blue-50 ${DISCOVERY_RADIUS.button}`}
+            className={`inline-flex items-center border border-orange-200/80 bg-white px-4 py-2.5 text-xs font-semibold text-[#0F172A] transition-colors hover:border-orange-300 hover:bg-orange-50 ${DISCOVERY_RADIUS.button}`}
           >
             Clear filters
           </button>
+          {nextRadius && onAdjustFilters ? (
+            <button
+              type="button"
+              onClick={() => onAdjustFilters({ radius: nextRadius })}
+              className={`inline-flex items-center border border-orange-200/80 bg-white px-4 py-2.5 text-xs font-semibold text-[#0F172A] transition-colors hover:border-orange-300 hover:bg-orange-50 ${DISCOVERY_RADIUS.button}`}
+            >
+              Expand radius to {nextRadius} mi
+            </button>
+          ) : null}
+          <Link
+            href="/contact"
+            className={`inline-flex items-center px-4 py-2.5 text-xs font-semibold text-white transition-opacity hover:opacity-90 ${DISCOVERY_RADIUS.button}`}
+            style={{ backgroundColor: ACTIVORA_ACTION }}
+          >
+            Request activity
+          </Link>
           <button
             type="button"
-            onClick={() => {
-              window.alert(
-                "We'll notify you when matching activities are available.",
-              );
-            }}
-            className={`inline-flex items-center gap-1.5 border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-[#0F172A] transition-colors hover:border-blue-200 hover:bg-blue-50 ${DISCOVERY_RADIUS.button}`}
+            onClick={onBrowsePopular}
+            className={`inline-flex items-center border border-orange-200/80 bg-white px-4 py-2.5 text-xs font-semibold text-[#0F172A] transition-colors hover:border-orange-300 hover:bg-orange-50 ${DISCOVERY_RADIUS.button}`}
           >
-            <Bell className="h-3.5 w-3.5" aria-hidden />
-            Notify me
+            Browse popular activities
           </button>
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        {FALLBACK_SECTIONS.map((section) => {
-          const Icon = section.icon;
-          const title =
-            section.title === "Popular near you"
-              ? `Popular near ${locationLabel}`
-              : section.title;
-
-          return (
-            <Link
-              key={section.title}
-              href={buildSessionsUrl({ ...filters, activity: section.query })}
-              className={`discovery-session-card group border border-slate-200 bg-white p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-lg hover:shadow-blue-100/40 ${DISCOVERY_RADIUS.card}`}
-            >
-              <div className="flex items-start gap-3">
-                <div
-                  className={`flex h-10 w-10 shrink-0 items-center justify-center bg-blue-50 text-[#2563EB] ${DISCOVERY_RADIUS.button}`}
-                >
-                  <Icon className="h-5 w-5" aria-hidden />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-[#0F172A] group-hover:text-[#2563EB]">
-                    {title}
-                  </h3>
-                  <p className="mt-1 text-xs leading-relaxed text-slate-600">
-                    {section.description}
-                  </p>
-                  <span className="mt-2 inline-block text-xs font-semibold text-[#2563EB]">
-                    Browse →
-                  </span>
-                </div>
-              </div>
-            </Link>
-          );
-        })}
+      <div>
+        <h3 className="mb-4 text-base font-bold text-[#0F172A] sm:text-lg">
+          You might also like
+        </h3>
+        <EmptyRecommendations
+          filters={filters}
+          locationLabel={locationLabel}
+        />
       </div>
     </div>
   );

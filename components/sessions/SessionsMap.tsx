@@ -26,6 +26,7 @@ type SessionsMapProps = {
   onSessionSelect: (sessionId: string) => void;
   searchCenter?: SessionCoordinates | null;
   radiusMiles?: number;
+  onSearchArea?: (center: SessionCoordinates) => void;
 };
 
 type MarkerEntry = {
@@ -239,7 +240,7 @@ function createMarkerElement(
     <svg viewBox="0 0 32 42" aria-hidden="true">
       <path
         d="M16 0C9.925 0 5 4.925 5 11c0 8.25 11 31 11 31s11-22.75 11-31C27 4.925 22.075 0 16 0Z"
-        fill="#2563EB"
+        fill="#F87128"
         stroke="#ffffff"
         stroke-width="2"
       />
@@ -263,7 +264,7 @@ function updateMarkerSelection(root: HTMLButtonElement, isSelected: boolean): vo
   if (pin instanceof HTMLElement) {
     const path = pin.querySelector("path");
     if (path) {
-      path.setAttribute("fill", isSelected ? "#14B8A6" : "#2563EB");
+      path.setAttribute("fill", isSelected ? "#FF6A2A" : "#F87128");
     }
   }
 }
@@ -305,6 +306,7 @@ export function SessionsMap({
   onSessionSelect,
   searchCenter = null,
   radiusMiles,
+  onSearchArea,
 }: SessionsMapProps) {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
@@ -523,13 +525,29 @@ export function SessionsMap({
   }
 
   return (
-    <div className="activora-map-container relative h-full min-h-[320px] w-full">
+    <div className="activora-map-container relative h-full min-h-[280px] w-full">
       <div ref={mapContainerRef} className="h-full w-full" />
       {mapStatus === "loading" && (
-        <div className="absolute inset-0 flex items-center justify-center bg-zinc-100">
-          <p className="text-sm text-zinc-500">Loading map…</p>
+        <div className="absolute inset-0 flex items-center justify-center bg-orange-50/50">
+          <p className="text-sm text-slate-500">Loading map…</p>
         </div>
       )}
+      {mapStatus === "ready" && onSearchArea ? (
+        <button
+          type="button"
+          onClick={() => {
+            const map = mapRef.current;
+            if (!map) {
+              return;
+            }
+            const center = map.getCenter();
+            onSearchArea({ lat: center.lat, lng: center.lng });
+          }}
+          className="discovery-map-control absolute left-1/2 top-3 z-10 -translate-x-1/2 rounded-[18px] border border-orange-200/80 bg-white/95 px-4 py-2 text-xs font-semibold text-[#0F172A] shadow-md backdrop-blur-sm hover:border-orange-300 hover:bg-orange-50"
+        >
+          Search this area
+        </button>
+      ) : null}
       {mapStatus === "ready" && sessions.length === 0 ? (
         <div className="pointer-events-none absolute bottom-4 left-4 rounded-xl border border-white/80 bg-white/95 px-3 py-2 text-xs text-zinc-600 shadow-sm backdrop-blur">
           No map locations yet

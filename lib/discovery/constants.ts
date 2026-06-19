@@ -8,7 +8,7 @@ export const DISCOVERY_RADIUS = {
   card: "rounded-[32px]",
   input: "rounded-[20px]",
   button: "rounded-[18px]",
-  map: "rounded-[32px]",
+  map: "rounded-[36px]",
   searchPill: "rounded-full",
   category: "rounded-[28px]",
   sessionCard: "rounded-[32px]",
@@ -103,6 +103,20 @@ export const DISCOVERY_CATEGORY_CARDS = [
   },
 ] as const;
 
+/** Merged lane: badges + image cards for single horizontal scroll row */
+export const POPULAR_CATEGORIES = [
+  ...DISCOVERY_CATEGORY_BADGES.map((badge) => ({
+    ...badge,
+    image: undefined as string | undefined,
+  })),
+  ...DISCOVERY_CATEGORY_CARDS.map(({ label, icon, query, image }) => ({
+    label,
+    icon,
+    query,
+    image,
+  })),
+] as const;
+
 /** @deprecated Use DISCOVERY_CATEGORY_CARDS */
 export const DISCOVERY_CATEGORY_CHIPS = DISCOVERY_CATEGORY_CARDS.map(
   ({ label, icon, query }) => ({ label, icon, query }),
@@ -162,9 +176,56 @@ export const DEFAULT_DISCOVERY_FILTERS: HomeSearchFilters = {
   date: "",
 };
 
+/** @deprecated Use DISCOVERY_TRUST_SIGNALS */
 export const DISCOVERY_TRUST_STATS = [
   { value: "★★★★★", label: "Parent rating" },
   { value: "12,000+", label: "Bookings made" },
   { value: "200+", label: "Verified providers" },
   { value: "Secure", label: "Online payments" },
+] as const;
+
+export const DISCOVERY_TRUST_SIGNALS = [
+  { icon: "verified" as const, label: "Verified providers" },
+  { icon: "instant" as const, label: "Instant booking" },
+  { icon: "secure" as const, label: "Secure payments" },
+] as const;
+
+/** Large visual cards shown when search returns no results */
+export const EMPTY_RECOMMENDATION_CARDS = [
+  {
+    id: "popular-near-you",
+    title: "Popular near you",
+    description: "Top-rated clubs families book every week.",
+    query: "Football",
+    icon: "📍",
+    image:
+      "https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=640&h=400&fit=crop&q=80",
+  },
+  {
+    id: "similar-age",
+    title: "Similar age range",
+    description: "Activities matched to your child's age group.",
+    query: "early years",
+    icon: "🧸",
+    image:
+      "https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?w=640&h=400&fit=crop&q=80",
+  },
+  {
+    id: "trending-week",
+    title: "Trending this week",
+    description: "The fastest-growing sessions parents love.",
+    query: "Swimming",
+    icon: "🔥",
+    image:
+      "https://images.unsplash.com/photo-1530549387789-4c1017266635?w=640&h=400&fit=crop&q=80",
+  },
+  {
+    id: "online",
+    title: "Online activities",
+    description: "Live tutoring and creative workshops from home.",
+    query: "tutoring",
+    icon: "💻",
+    image:
+      "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=640&h=400&fit=crop&q=80",
+  },
 ] as const;
