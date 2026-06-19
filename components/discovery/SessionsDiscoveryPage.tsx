@@ -10,7 +10,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { SlidersHorizontal, Map, X } from "lucide-react";
+import { SlidersHorizontal, Map as MapIcon, X } from "lucide-react";
 import { HomeHeader } from "@/components/home/HomeHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { LoadingState } from "@/components/club/LoadingState";
@@ -401,7 +401,7 @@ export function SessionsDiscoveryPage() {
                   onClick={() => setMobileMapOpen((open) => !open)}
                   className={`inline-flex items-center gap-1.5 border border-orange-100/80 bg-white px-3 py-2 text-xs font-semibold text-[#0F172A] lg:hidden ${DISCOVERY_RADIUS.button}`}
                 >
-                  <Map className="h-3.5 w-3.5" aria-hidden />
+                  <MapIcon className="h-3.5 w-3.5" aria-hidden />
                   {mobileMapOpen ? "Hide map" : "Show map"}
                 </button>
               ) : null}
