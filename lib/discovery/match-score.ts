@@ -1,6 +1,6 @@
 import type { ClubSession } from "@/lib/sessions";
 import type { ParentSessionSearchFilters } from "@/lib/session-search";
-import { getDemoRating, getProviderTrust } from "./session-display";
+import { getProviderTrust, getSessionRating } from "./session-display";
 
 function hashSessionId(id: string): number {
   let hash = 0;
@@ -56,7 +56,7 @@ export function computeActivityDiscoveryScore(
   distanceMiles: number | null,
 ): ActivityDiscoveryScore {
   const hash = hashSessionId(session.id);
-  const rating = getDemoRating(session);
+  const rating = getSessionRating(session);
   const trust = getProviderTrust(session);
   const repeatPercent = Number.parseInt(trust.repeatRate, 10) || 70;
   const attendancePercent = Number.parseInt(trust.attendance, 10) || 92;
@@ -67,7 +67,8 @@ export function computeActivityDiscoveryScore(
     distanceScore = Math.max(0, 100 - (distanceMiles / radius) * 60);
   }
 
-  const reviewScore = ((rating - 3) / 2) * 100;
+  const reviewScore =
+    rating > 0 ? ((rating - 3) / 2) * 100 : 0;
   const attendanceScore = attendancePercent;
   const repeatScore = repeatPercent;
   const ageScore = childAgeMatches(session, filters.childAge) ? 100 : 55;

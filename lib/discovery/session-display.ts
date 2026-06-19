@@ -1,6 +1,8 @@
 import type { ClubSession } from "@/lib/sessions";
 import { getFeeSettings } from "@/lib/fee-settings";
 import { calculatePaymentBreakdown, formatMoney } from "@/lib/payments";
+import { getActivityRatingSummary } from "@/lib/reviews/ratings";
+import { getReviews } from "@/lib/reviews/storage";
 import {
   formatDay,
   formatTimeRange,
@@ -16,14 +18,12 @@ function hashSessionId(id: string): number {
   return Math.abs(hash);
 }
 
-export function getDemoRating(session: ClubSession): number {
-  const hash = hashSessionId(session.id);
-  return 4.2 + (hash % 8) / 10;
+export function getSessionRating(session: ClubSession): number {
+  return getActivityRatingSummary(session.id, getReviews()).averageRating;
 }
 
-export function getDemoReviewCount(session: ClubSession): number {
-  const hash = hashSessionId(session.id);
-  return 12 + (hash % 180);
+export function getSessionReviewCount(session: ClubSession): number {
+  return getActivityRatingSummary(session.id, getReviews()).reviewCount;
 }
 
 export function getDemoSocialProof(session: ClubSession): {

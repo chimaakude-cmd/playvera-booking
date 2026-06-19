@@ -7,7 +7,7 @@ import type { ParentSessionSearchFilters } from "@/lib/session-search";
 import type { SortOption } from "./constants";
 import {
   getCustomerPriceForSession,
-  getDemoRating,
+  getSessionRating,
 } from "./session-display";
 
 export function sortSessions(
@@ -30,7 +30,7 @@ export function sortSessions(
       break;
     case "rating":
       sorted.sort(
-        (a, b) => getDemoRating(b) - getDemoRating(a),
+        (a, b) => getSessionRating(b) - getSessionRating(a),
       );
       break;
     case "price":

@@ -11,12 +11,12 @@ import {
   DISCOVERY_RADIUS,
 } from "@/lib/discovery/constants";
 import {
-  getDemoRating,
-  getDemoReviewCount,
   getFromPriceLabel,
   getNextSessionLabel,
   getProviderName,
   getSessionBadges,
+  getSessionRating,
+  getSessionReviewCount,
 } from "@/lib/discovery/session-display";
 import {
   isSessionSoldOut,
@@ -48,8 +48,8 @@ export function SessionResultCard({
   enablePreview = true,
 }: SessionResultCardProps) {
   const { mainImageId } = getSessionImages(session);
-  const rating = getDemoRating(session);
-  const reviewCount = getDemoReviewCount(session);
+  const rating = getSessionRating(session);
+  const reviewCount = getSessionReviewCount(session);
   const badges = getSessionBadges(session);
   const priceLabel = getFromPriceLabel(session);
   const isVerified = badges.includes("verified");
@@ -108,8 +108,14 @@ export function SessionResultCard({
           </div>
 
           <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-600">
-            <StarRating rating={rating} />
-            <span>({reviewCount})</span>
+            {reviewCount > 0 ? (
+              <>
+                <StarRating rating={rating} />
+                <span>({reviewCount})</span>
+              </>
+            ) : (
+              <span className="text-slate-500">No reviews yet</span>
+            )}
             {distanceLabel ? (
               <span className="inline-flex items-center gap-1">
                 <MapPin className="h-3 w-3" aria-hidden />

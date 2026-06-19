@@ -2,7 +2,6 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { Star } from "lucide-react";
 import type { ClubSession } from "@/lib/sessions";
 import {
   formatDay,
@@ -14,11 +13,13 @@ import { SessionImage } from "@/components/sessions/SessionImage";
 import { HOME_BUTTON } from "@/components/home/shared";
 import { ACTIVORA_ACTION } from "@/lib/home/constants";
 import {
-  getDemoRating,
-  getDemoReviewCount,
   getFromPriceLabel,
   getProviderName,
+  getSessionRating,
+  getSessionReviewCount,
 } from "@/lib/discovery/session-display";
+import { getReviewsForActivity } from "@/lib/reviews/storage";
+import { ReviewCard } from "@/components/reviews/ReviewCard";
 import { LoadingState } from "@/components/club/LoadingState";
 
 const SessionsMap = dynamic(
@@ -33,25 +34,13 @@ type SessionExpandPanelProps = {
 export function SessionExpandPanel({ session }: SessionExpandPanelProps) {
   const { mainImageId, galleryImageIds } = getSessionImages(session);
   const galleryUrls = getSessionGalleryImageUrls(session);
-  const rating = getDemoRating(session);
-  const reviewCount = getDemoReviewCount(session);
+  const rating = getSessionRating(session);
+  const reviewCount = getSessionReviewCount(session);
+  const publishedReviews = getReviewsForActivity(session.id);
 
   const description =
     session.description?.trim() ||
     `Join ${session.sessionTitle} — a ${session.activityType.replace(/_/g, " ")} session for ${session.ageRange}. Sessions run ${formatDay(session.day)} from ${formatTimeRange(session.startTime, session.endTime)}.`;
-
-  const demoReviews = [
-    {
-      name: "Sarah M.",
-      text: "My child loved it — brilliant coaches and well organised.",
-      rating: 5,
-    },
-    {
-      name: "James T.",
-      text: "Easy booking and great communication from the provider.",
-      rating: 5,
-    },
-  ];
 
   return (
     <div className="border-t border-slate-100 bg-[#F8FAFC] px-4 py-5 sm:px-5">
@@ -96,31 +85,23 @@ export function SessionExpandPanel({ session }: SessionExpandPanelProps) {
 
           <div>
             <h3 className="text-sm font-bold text-[#0F172A]">
-              Reviews ({reviewCount})
+              Reviews{reviewCount > 0 ? ` (${reviewCount})` : ""}
             </h3>
-            <div className="mt-2 space-y-2">
-              {demoReviews.map((review) => (
-                <div
-                  key={review.name}
-                  className={`border border-slate-200 bg-white p-3 ${HOME_BUTTON}`}
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold text-[#0F172A]">
-                      {review.name}
-                    </span>
-                    <span className="inline-flex items-center gap-0.5 text-xs text-amber-500">
-                      {Array.from({ length: review.rating }).map((_, i) => (
-                        <Star key={i} className="h-3 w-3 fill-current" aria-hidden />
-                      ))}
-                    </span>
-                  </div>
-                  <p className="mt-1 text-sm text-slate-600">{review.text}</p>
-                </div>
-              ))}
-            </div>
-            <p className="mt-2 text-xs text-slate-500">
-              Average rating {rating.toFixed(1)} from {reviewCount} reviews
-            </p>
+            {publishedReviews.length === 0 ? (
+              <p className="mt-2 rounded-xl border border-dashed border-slate-200 bg-white px-4 py-6 text-center text-sm text-slate-500">
+                No reviews yet
+              </p>
+            ) : (
+              <div className="mt-2 space-y-3">
+                {publishedReviews.map((review) => (
+                  <ReviewCard key={review.id} review={review} />
+                ))}
+                <p className="text-xs text-slate-500">
+                  Average rating {rating.toFixed(1)} from {reviewCount} review
+                  {reviewCount === 1 ? "" : "s"}
+                </p>
+              </div>
+            )}
           </div>
 
           {(galleryImageIds.length > 0 || galleryUrls.length > 0) ? (
