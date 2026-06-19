@@ -5,6 +5,9 @@
  * Database: future club_vat_settings table
  */
 
+import { isDevelopmentEnvironment } from "@/lib/admin-users/production-gates";
+import { readAuthSession } from "@/lib/auth/session";
+
 export const VAT_SETTINGS_STORAGE_KEY = "activora-vat-settings";
 
 export const DEFAULT_VAT_RATE_PERCENT = 20;
@@ -21,8 +24,33 @@ export type VatSettings = {
   addVatToBookings: boolean;
 };
 
+const PLACEHOLDER_CLUB_ACCOUNT_EMAIL = "owner@playvera.example";
+
+function resolveDefaultClubAccountEmail(): string {
+  if (isDevelopmentEnvironment()) {
+    return PLACEHOLDER_CLUB_ACCOUNT_EMAIL;
+  }
+
+  if (typeof window === "undefined") {
+    return "";
+  }
+
+  return readAuthSession()?.email?.trim() ?? "";
+}
+
+export function createDefaultVatSettings(): VatSettings {
+  return {
+    clubAccountEmail: resolveDefaultClubAccountEmail(),
+    isVatRegistered: false,
+    vatRegistrationNumber: "",
+    vatRatePercent: DEFAULT_VAT_RATE_PERCENT,
+    addVatToBookings: false,
+  };
+}
+
+/** @deprecated Use createDefaultVatSettings() for environment-aware defaults. */
 export const DEFAULT_VAT_SETTINGS: VatSettings = {
-  clubAccountEmail: "owner@playvera.example",
+  clubAccountEmail: PLACEHOLDER_CLUB_ACCOUNT_EMAIL,
   isVatRegistered: false,
   vatRegistrationNumber: "",
   vatRatePercent: DEFAULT_VAT_RATE_PERCENT,
@@ -35,19 +63,30 @@ export type VatSettingsValidation = {
 };
 
 export function getVatSettings(): VatSettings {
+  const defaults = createDefaultVatSettings();
+
   if (typeof window === "undefined") {
-    return DEFAULT_VAT_SETTINGS;
+    return defaults;
   }
 
   try {
     const raw = localStorage.getItem(VAT_SETTINGS_STORAGE_KEY);
     if (!raw) {
-      return DEFAULT_VAT_SETTINGS;
+      return defaults;
     }
 
-    return { ...DEFAULT_VAT_SETTINGS, ...(JSON.parse(raw) as VatSettings) };
+    const parsed = { ...defaults, ...(JSON.parse(raw) as VatSettings) };
+
+    if (
+      !isDevelopmentEnvironment() &&
+      parsed.clubAccountEmail === PLACEHOLDER_CLUB_ACCOUNT_EMAIL
+    ) {
+      parsed.clubAccountEmail = defaults.clubAccountEmail;
+    }
+
+    return parsed;
   } catch {
-    return DEFAULT_VAT_SETTINGS;
+    return defaults;
   }
 }
 

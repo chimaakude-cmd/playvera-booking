@@ -1,4 +1,5 @@
 import { getThreads, isThreadEnded } from "@/lib/support";
+import { isDevelopmentEnvironment } from "@/lib/admin-users/production-gates";
 import { INBOX_STORAGE_KEY, SEED_INBOX_ITEMS } from "./defaults";
 import type {
   InboxCategory,
@@ -37,6 +38,11 @@ function writeJson<T>(value: T): void {
 function ensureSeeded(): InboxItem[] {
   const existing = readJson<InboxItem[] | null>(null);
   if (!existing || existing.length === 0) {
+    if (!isDevelopmentEnvironment()) {
+      writeJson([]);
+      return [];
+    }
+
     writeJson(SEED_INBOX_ITEMS);
     return structuredClone(SEED_INBOX_ITEMS);
   }

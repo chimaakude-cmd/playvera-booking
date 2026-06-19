@@ -13,6 +13,7 @@ import {
   createEmptySocialLinks,
 } from "./types";
 import { normalizeClubContact, normalizeClubSocialLinks } from "./links";
+import { isDevelopmentEnvironment } from "@/lib/admin-users/production-gates";
 
 export const DEFAULT_CLUB_BRANDING: ClubProfileBranding = {
   primaryColor: "#0d9488",
@@ -160,7 +161,45 @@ export function migrateLegacyClubProfile(
   };
 }
 
+export function createEmptyClubProfile(): ClubProfile {
+  const now = new Date().toISOString();
+
+  return {
+    id: "local-club-profile",
+    providerId: "local-provider",
+    logoUrl: null,
+    coverImageUrl: null,
+    clubName: "",
+    tagline: "",
+    shortDescription: "",
+    establishedYear: null,
+    verificationStatus: "unverified",
+    longDescription: "",
+    uniqueSellingPoints: "",
+    categories: [],
+    ageRanges: [],
+    accessibilityOptions: [],
+    locations: [],
+    contact: createEmptyContact(),
+    socialLinks: createEmptySocialLinks(),
+    branding: DEFAULT_CLUB_BRANDING,
+    customerView: DEFAULT_CLUB_CUSTOMER_VIEW,
+    mediaGallery: [],
+    publicSlug: "",
+    metaTitle: "",
+    metaDescription: "",
+    published: false,
+    visibility: "draft",
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
 export function createDefaultClubProfile(): ClubProfile {
+  if (!isDevelopmentEnvironment()) {
+    return createEmptyClubProfile();
+  }
+
   const now = new Date().toISOString();
 
   return {

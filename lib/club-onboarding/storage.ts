@@ -1,5 +1,6 @@
 import { clearAuthSession, writeAuthSession, type AuthUser } from "@/lib/auth";
 import { readAuthSession } from "@/lib/auth/session";
+import { initializeClubTeamFromOwner } from "@/lib/club-team/storage";
 import { getSupabaseBrowserClient, isSupabaseConfigured } from "@/lib/supabase";
 import { toPersistableImageUrl } from "@/lib/image-urls";
 import { createDefaultBookingQuestions } from "@/lib/booking-questions";
@@ -529,6 +530,13 @@ function finalizeClubOnboardingLocally(
   const user = createOwnerAuthUser(synced, options);
   clearAuthSession();
   writeAuthSession(user);
+
+  initializeClubTeamFromOwner(user, {
+    firstName: synced.owner.firstName.trim(),
+    lastName: [synced.owner.middleName.trim(), synced.owner.lastName.trim()]
+      .filter(Boolean)
+      .join(" "),
+  });
 
   setProviderSubscriptionPlan(DEFAULT_PLAN_ID);
 

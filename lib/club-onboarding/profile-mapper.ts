@@ -1,4 +1,5 @@
 import { toPersistableImageUrl } from "@/lib/image-urls";
+import { isDevelopmentEnvironment } from "@/lib/admin-users/production-gates";
 import {
   createDefaultClubProfile,
   DEFAULT_CLUB_BRANDING,
@@ -81,7 +82,7 @@ export function buildClubProfileInput(state: ClubOnboardingState): ClubProfileIn
     categories: getClubCategories(state.club),
     ageRanges: state.club.ageRanges,
     accessibilityOptions: defaults.accessibilityOptions,
-    locations: defaults.locations,
+    locations: isDevelopmentEnvironment() ? defaults.locations : [],
     contact,
     socialLinks: createEmptySocialLinks(),
     branding: {
@@ -90,7 +91,7 @@ export function buildClubProfileInput(state: ClubOnboardingState): ClubProfileIn
       secondaryColor: DEFAULT_CLUB_BRANDING.secondaryColor,
     },
     customerView: DEFAULT_CLUB_CUSTOMER_VIEW,
-    mediaGallery: defaults.mediaGallery,
+    mediaGallery: isDevelopmentEnvironment() ? defaults.mediaGallery : [],
     publicSlug: slug,
     metaTitle: `${state.club.name.trim()} | Activeora`,
     metaDescription: tagline,

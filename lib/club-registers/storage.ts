@@ -11,6 +11,7 @@ import type {
 import type { Booking, BookingStatus } from "@/lib/bookings";
 import type { BookingQuestionAnswer } from "@/lib/booking-questions";
 import type { CustomerPaymentStatus } from "@/lib/club-customers";
+import { isDevelopmentEnvironment } from "@/lib/admin-users/production-gates";
 import { getBookings } from "@/lib/bookings";
 import {
   getSessionById,
@@ -118,7 +119,11 @@ function buildSessionDatesForRegister(
   }
 
   const slots = session ? getActiveSessionDates(session) : [];
-  if (slots.length === 0 && isDemoBlockSession(primaryOption.sessionId)) {
+  if (
+    isDevelopmentEnvironment() &&
+    slots.length === 0 &&
+    isDemoBlockSession(primaryOption.sessionId)
+  ) {
     return buildDemoBlockSessionDates(
       buildRegisterSessionId,
       formatShortDateLabel,
@@ -304,7 +309,9 @@ export function getRegisterSessionOptions(): RegisterSessionOption[] {
     });
   }
 
-  options.push(getDemoBlockSessionOption());
+  if (isDevelopmentEnvironment()) {
+    options.push(getDemoBlockSessionOption());
+  }
 
   return options.sort((a, b) => {
     const left = `${a.date}T${a.startTime}`;
@@ -331,7 +338,10 @@ export function buildRegisterGrid(
   let children: RegisterGridChild[];
   let usingDemoData = false;
 
-  if (bookings.length === 0 || isDemoBlockSession(registerSession.sessionId)) {
+  if (
+    isDevelopmentEnvironment() &&
+    (bookings.length === 0 || isDemoBlockSession(registerSession.sessionId))
+  ) {
     const attendanceBySessionAndBooking: Record<
       string,
       Record<string, { attendance: AttendanceStatus; notes: string }>

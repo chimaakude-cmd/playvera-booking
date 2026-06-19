@@ -4,6 +4,10 @@ export function isProductionEnvironment(): boolean {
   return process.env.NODE_ENV === "production";
 }
 
+export function isDevelopmentEnvironment(): boolean {
+  return !isProductionEnvironment();
+}
+
 /** Explicit override for emergency PIN/login in production (default off). */
 export function isEmergencyRecoveryOverrideEnabled(): boolean {
   return process.env.ADMIN_EMERGENCY_RECOVERY_ENABLED === "true";

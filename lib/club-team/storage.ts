@@ -1,3 +1,6 @@
+import { isDevelopmentEnvironment } from "@/lib/admin-users/production-gates";
+import { readAuthSession } from "@/lib/auth/session";
+import type { AuthUser } from "@/lib/auth/types";
 import type {
   ClubTeamState,
   InviteStaffInput,
@@ -9,7 +12,9 @@ import { CLUB_TEAM_STORAGE_KEY } from "./types";
 import type { ClubRole } from "./permissions";
 import { INVITABLE_ROLES } from "./permissions";
 
-function createDefaultTeamState(): ClubTeamState {
+const PLACEHOLDER_EMAIL_DOMAIN = "@playvera.example";
+
+function createDemoTeamState(): ClubTeamState {
   const now = new Date().toISOString();
   const ownerId = "owner-1";
 
@@ -77,6 +82,77 @@ function createDefaultTeamState(): ClubTeamState {
   };
 }
 
+function splitDisplayName(name: string): { firstName: string; lastName: string } {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) {
+    return { firstName: "Club", lastName: "Owner" };
+  }
+
+  return {
+    firstName: parts[0],
+    lastName: parts.slice(1).join(" ") || "Owner",
+  };
+}
+
+export function createOwnerOnlyTeamState(options?: {
+  userId?: string;
+  email?: string;
+  firstName?: string;
+  lastName?: string;
+}): ClubTeamState {
+  const session = typeof window !== "undefined" ? readAuthSession() : null;
+  const now = new Date().toISOString();
+  const email = options?.email?.trim() ?? session?.email?.trim() ?? "";
+  const { firstName, lastName } =
+    options?.firstName !== undefined
+      ? {
+          firstName: options.firstName.trim() || "Club",
+          lastName: options.lastName?.trim() || "Owner",
+        }
+      : splitDisplayName(session?.name ?? "Club Owner");
+  const ownerId = options?.userId ?? session?.id ?? crypto.randomUUID();
+
+  return {
+    currentUserId: ownerId,
+    subscriptionPlan: "starter",
+    members: [
+      {
+        id: ownerId,
+        firstName,
+        lastName,
+        email,
+        role: "owner",
+        status: "active",
+        lastActiveAt: now,
+        isOwner: true,
+        joinedAt: now,
+      },
+    ],
+    invites: [],
+  };
+}
+
+function createDefaultTeamState(): ClubTeamState {
+  if (isDevelopmentEnvironment()) {
+    return createDemoTeamState();
+  }
+
+  return createOwnerOnlyTeamState();
+}
+
+function isSeededDemoTeamState(state: ClubTeamState): boolean {
+  const hasPlaceholderMember = state.members.some(
+    (member) =>
+      member.email.endsWith(PLACEHOLDER_EMAIL_DOMAIN) ||
+      (!member.isOwner && member.id.startsWith("member-")),
+  );
+  const hasPlaceholderInvite = state.invites.some((invite) =>
+    invite.email.endsWith(PLACEHOLDER_EMAIL_DOMAIN),
+  );
+
+  return hasPlaceholderMember || hasPlaceholderInvite;
+}
+
 function normalizeSubscriptionPlan(
   value?: string,
 ): ClubTeamState["subscriptionPlan"] {
@@ -93,13 +169,41 @@ function normalizeSubscriptionPlan(
 function normalizeTeamState(raw: Partial<ClubTeamState>): ClubTeamState {
   const defaults = createDefaultTeamState();
 
-  return {
+  const normalized: ClubTeamState = {
     ...defaults,
     ...raw,
     subscriptionPlan: normalizeSubscriptionPlan(raw.subscriptionPlan),
     members: raw.members?.length ? raw.members : defaults.members,
     invites: raw.invites ?? defaults.invites,
   };
+
+  if (!isDevelopmentEnvironment() && isSeededDemoTeamState(normalized)) {
+    return createOwnerOnlyTeamState();
+  }
+
+  return normalized;
+}
+
+export function initializeClubTeamFromOwner(
+  user: Pick<AuthUser, "id" | "email" | "name">,
+  options?: { firstName?: string; lastName?: string },
+): ClubTeamState {
+  const { firstName, lastName } =
+    options?.firstName !== undefined
+      ? {
+          firstName: options.firstName.trim() || "Club",
+          lastName: options.lastName?.trim() || "Owner",
+        }
+      : splitDisplayName(user.name);
+
+  const state = createOwnerOnlyTeamState({
+    userId: user.id,
+    email: user.email,
+    firstName,
+    lastName,
+  });
+  saveClubTeamState(state);
+  return state;
 }
 
 export function getClubTeamState(): ClubTeamState {
@@ -229,6 +333,10 @@ export function cancelTeamInvite(inviteId: string): void {
 }
 
 export function setCurrentClubRoleForDemo(role: ClubRole): void {
+  if (!isDevelopmentEnvironment()) {
+    return;
+  }
+
   const state = getClubTeamState();
   const match = state.members.find((member) => member.role === role);
 
