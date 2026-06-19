@@ -45,6 +45,12 @@ export function uploadEmailAsset(file: File) {
   return imageStorage.upload(file, { bucket: EMAIL_ASSET_BUCKET });
 }
 
+export {
+  uploadClubGalleryMedia,
+  uploadProviderLogo,
+  validateClubVideoFile,
+} from "./club-media";
+
 export type { ImageStorageProvider, StoredImage } from "./types";
 export {
   ACCEPTED_IMAGE_EXTENSIONS,

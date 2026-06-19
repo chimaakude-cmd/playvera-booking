@@ -7,12 +7,13 @@ import {
 import type {
   ClubProfile,
   ClubProfileInput,
+  ClubProfileVisibility,
   LegacyClubProfileFields,
 } from "./types";
-import { CLUB_PROFILE_STORAGE_KEY } from "./types";
+import { CLUB_PROFILE_STORAGE_KEY, isPubliclyAccessibleProfile } from "./types";
 
 export const CLUB_PROFILE_SAVE_QUOTA_MESSAGE =
-  "Your club profile could not be fully saved locally because browser storage is full. Text details were saved where possible — you can add images later from settings.";
+  "Your club profile could not be cached locally because browser storage is full.";
 
 function isStorageQuotaError(error: unknown): boolean {
   return (
@@ -49,11 +50,26 @@ export function sanitizeClubProfileImages<
   };
 }
 
+function normalizeVisibility(
+  raw: Partial<ClubProfile>,
+): ClubProfileVisibility {
+  if (
+    raw.visibility === "draft" ||
+    raw.visibility === "published" ||
+    raw.visibility === "hidden"
+  ) {
+    return raw.visibility;
+  }
+
+  return raw.published ? "published" : "draft";
+}
+
 function normalizeProfile(
   raw: Partial<ClubProfile> & LegacyClubProfileFields,
 ): ClubProfile {
   const defaults = createDefaultClubProfile();
   const migrated = migrateLegacyClubProfile(raw);
+  const visibility = normalizeVisibility(raw);
 
   const profile: ClubProfile = {
     ...defaults,
@@ -82,6 +98,8 @@ function normalizeProfile(
       raw.establishedYear === undefined
         ? defaults.establishedYear
         : raw.establishedYear,
+    visibility,
+    published: visibility !== "draft",
   };
 
   const { contact } = normalizeClubContact(profile.contact);
@@ -92,6 +110,23 @@ function normalizeProfile(
     contact,
     socialLinks,
   });
+}
+
+export function cacheClubProfileLocally(profile: ClubProfile): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    localStorage.setItem(
+      CLUB_PROFILE_STORAGE_KEY,
+      JSON.stringify(sanitizeClubProfileImages(profile)),
+    );
+  } catch (error) {
+    if (isStorageQuotaError(error)) {
+      console.warn(CLUB_PROFILE_SAVE_QUOTA_MESSAGE);
+    }
+  }
 }
 
 export function getClubProfile(): ClubProfile {
@@ -132,33 +167,29 @@ export function saveClubProfile(
     throw new Error("Email is required.");
   }
 
+  const visibility =
+    input.visibility ?? (input.published ? "published" : "draft");
+
   const profile = sanitizeClubProfileImages({
     ...existing,
     ...input,
     providerId: options?.providerId?.trim() || existing.providerId,
     contact,
     socialLinks,
+    visibility,
+    published: visibility !== "draft",
     updatedAt: now,
     createdAt: existing.createdAt || now,
   });
 
-  if (typeof window !== "undefined") {
-    try {
-      localStorage.setItem(CLUB_PROFILE_STORAGE_KEY, JSON.stringify(profile));
-    } catch (error) {
-      if (isStorageQuotaError(error)) {
-        throw new Error(CLUB_PROFILE_SAVE_QUOTA_MESSAGE);
-      }
-      throw error;
-    }
-  }
-
+  cacheClubProfileLocally(profile);
   return profile;
 }
 
+/** @deprecated Public pages load from Supabase. Cache-only helper for legacy callers. */
 export function getClubProfileBySlug(slug: string): ClubProfile | null {
   const profile = getClubProfile();
-  if (profile.publicSlug !== slug || !profile.published) {
+  if (profile.publicSlug !== slug || !isPubliclyAccessibleProfile(profile)) {
     return null;
   }
 

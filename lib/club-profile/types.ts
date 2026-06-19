@@ -1,9 +1,11 @@
 /**
  * Club Profile — source of truth for customer-facing club pages.
  *
- * Storage (today): localStorage key `activora-club-profile`
- * Database (migration): public.club_profiles + public.club_profile_locations
+ * Storage: Supabase `public.club_profiles` + `public.club_profile_locations`
+ * Cache: localStorage key `activora-club-profile` (read-through cache only)
  */
+
+export type ClubProfileVisibility = "draft" | "published" | "hidden";
 
 export type ClubProfileMediaType = "photo" | "video" | "highlight";
 
@@ -154,6 +156,7 @@ export type ClubProfile = {
   metaTitle: string;
   metaDescription: string;
   published: boolean;
+  visibility: ClubProfileVisibility;
 
   profileDesign?: ClubProfileDesign;
 
@@ -317,6 +320,24 @@ export function getMainClubLocation(
 
 export function getPublicClubPath(slug: string): string {
   return `/clubs/${slug}`;
+}
+
+export const clubProfileVisibilityLabels: Record<ClubProfileVisibility, string> =
+  {
+    draft: "Draft — only visible to your team",
+    published: "Published — public on activora.uk",
+    hidden: "Hidden — direct link only",
+  };
+
+export function isPubliclyAccessibleProfile(profile: {
+  visibility?: ClubProfileVisibility;
+  published?: boolean;
+}): boolean {
+  if (profile.visibility) {
+    return profile.visibility === "published" || profile.visibility === "hidden";
+  }
+
+  return Boolean(profile.published);
 }
 
 /** @deprecated Legacy flat profile fields — used only when migrating localStorage. */

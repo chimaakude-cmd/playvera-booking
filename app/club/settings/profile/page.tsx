@@ -7,16 +7,24 @@ import { ClubProfileSummary } from "@/components/club/profile/ClubProfileSummary
 import { FranchiseeManagedBanner } from "@/components/club/FranchiseeManagedBanner";
 import { LoadingState } from "@/components/club/LoadingState";
 import { PageHeader } from "@/components/club/PageHeader";
-import { getClubProfile } from "@/lib/club-profile";
-import type { ClubProfile } from "@/lib/club-profile";
+import {
+  fetchClubProfileFromApi,
+  getClubProfile,
+  type ClubProfile,
+} from "@/lib/club-profile";
 
 export default function ClubProfilePage() {
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<ClubProfile | null>(null);
 
   useEffect(() => {
-    setProfile(getClubProfile());
-    setLoading(false);
+    async function load() {
+      const apiResult = await fetchClubProfileFromApi();
+      setProfile(apiResult.ok ? apiResult.profile : getClubProfile());
+      setLoading(false);
+    }
+
+    void load();
   }, []);
 
   if (loading || !profile) {
@@ -48,7 +56,7 @@ export default function ClubProfilePage() {
           </div>
         }
       />
-      <FranchiseeManagedBanner />
+      <FranchiseeManagedBanner providerId={profile.providerId} />
       <ClubProfileSummary profile={profile} />
     </div>
   );

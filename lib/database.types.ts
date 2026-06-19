@@ -46,6 +46,7 @@ export type Database = {
           fee_handling: Database["public"]["Enums"]["fee_handling"];
           organisation_type: string;
           parent_provider_id: string | null;
+          managed_by_franchisor: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -78,6 +79,7 @@ export type Database = {
           fee_handling?: Database["public"]["Enums"]["fee_handling"];
           organisation_type?: string;
           parent_provider_id?: string | null;
+          managed_by_franchisor?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -110,6 +112,7 @@ export type Database = {
           fee_handling?: Database["public"]["Enums"]["fee_handling"];
           organisation_type?: string;
           parent_provider_id?: string | null;
+          managed_by_franchisor?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -209,6 +212,7 @@ export type Database = {
           meta_title: string;
           meta_description: string;
           published: boolean;
+          visibility: Database["public"]["Enums"]["club_profile_visibility"];
           created_at: string;
           updated_at: string;
         };
@@ -244,6 +248,7 @@ export type Database = {
           meta_title?: string;
           meta_description?: string;
           published?: boolean;
+          visibility?: Database["public"]["Enums"]["club_profile_visibility"];
           created_at?: string;
           updated_at?: string;
         };
@@ -279,6 +284,7 @@ export type Database = {
           meta_title?: string;
           meta_description?: string;
           published?: boolean;
+          visibility?: Database["public"]["Enums"]["club_profile_visibility"];
           created_at?: string;
           updated_at?: string;
         };
@@ -1100,6 +1106,7 @@ export type Database = {
         | "unverified"
         | "verified"
         | "premium_verified";
+      club_profile_visibility: "draft" | "published" | "hidden";
       club_team_role: "coach" | "administrator" | "manager" | "owner";
       club_team_member_status: "active" | "pending";
       platform_admin_role:

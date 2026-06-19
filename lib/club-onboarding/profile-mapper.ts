@@ -95,6 +95,7 @@ export function buildClubProfileInput(state: ClubOnboardingState): ClubProfileIn
     metaTitle: `${state.club.name.trim()} | Activeora`,
     metaDescription: tagline,
     published: true,
+    visibility: "published",
     profileDesign: {
       logoUrl,
       coverUrl,

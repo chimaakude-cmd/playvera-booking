@@ -192,6 +192,7 @@ export function createDefaultClubProfile(): ClubProfile {
     metaDescription:
       "Book after-school clubs, sports sessions, and holiday camps with PlayVera Juniors.",
     published: true,
+    visibility: "published",
     createdAt: now,
     updatedAt: now,
   };

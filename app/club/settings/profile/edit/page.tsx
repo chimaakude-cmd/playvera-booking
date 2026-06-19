@@ -7,27 +7,53 @@ import { FranchiseeManagedBanner } from "@/components/club/FranchiseeManagedBann
 import { LoadingState } from "@/components/club/LoadingState";
 import { PageHeader } from "@/components/club/PageHeader";
 import {
+  fetchClubProfileFromApi,
   getClubProfile,
   getPublicClubPath,
-  saveClubProfile,
+  saveClubProfileToApi,
   type ClubProfile,
   type ClubProfileInput,
 } from "@/lib/club-profile";
 
 export default function EditClubProfilePage() {
   const [loading, setLoading] = useState(true);
-  const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [savedLive, setSavedLive] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [profile, setProfile] = useState<ClubProfile | null>(null);
 
   useEffect(() => {
-    setProfile(getClubProfile());
-    setLoading(false);
+    async function load() {
+      const apiResult = await fetchClubProfileFromApi();
+      if (apiResult.ok) {
+        setProfile(apiResult.profile);
+      } else {
+        setProfile(getClubProfile());
+        if (apiResult.status && apiResult.status !== 404) {
+          setSaveError(apiResult.error);
+        }
+      }
+      setLoading(false);
+    }
+
+    void load();
   }, []);
 
-  function handleSave(input: ClubProfileInput) {
-    const next = saveClubProfile(input);
-    setProfile(next);
-    setSaved(true);
+  async function handleSave(input: ClubProfileInput) {
+    setSaving(true);
+    setSaveError(null);
+    setSavedLive(false);
+
+    const result = await saveClubProfileToApi(input);
+    setSaving(false);
+
+    if (!result.ok) {
+      setSaveError(result.error);
+      return;
+    }
+
+    setProfile(result.profile);
+    setSavedLive(result.publishedLive);
   }
 
   if (loading || !profile) {
@@ -49,26 +75,26 @@ export default function EditClubProfilePage() {
         }
       />
 
-      <FranchiseeManagedBanner />
+      <FranchiseeManagedBanner providerId={profile.providerId} />
 
-      {saved ? (
+      {savedLive ? (
         <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-          Club profile saved locally.
-          {profile.published ? (
-            <>
-              {" "}
-              <Link
-                href={getPublicClubPath(profile.publicSlug)}
-                className="font-semibold underline"
-              >
-                View public page
-              </Link>
-            </>
-          ) : null}
+          Your club page is now live and visible to parents.{" "}
+          <Link
+            href={getPublicClubPath(profile.publicSlug)}
+            className="font-semibold underline"
+          >
+            View public page
+          </Link>
         </div>
       ) : null}
 
-      <ClubProfileEditForm initialProfile={profile} onSave={handleSave} />
+      <ClubProfileEditForm
+        initialProfile={profile}
+        onSave={handleSave}
+        saving={saving}
+        saveError={saveError}
+      />
     </div>
   );
 }

@@ -14,18 +14,27 @@ import {
   CLUB_AGE_RANGE_OPTIONS,
   CLUB_CATEGORY_OPTIONS,
   CLUB_SOCIAL_PLATFORMS,
+  clubProfileVisibilityLabels,
   fontPresetLabels,
   slugifyClubName,
   socialPlatformLabels,
   socialPlatformPlaceholders,
   verificationStatusLabels,
   validateClubProfileInput,
+  type ClubProfileVisibility,
 } from "@/lib/club-profile";
+import {
+  hasPublishErrors,
+  validateClubProfilePublish,
+} from "@/lib/club-profile/validation";
 import { useFranchiseePolicy } from "@/lib/organisation";
+import {
+  ClubMediaFileUpload,
+  ClubProfileImageUpload,
+} from "./ClubProfileImageUpload";
 import {
   ProfileChipGroup,
   ProfileField,
-  ProfileImagePlaceholder,
   ProfileSection,
   ProfileSelect,
   ProfileTextarea,
@@ -35,7 +44,9 @@ import {
 
 type ClubProfileEditFormProps = {
   initialProfile: ClubProfile;
-  onSave: (input: ClubProfileInput) => void;
+  onSave: (input: ClubProfileInput) => void | Promise<void>;
+  saving?: boolean;
+  saveError?: string | null;
 };
 
 const sectionLinks = [
@@ -74,6 +85,8 @@ function toggleListValue(list: string[], value: string): string[] {
 export function ClubProfileEditForm({
   initialProfile,
   onSave,
+  saving = false,
+  saveError = null,
 }: ClubProfileEditFormProps) {
   const { isLocked, lockedMessage } = useFranchiseePolicy(initialProfile.providerId);
   const profileLocked = isLocked("profile");
@@ -100,11 +113,15 @@ export function ClubProfileEditForm({
     metaTitle: initialProfile.metaTitle,
     metaDescription: initialProfile.metaDescription,
     published: initialProfile.published,
+    visibility:
+      initialProfile.visibility ??
+      (initialProfile.published ? "published" : "draft"),
   });
   const [fieldErrors, setFieldErrors] = useState<{
     contact: Partial<Record<keyof ClubProfileInput["contact"], string>>;
     social: Partial<Record<keyof ClubProfileInput["socialLinks"], string>>;
-  }>({ contact: {}, social: {} });
+    publish: Partial<Record<"logoUrl" | "description" | "contact", string>>;
+  }>({ contact: {}, social: {}, publish: {} });
 
   function updateLocation(
     locationId: string,
@@ -175,16 +192,22 @@ export function ClubProfileEditForm({
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const validation = validateClubProfileInput(profile);
+    const publishValidation = validateClubProfilePublish(profile);
+
     setFieldErrors({
       contact: validation.contactErrors,
       social: validation.socialErrors,
+      publish: publishValidation,
     });
 
-    if (!validation.isValid) {
+    if (!validation.isValid || hasPublishErrors(publishValidation)) {
       return;
     }
 
-    onSave(profile);
+    void onSave({
+      ...profile,
+      published: profile.visibility !== "draft",
+    });
   }
 
   return (
@@ -209,16 +232,29 @@ export function ClubProfileEditForm({
         description="How parents first discover and recognise your club."
       >
         <div className="grid gap-5 sm:grid-cols-[160px_1fr]">
-          <ProfileImagePlaceholder
+          <ClubProfileImageUpload
             label="Club logo"
             hint="Square image, 400×400 recommended"
+            imageUrl={profile.logoUrl}
+            onChange={(url) =>
+              setProfile((current) => ({ ...current, logoUrl: url }))
+            }
+            bucket="logo"
           />
-          <ProfileImagePlaceholder
+          <ClubProfileImageUpload
             label="Cover banner"
             hint="Wide image, 1600×600 recommended"
             aspect="banner"
+            imageUrl={profile.coverImageUrl}
+            onChange={(url) =>
+              setProfile((current) => ({ ...current, coverImageUrl: url }))
+            }
+            bucket="cover"
           />
         </div>
+        {fieldErrors.publish.logoUrl ? (
+          <p className="text-sm text-red-600">{fieldErrors.publish.logoUrl}</p>
+        ) : null}
         <ProfileField label="Club name" htmlFor="club-name">
           <ProfileTextInput
             id="club-name"
@@ -302,6 +338,11 @@ export function ClubProfileEditForm({
             rows={5}
           />
         </ProfileField>
+        {fieldErrors.publish.description ? (
+          <p className="text-sm text-red-600">
+            {fieldErrors.publish.description}
+          </p>
+        ) : null}
         <ProfileField label="What makes your club unique" htmlFor="unique-points">
           <ProfileTextarea
             id="unique-points"
@@ -778,21 +819,12 @@ export function ClubProfileEditForm({
               key={item.id}
               className="grid gap-3 rounded-xl border border-zinc-200 p-4 sm:grid-cols-[120px_1fr]"
             >
-              <ProfileImagePlaceholder
-                label={item.type}
-                hint="Upload coming soon"
+              <ClubMediaFileUpload
+                mediaType={item.type}
+                imageUrl={item.url || null}
+                onChange={(url) => updateMediaItem(item.id, { url })}
               />
               <div className="space-y-3">
-                <ProfileField label="Media URL">
-                  <ProfileTextInput
-                    id={`media-url-${item.id}`}
-                    value={item.url}
-                    onChange={(value) =>
-                      updateMediaItem(item.id, { url: value })
-                    }
-                    placeholder="https://..."
-                  />
-                </ProfileField>
                 <ProfileField label="Caption">
                   <ProfileTextInput
                     id={`media-caption-${item.id}`}
@@ -802,6 +834,20 @@ export function ClubProfileEditForm({
                     }
                   />
                 </ProfileField>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setProfile((current) => ({
+                      ...current,
+                      mediaGallery: current.mediaGallery.filter(
+                        (entry) => entry.id !== item.id,
+                      ),
+                    }))
+                  }
+                  className="text-xs font-semibold text-rose-700"
+                >
+                  Remove
+                </button>
               </div>
             </div>
           ))}
@@ -849,26 +895,48 @@ export function ClubProfileEditForm({
             rows={3}
           />
         </ProfileField>
-        <ProfileToggle
-          label="Publish club page"
-          description="Make your public club page visible to parents."
-          checked={profile.published}
-          onChange={(checked) =>
-            setProfile((current) => ({ ...current, published: checked }))
-          }
-        />
+        <ProfileField
+          label="Visibility"
+          htmlFor="profile-visibility"
+          hint="Published pages are live at activora.uk/clubs/your-slug"
+        >
+          <ProfileSelect
+            id="profile-visibility"
+            value={profile.visibility}
+            onChange={(value) =>
+              setProfile((current) => ({
+                ...current,
+                visibility: value as ClubProfileVisibility,
+                published: value !== "draft",
+              }))
+            }
+            options={(
+              Object.entries(clubProfileVisibilityLabels) as Array<
+                [ClubProfileVisibility, string]
+              >
+            ).map(([value, label]) => ({ value, label }))}
+          />
+        </ProfileField>
+        {fieldErrors.publish.contact ? (
+          <p className="text-sm text-red-600">{fieldErrors.publish.contact}</p>
+        ) : null}
       </ProfileSection>
 
       <div className="sticky bottom-4 flex flex-wrap gap-3 rounded-2xl border border-zinc-200 bg-white/95 p-4 shadow-lg backdrop-blur">
         <button
           type="submit"
-          className="rounded-xl bg-zinc-900 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-zinc-800"
+          disabled={saving}
+          className="rounded-xl bg-zinc-900 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-zinc-800 disabled:opacity-60"
         >
-          Save club profile
+          {saving ? "Saving..." : "Save & publish"}
         </button>
-        <p className="self-center text-xs text-zinc-500">
-          Static UI only — saved locally until Supabase sync is connected.
-        </p>
+        {saveError ? (
+          <p className="self-center text-sm text-red-600">{saveError}</p>
+        ) : (
+          <p className="self-center text-xs text-zinc-500">
+            Saves directly to Supabase and updates your public club page.
+          </p>
+        )}
       </div>
     </form>
   );

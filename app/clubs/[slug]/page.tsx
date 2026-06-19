@@ -1,56 +1,19 @@
-"use client";
-
 import Link from "next/link";
-import { useEffect, useState } from "react";
 import { ClubPublicPage } from "@/components/club/public/ClubPublicPage";
-import { getClubProfileBySlug } from "@/lib/club-profile";
-import type { ClubProfile } from "@/lib/club-profile";
-import { trackProfileVisit, trackShareEvent } from "@/lib/club-share";
-import { ClubSession, getSessions } from "@/lib/sessions";
+import { ClubPublicPageTracker } from "@/components/club/public/ClubPublicPageTracker";
+import { fetchPublicClubProfileBySlug } from "@/lib/club-profile/server";
+import { getSessions } from "@/lib/sessions";
 
-export default function PublicClubPage({
+export default async function PublicClubPage({
   params,
 }: {
   params: Promise<{ slug: string }>;
 }) {
-  const [slug, setSlug] = useState<string | null>(null);
-  const [profile, setProfile] = useState<ClubProfile | null>(null);
-  const [sessions, setSessions] = useState<ClubSession[]>([]);
-  const [ready, setReady] = useState(false);
+  const { slug } = await params;
+  const profile = await fetchPublicClubProfileBySlug(slug);
+  const sessions = getSessions().filter((session) => session.published !== false);
 
-  useEffect(() => {
-    async function load() {
-      const resolved = await params;
-      setSlug(resolved.slug);
-      const clubProfile = getClubProfileBySlug(resolved.slug);
-      setProfile(clubProfile);
-      setSessions(getSessions().filter((session) => session.published !== false));
-      setReady(true);
-    }
-
-    void load();
-  }, [params]);
-
-  useEffect(() => {
-    if (!ready || !profile) {
-      return;
-    }
-    trackProfileVisit();
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("src") === "qr") {
-      trackShareEvent("qr_scan");
-    }
-  }, [ready, profile]);
-
-  if (!ready) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-[#f7f8fa] text-sm text-zinc-500">
-        Loading club...
-      </div>
-    );
-  }
-
-  if (!profile || !slug) {
+  if (!profile) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-[#f7f8fa] px-6 text-center">
         <h1 className="text-2xl font-semibold text-zinc-900">Club not found</h1>
@@ -67,5 +30,10 @@ export default function PublicClubPage({
     );
   }
 
-  return <ClubPublicPage profile={profile} sessions={sessions} />;
+  return (
+    <>
+      <ClubPublicPageTracker />
+      <ClubPublicPage profile={profile} sessions={sessions} />
+    </>
+  );
 }
