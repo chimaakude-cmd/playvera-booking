@@ -17,6 +17,8 @@ export const ACTIVORA_BLUE = ACTIVORA_ACTION;
 export const ACTIVORA_ORANGE = ACTIVORA_ACTION;
 export const ACTIVORA_NAVY = ACTIVORA_PRIMARY;
 
+export { HOME_ACTIVITY_CATEGORIES } from "./category-images";
+
 export const ACTIVITY_SUGGESTIONS = getActivitiesByPopularity()
   .slice(0, 16)
   .map(({ label, icon }) => ({ label, icon }));

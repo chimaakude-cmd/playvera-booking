@@ -47,6 +47,10 @@
     "panelClose": "Close activity browser",
     "noResults": "No activities match your search."
   },
+  "categories": {
+    "title": "Popular categories",
+    "exploreAll": "Explore all activities"
+  },
   "trustBar": {
     "parentRating": "Parent rating",
     "bookings": "Bookings",

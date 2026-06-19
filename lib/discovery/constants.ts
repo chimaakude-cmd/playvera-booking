@@ -1,4 +1,5 @@
 import type { HomeSearchFilters } from "@/lib/home/search-url";
+import { HOME_ACTIVITY_CATEGORIES } from "@/lib/home/category-images";
 
 export const SAVED_SESSIONS_KEY = "activora-saved-sessions";
 export const SAVED_FILTERS_KEY = "activora-discovery-filters";
@@ -21,101 +22,17 @@ export const DISCOVERY_TRUST_OVERLAY = [
   "Instant confirmation",
 ] as const;
 
-export const DISCOVERY_CATEGORY_BADGES = [
-  { label: "Trending now", icon: "🔥", query: "" },
-  { label: "Summer camps", icon: "☀️", query: "camps" },
-  { label: "Most booked", icon: "⭐", query: "" },
-  { label: "Near you", icon: "📍", query: "" },
-] as const;
 
-export const DISCOVERY_CATEGORY_CARDS = [
-  {
-    label: "Football",
-    icon: "⚽",
-    query: "Football",
-    count: 1248,
-    image:
-      "https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=440&h=280&fit=crop&q=80",
-  },
-  {
-    label: "Swimming",
-    icon: "🏊",
-    query: "Swimming",
-    count: 892,
-    image:
-      "https://images.unsplash.com/photo-1530549387789-4c1017266635?w=440&h=280&fit=crop&q=80",
-  },
-  {
-    label: "Arts",
-    icon: "🎨",
-    query: "arts",
-    count: 634,
-    image:
-      "https://images.unsplash.com/photo-1460661419371-ef9473adf5b6?w=440&h=280&fit=crop&q=80",
-  },
-  {
-    label: "Drama",
-    icon: "🎭",
-    query: "drama",
-    count: 421,
-    image:
-      "https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=440&h=280&fit=crop&q=80",
-  },
-  {
-    label: "Holiday Camps",
-    icon: "🏕",
-    query: "camps",
-    count: 756,
-    image:
-      "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=440&h=280&fit=crop&q=80",
-  },
-  {
-    label: "Wraparound",
-    icon: "🌅",
-    query: "wraparound",
-    count: 312,
-    image:
-      "https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?w=440&h=280&fit=crop&q=80",
-  },
-  {
-    label: "Tutoring",
-    icon: "📚",
-    query: "tutoring",
-    count: 528,
-    image:
-      "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=440&h=280&fit=crop&q=80",
-  },
-  {
-    label: "Martial Arts",
-    icon: "🥋",
-    query: "martial arts",
-    count: 389,
-    image:
-      "https://images.unsplash.com/photo-1555597673-b21d5c935865?w=440&h=280&fit=crop&q=80",
-  },
-  {
-    label: "Early Years",
-    icon: "🧸",
-    query: "early years",
-    count: 445,
-    image:
-      "https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?w=440&h=280&fit=crop&q=80",
-  },
-] as const;
+/** @deprecated Use HOME_ACTIVITY_CATEGORIES from lib/home/category-images.ts */
+export const DISCOVERY_CATEGORY_CARDS = HOME_ACTIVITY_CATEGORIES.map(
+  (category) => ({
+    ...category,
+    count: 0,
+  }),
+);
 
-/** Merged lane: badges + image cards for single horizontal scroll row */
-export const POPULAR_CATEGORIES = [
-  ...DISCOVERY_CATEGORY_BADGES.map((badge) => ({
-    ...badge,
-    image: undefined as string | undefined,
-  })),
-  ...DISCOVERY_CATEGORY_CARDS.map(({ label, icon, query, image }) => ({
-    label,
-    icon,
-    query,
-    image,
-  })),
-] as const;
+/** Image category cards for discovery — aligned with homepage catalog. */
+export const POPULAR_CATEGORIES = HOME_ACTIVITY_CATEGORIES;
 
 /** @deprecated Use DISCOVERY_CATEGORY_CARDS */
 export const DISCOVERY_CATEGORY_CHIPS = DISCOVERY_CATEGORY_CARDS.map(

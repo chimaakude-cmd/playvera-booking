@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { SiteFooter } from "@/components/SiteFooter";
 import type { HomeSearchFilters } from "@/lib/home/search-url";
-import { HomeActivityChips } from "./HomeActivityChips";
+import { HomeCategoryRow } from "./HomeCategoryRow";
 import { HomeHeader } from "./HomeHeader";
 import { HomeHeroSearch } from "./HomeHeroSearch";
 import { HomePopularClubs } from "./HomePopularClubs";
@@ -39,7 +39,7 @@ export function HomePage() {
 
       <main className="flex-1">
         <HomeHeroSearch filters={filters} onFiltersChange={handleFiltersChange} />
-        <HomeActivityChips filters={filters} />
+        <HomeCategoryRow filters={filters} />
         <HomeTrustBar />
         <HomePopularClubs radius={filters.radius} />
         <HowActivoraWorks />
