@@ -4,6 +4,7 @@ import {
   type ActivityRow,
   type ActivityStatus,
 } from "@/lib/club-activities";
+import { getActivityPublicUrl } from "@/lib/club-share/url";
 import { getActiveSessionDates } from "@/lib/sessions";
 import type { ClubSession } from "@/lib/sessions";
 import {
@@ -108,11 +109,9 @@ export function buildExampleRegisterActivityCard(): RegisterActivityCardData {
   };
 }
 
-export function getActivityBookingUrl(activityId: string, baseUrl?: string): string {
-  const origin =
-    baseUrl ??
-    (typeof window !== "undefined"
-      ? window.location.origin
-      : "https://activora.uk");
-  return `${origin}/book/${activityId}`;
+export function getActivityBookingUrl(
+  activityId: string,
+  baseUrl?: string,
+): string {
+  return getActivityPublicUrl(activityId, { baseUrl });
 }

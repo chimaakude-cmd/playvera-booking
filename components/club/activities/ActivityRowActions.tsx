@@ -1,21 +1,26 @@
 "use client";
 
 import Link from "next/link";
-import { Archive, Trash2 } from "lucide-react";
+import { Archive, Share2, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { ActivityRow } from "@/lib/club-activities";
 import { canHardDeleteSession } from "@/lib/club-activities/session-actions";
 
 type ActivityRowActionsProps = {
   row: ActivityRow;
-  onDuplicate: (row: ActivityRow) => void;
+  onPreview: (row: ActivityRow) => void;
+  onShare: (row: ActivityRow) => void;
   onArchive: (row: ActivityRow) => void;
   onDelete: (row: ActivityRow) => void;
 };
 
+const mobileButtonClass =
+  "rounded-lg border border-zinc-200 px-2 py-1 text-[10px] font-semibold text-zinc-700 transition-colors hover:bg-zinc-50";
+
 export function ActivityRowActions({
   row,
-  onDuplicate,
+  onPreview,
+  onShare,
   onArchive,
   onDelete,
 }: ActivityRowActionsProps) {
@@ -40,26 +45,53 @@ export function ActivityRowActions({
 
   return (
     <div className="flex items-center gap-1" ref={menuRef}>
-      <button
-        type="button"
-        onClick={(event) => {
-          event.stopPropagation();
-          onDelete(row);
-        }}
-        title={
-          deletable
-            ? "Delete session"
-            : "Cannot delete — session has bookings. Archive instead."
-        }
-        className={`rounded-lg border p-1.5 transition-colors ${
-          deletable
-            ? "border-zinc-200 text-zinc-500 hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600"
-            : "border-zinc-200 text-zinc-400 hover:border-amber-200 hover:bg-amber-50 hover:text-amber-700"
-        }`}
-        aria-label={`Delete ${row.title}`}
-      >
-        <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-      </button>
+      <div className="flex items-center gap-1 lg:hidden">
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            onPreview(row);
+          }}
+          className={mobileButtonClass}
+        >
+          Preview
+        </button>
+        <Link
+          href={`/club/registers?session=${row.id}`}
+          onClick={(event) => event.stopPropagation()}
+          className="rounded-lg bg-teal-600 px-2 py-1 text-[10px] font-semibold text-white transition-colors hover:bg-teal-700"
+        >
+          Register
+        </Link>
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            onArchive(row);
+          }}
+          className={`${mobileButtonClass} inline-flex items-center gap-0.5`}
+        >
+          <Archive className="h-3 w-3" aria-hidden="true" />
+          Archive
+        </button>
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            onDelete(row);
+          }}
+          title={
+            deletable
+              ? "Delete session"
+              : "Cannot delete — session has bookings. Archive instead."
+          }
+          className="inline-flex items-center gap-0.5 rounded-lg border border-rose-200 px-2 py-1 text-[10px] font-semibold text-rose-600 transition-colors hover:bg-rose-50"
+          aria-label={`Delete ${row.title}`}
+        >
+          <Trash2 className="h-3 w-3" aria-hidden="true" />
+          Delete
+        </button>
+      </div>
 
       <div className="relative">
         <button
@@ -69,7 +101,7 @@ export function ActivityRowActions({
             setOpen((current) => !current);
           }}
           className="rounded-lg border border-zinc-200 px-2.5 py-1 text-xs font-medium text-zinc-600 transition-colors hover:bg-zinc-50"
-          aria-label="Activity actions"
+          aria-label="More activity actions"
         >
           ···
         </button>
@@ -88,34 +120,12 @@ export function ActivityRowActions({
               onClick={(event) => {
                 event.stopPropagation();
                 setOpen(false);
-                onDuplicate(row);
-              }}
-              className="block w-full px-3 py-2 text-left text-sm text-zinc-700 hover:bg-zinc-50"
-            >
-              Duplicate
-            </button>
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                setOpen(false);
-                onArchive(row);
+                onShare(row);
               }}
               className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-zinc-700 hover:bg-zinc-50"
             >
-              <Archive className="h-3.5 w-3.5" aria-hidden="true" />
-              Archive
-            </button>
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                setOpen(false);
-                onDelete(row);
-              }}
-              className="block w-full px-3 py-2 text-left text-sm text-rose-600 hover:bg-rose-50"
-            >
-              Delete
+              <Share2 className="h-3.5 w-3.5" aria-hidden="true" />
+              Share activity
             </button>
           </div>
         ) : null}

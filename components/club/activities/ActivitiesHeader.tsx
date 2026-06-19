@@ -1,22 +1,64 @@
 "use client";
 
 import Link from "next/link";
+import { useRef } from "react";
 import { ShareClubButton } from "@/components/club/share/ShareClubButton";
 import { getClubProfile } from "@/lib/club-profile";
 
 type BulkAction = "delete" | "archive" | "publish" | "export";
 
+export type BulkActionAvailability = {
+  delete: boolean;
+  archive: boolean;
+  publish: boolean;
+};
+
 type ActivitiesHeaderProps = {
   selectedCount?: number;
+  bulkAvailability?: BulkActionAvailability;
   onBulkAction?: (action: BulkAction) => void;
 };
 
+function bulkMenuButtonClass(enabled: boolean, tone: "danger" | "default"): string {
+  if (enabled) {
+    return tone === "danger"
+      ? "cursor-pointer text-rose-600 hover:bg-rose-50"
+      : "cursor-pointer text-zinc-700 hover:bg-zinc-50";
+  }
+
+  return "cursor-not-allowed opacity-40 text-zinc-400 hover:bg-transparent";
+}
+
 export function ActivitiesHeader({
   selectedCount = 0,
+  bulkAvailability = { delete: false, archive: false, publish: false },
   onBulkAction,
 }: ActivitiesHeaderProps) {
   const profile = getClubProfile();
+  const detailsRef = useRef<HTMLDetailsElement>(null);
   const hasSelection = selectedCount > 0;
+  const bulkLabel = hasSelection
+    ? `Bulk actions (${selectedCount} selected)`
+    : "Bulk actions";
+
+  function closeMenu() {
+    if (detailsRef.current) {
+      detailsRef.current.open = false;
+    }
+  }
+
+  function handleAction(action: BulkAction, enabled: boolean) {
+    if (action !== "delete" && !enabled) {
+      return;
+    }
+
+    if (action === "delete" && !hasSelection) {
+      return;
+    }
+
+    closeMenu();
+    onBulkAction?.(action);
+  }
 
   return (
     <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -27,49 +69,50 @@ export function ActivitiesHeader({
         <p className="mt-1.5 text-sm leading-6 text-zinc-500 sm:text-base">
           Create, manage and track your sessions, availability and bookings.
         </p>
-        {hasSelection ? (
-          <p className="mt-1 text-sm font-medium text-teal-700">
-            {selectedCount} selected
-          </p>
-        ) : null}
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative">
-          <details className="group">
+          <details ref={detailsRef} className="group">
             <summary className="inline-flex cursor-pointer list-none items-center gap-2 rounded-xl border border-zinc-200 bg-white px-4 py-2.5 text-sm font-semibold text-zinc-700 transition-colors hover:bg-zinc-50 [&::-webkit-details-marker]:hidden">
-              Bulk actions
+              {bulkLabel}
               <span className="text-zinc-400">▾</span>
             </summary>
-            <div className="absolute right-0 z-20 mt-2 w-48 rounded-xl border border-zinc-200 bg-white py-1 shadow-lg">
+            <div className="absolute right-0 z-20 mt-2 w-56 rounded-xl border border-zinc-200 bg-white py-1 shadow-lg">
               <button
                 type="button"
-                disabled={!hasSelection}
-                onClick={() => onBulkAction?.("delete")}
-                className="block w-full px-4 py-2 text-left text-sm text-rose-600 hover:bg-rose-50 disabled:cursor-not-allowed disabled:text-zinc-400 disabled:hover:bg-transparent"
+                onClick={() => handleAction("delete", bulkAvailability.delete)}
+                className={`block w-full px-4 py-2 text-left text-sm transition-colors ${bulkMenuButtonClass(
+                  bulkAvailability.delete,
+                  "danger",
+                )}`}
               >
                 Delete selected
               </button>
               <button
                 type="button"
-                disabled={!hasSelection}
-                onClick={() => onBulkAction?.("archive")}
-                className="block w-full px-4 py-2 text-left text-sm text-zinc-700 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:text-zinc-400 disabled:hover:bg-transparent"
+                onClick={() => handleAction("archive", bulkAvailability.archive)}
+                className={`block w-full px-4 py-2 text-left text-sm transition-colors ${bulkMenuButtonClass(
+                  bulkAvailability.archive,
+                  "default",
+                )}`}
               >
                 Archive selected
               </button>
               <button
                 type="button"
-                disabled={!hasSelection}
-                onClick={() => onBulkAction?.("publish")}
-                className="block w-full px-4 py-2 text-left text-sm text-zinc-700 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:text-zinc-400 disabled:hover:bg-transparent"
+                onClick={() => handleAction("publish", bulkAvailability.publish)}
+                className={`block w-full px-4 py-2 text-left text-sm transition-colors ${bulkMenuButtonClass(
+                  bulkAvailability.publish,
+                  "default",
+                )}`}
               >
                 Publish selected
               </button>
               <button
                 type="button"
-                onClick={() => onBulkAction?.("export")}
-                className="block w-full px-4 py-2 text-left text-sm text-zinc-700 hover:bg-zinc-50"
+                onClick={() => handleAction("export", true)}
+                className="block w-full cursor-pointer px-4 py-2 text-left text-sm text-zinc-700 transition-colors hover:bg-zinc-50"
               >
                 Export
               </button>

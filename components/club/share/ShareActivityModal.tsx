@@ -3,59 +3,53 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import {
-  EMBED_OPTIONS,
   buildShareContent,
   copyShareLink,
   copySlackShareMessage,
   downloadDataUrl,
-  generateEmbedCode,
-  getClubPublicUrl,
+  getActivityPublicUrl,
   getMoreSocialShareActions,
   getPrimarySocialShareActions,
   getQrDataUrl,
   getShortDisplayUrl,
-  nativeShare,
   openPrintView,
   trackShareEvent,
-  validateClubShareTarget,
-  type EmbedType,
+  validateActivityShareTarget,
   type SharePlatform,
 } from "@/lib/club-share";
-import { getClubProfile } from "@/lib/club-profile";
 import { SharePlatformButton } from "./SharePlatformButton";
 import {
   ShareInstagramImage,
   generateInstagramShareImage,
 } from "./ShareInstagramImage";
 
-type ShareClubModalProps = {
+type ShareActivityModalProps = {
   open: boolean;
   onClose: () => void;
+  activityId: string;
+  activityTitle: string;
+  published?: boolean;
+  status?: string;
   clubName: string;
-  slug: string;
-  providerId: string;
   logoUrl?: string | null;
   primaryColor?: string;
   secondaryColor?: string;
 };
 
-type TabId = "share" | "embed";
-
-export function ShareClubModal({
+export function ShareActivityModal({
   open,
   onClose,
+  activityId,
+  activityTitle,
+  published,
+  status,
   clubName,
-  slug,
-  providerId,
   logoUrl,
   primaryColor = "#0d9488",
   secondaryColor = "#14b8a6",
-}: ShareClubModalProps) {
-  const [tab, setTab] = useState<TabId>("share");
+}: ShareActivityModalProps) {
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-  const [embedType, setEmbedType] = useState<EmbedType>("activity_widget");
-  const [embedCopied, setEmbedCopied] = useState(false);
   const [showMore, setShowMore] = useState(false);
   const [showInstagram, setShowInstagram] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
@@ -65,35 +59,35 @@ export function ShareClubModal({
     setMounted(true);
   }, []);
 
-  const profile = getClubProfile();
   const shareValidation = useMemo(
-    () =>
-      validateClubShareTarget({
-        slug,
-        visibility: profile.visibility,
-        published: profile.published,
-      }),
-    [slug, profile.visibility, profile.published],
+    () => validateActivityShareTarget({ published, status }),
+    [published, status],
   );
   const canShare = shareValidation.ok;
 
-  const publicUrl = useMemo(() => getClubPublicUrl(slug), [slug]);
-  const qrUrl = useMemo(() => getClubPublicUrl(slug, { forQr: true }), [slug]);
+  const publicUrl = useMemo(
+    () => getActivityPublicUrl(activityId),
+    [activityId],
+  );
+  const qrUrl = useMemo(
+    () => getActivityPublicUrl(activityId, { forQr: true }),
+    [activityId],
+  );
   const shareContent = useMemo(
-    () => buildShareContent(clubName, publicUrl),
-    [clubName, publicUrl],
+    () =>
+      buildShareContent(
+        activityTitle,
+        publicUrl,
+      ),
+    [activityTitle, publicUrl],
   );
   const primaryActions = useMemo(
-    () => getPrimarySocialShareActions(clubName, publicUrl),
-    [clubName, publicUrl],
+    () => getPrimarySocialShareActions(activityTitle, publicUrl),
+    [activityTitle, publicUrl],
   );
   const moreActions = useMemo(
-    () => getMoreSocialShareActions(clubName, publicUrl),
-    [clubName, publicUrl],
-  );
-  const embedCode = useMemo(
-    () => generateEmbedCode(embedType, providerId),
-    [embedType, providerId],
+    () => getMoreSocialShareActions(activityTitle, publicUrl),
+    [activityTitle, publicUrl],
   );
 
   useEffect(() => {
@@ -156,10 +150,7 @@ export function ShareClubModal({
     if (!qrDataUrl) {
       return;
     }
-    downloadDataUrl(
-      qrDataUrl,
-      `${slug}-qr.png`,
-    );
+    downloadDataUrl(qrDataUrl, `${activityId}-booking-qr.png`);
     showToast("QR downloaded");
   }
 
@@ -167,7 +158,7 @@ export function ShareClubModal({
     if (!qrDataUrl) {
       return;
     }
-    openPrintView(qrDataUrl, clubName, publicUrl);
+    openPrintView(qrDataUrl, activityTitle, publicUrl);
   }
 
   async function handleSocialAction(
@@ -189,18 +180,6 @@ export function ShareClubModal({
         trackShareEvent("social_share", platform);
         showToast("Message copied for Slack");
       } else {
-        await copyShareLink(publicUrl);
-        trackShareEvent("social_share", platform);
-        showToast("Link copied");
-      }
-      return;
-    }
-
-    if (action === "native") {
-      const shared = await nativeShare(shareContent);
-      if (shared) {
-        trackShareEvent("social_share", "more");
-      } else {
         await handleCopyLink();
       }
       return;
@@ -210,13 +189,6 @@ export function ShareClubModal({
       trackShareEvent("social_share", platform);
       window.open(href, "_blank", "noopener,noreferrer");
     }
-  }
-
-  async function handleCopyEmbed() {
-    await navigator.clipboard.writeText(embedCode);
-    setEmbedCopied(true);
-    showToast("Embed code copied");
-    setTimeout(() => setEmbedCopied(false), 2000);
   }
 
   if (!open || !mounted) {
@@ -235,7 +207,7 @@ export function ShareClubModal({
       <div
         role="dialog"
         aria-modal="true"
-        aria-labelledby="share-club-title"
+        aria-labelledby="share-activity-title"
         className="relative z-[201] flex max-h-[85vh] w-full min-h-0 flex-col overflow-hidden rounded-t-3xl border border-zinc-200 bg-white shadow-2xl sm:max-h-[80vh] sm:max-w-[460px] sm:rounded-2xl"
       >
         <div className="flex shrink-0 items-center justify-center pt-3 sm:hidden">
@@ -246,13 +218,13 @@ export function ShareClubModal({
           <div className="flex items-start justify-between gap-3">
             <div>
               <h2
-                id="share-club-title"
+                id="share-activity-title"
                 className="text-lg font-semibold text-zinc-900 sm:text-xl"
               >
-                Share {clubName}
+                Share {activityTitle}
               </h2>
               <p className="mt-1 text-sm text-zinc-500">
-                Invite families and grow your community.
+                Send parents straight to the booking page.
               </p>
             </div>
             <button
@@ -266,39 +238,15 @@ export function ShareClubModal({
               </svg>
             </button>
           </div>
-
-          <div className="mt-4 flex gap-1 rounded-xl bg-zinc-100 p-1">
-            {(
-              [
-                ["share", "Share"],
-                ["embed", "Embed on your website"],
-              ] as const
-            ).map(([id, label]) => (
-              <button
-                key={id}
-                type="button"
-                onClick={() => setTab(id)}
-                className={`flex-1 rounded-lg px-3 py-2 text-xs font-semibold transition-colors sm:text-sm ${
-                  tab === id
-                    ? "bg-white text-zinc-900 shadow-sm"
-                    : "text-zinc-500 hover:text-zinc-700"
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4 sm:px-6">
-          {tab === "share" ? (
+          {!canShare ? (
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-900">
+              {shareValidation.message}
+            </div>
+          ) : (
             <div className="space-y-6">
-              {!canShare ? (
-                <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-900">
-                  {shareValidation.message}
-                </div>
-              ) : (
-                <>
               <section className="text-center">
                 <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-400">
                   QR code
@@ -308,7 +256,7 @@ export function ShareClubModal({
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={qrDataUrl}
-                      alt={`QR code for ${clubName}`}
+                      alt={`QR code for ${activityTitle}`}
                       className="h-full w-full object-contain"
                     />
                   ) : (
@@ -382,10 +330,8 @@ export function ShareClubModal({
                   </div>
                 ) : null}
               </section>
-                </>
-              )}
 
-              {canShare && showInstagram ? (
+              {showInstagram ? (
                 <section className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
                   <p className="mb-3 text-sm font-semibold text-zinc-900">
                     Instagram share image
@@ -399,53 +345,6 @@ export function ShareClubModal({
                   />
                 </section>
               ) : null}
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <p className="text-sm text-zinc-500">
-                Copy an embed snippet for your club website.
-              </p>
-              <div className="space-y-2">
-                {EMBED_OPTIONS.map((option) => (
-                  <label
-                    key={option.type}
-                    className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition-colors ${
-                      embedType === option.type
-                        ? "border-teal-300 bg-teal-50/50"
-                        : "border-zinc-200 hover:border-zinc-300"
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="embed-type"
-                      checked={embedType === option.type}
-                      onChange={() => setEmbedType(option.type)}
-                      className="mt-1 accent-teal-600"
-                    />
-                    <div>
-                      <p className="text-sm font-semibold text-zinc-900">
-                        {option.label}
-                      </p>
-                      <p className="mt-0.5 text-xs text-zinc-500">
-                        {option.description}
-                      </p>
-                    </div>
-                  </label>
-                ))}
-              </div>
-              <div>
-                <p className="text-sm font-medium text-zinc-700">Embed code</p>
-                <pre className="mt-2 max-h-32 overflow-auto rounded-xl bg-zinc-50 p-3 text-xs text-zinc-700">
-                  {embedCode}
-                </pre>
-                <button
-                  type="button"
-                  onClick={() => void handleCopyEmbed()}
-                  className="mt-3 rounded-xl bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-teal-700"
-                >
-                  {embedCopied ? "Copied!" : "Copy embed code"}
-                </button>
-              </div>
             </div>
           )}
         </div>
@@ -482,18 +381,24 @@ function ActionButton({
   );
 }
 
-export async function quickInstagramShare(options: {
-  clubName: string;
+export async function quickInstagramShareForActivity(options: {
+  activityTitle: string;
   link: string;
   logoUrl?: string | null;
   primaryColor?: string;
   secondaryColor?: string;
 }): Promise<void> {
-  const dataUrl = await generateInstagramShareImage(options);
+  const dataUrl = await generateInstagramShareImage({
+    clubName: options.activityTitle,
+    link: options.link,
+    logoUrl: options.logoUrl,
+    primaryColor: options.primaryColor,
+    secondaryColor: options.secondaryColor,
+  });
   if (dataUrl) {
     downloadDataUrl(
       dataUrl,
-      `${options.clubName.replace(/\s+/g, "-").toLowerCase()}-instagram.png`,
+      `${options.activityTitle.replace(/\s+/g, "-").toLowerCase()}-instagram.png`,
     );
   }
 }

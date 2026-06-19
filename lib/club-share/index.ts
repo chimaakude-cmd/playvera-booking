@@ -5,3 +5,4 @@ export * from "./qr";
 export * from "./embed";
 export * from "./social";
 export * from "./prompts";
+export * from "./validate";

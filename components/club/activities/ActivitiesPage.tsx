@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
-import { ShareClubModal } from "@/components/club/share/ShareClubModal";
+import { ShareActivityModal } from "@/components/club/share/ShareActivityModal";
 import {
   computeActivityMetrics,
   DEFAULT_ACTIVITY_FILTERS,
@@ -28,12 +28,16 @@ import {
   getActiveBookingCount,
 } from "@/lib/club-activities/session-actions";
 import { getClubProfile } from "@/lib/club-profile";
-import { dataLayer, loadSessionsWithMeta } from "@/lib/data";
+import { loadSessionsWithMeta } from "@/lib/data";
 import { paginateItems } from "@/lib/pagination";
 import type { ClubSession } from "@/lib/sessions";
 import { ActivitiesEmptyState } from "./ActivitiesEmptyState";
 import { ActivitiesFilters } from "./ActivitiesFilters";
-import { ActivitiesHeader } from "./ActivitiesHeader";
+import { ConfirmDialog } from "@/components/club/ConfirmDialog";
+import {
+  ActivitiesHeader,
+  type BulkActionAvailability,
+} from "./ActivitiesHeader";
 import { ActivitiesMetrics } from "./ActivitiesMetrics";
 import { ActivitiesSkeleton } from "./ActivitiesSkeleton";
 import { ActivitiesTable } from "./ActivitiesTable";
@@ -71,10 +75,14 @@ function ActivitiesPageContent({
   const [deleteTarget, setDeleteTarget] = useState<ActivityRow | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  const [shareRow, setShareRow] = useState<ActivityRow | null>(null);
   const [showCreated, setShowCreated] = useState(showCreatedProp);
   const [showUpdated, setShowUpdated] = useState(showUpdatedProp);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [savedFilterLabel, setSavedFilterLabel] = useState<string | null>(null);
+  const [bulkConfirmAction, setBulkConfirmAction] = useState<
+    "delete" | "archive" | "publish" | null
+  >(null);
 
   const profile = getClubProfile();
 
@@ -153,6 +161,24 @@ function ActivitiesPageContent({
     [rows, selectedIds],
   );
 
+  const bulkAvailability = useMemo((): BulkActionAvailability => {
+    const count = selectedRows.length;
+    if (count === 0) {
+      return { delete: false, archive: false, publish: false };
+    }
+
+    const hasBookings = selectedRows.some(
+      (row) => getActiveBookingCount(row) > 0,
+    );
+    const hasDraft = selectedRows.some((row) => row.status === "draft");
+
+    return {
+      delete: !hasBookings,
+      archive: true,
+      publish: hasDraft,
+    };
+  }, [selectedRows]);
+
   const deleteHasBookings = deleteTarget
     ? !canHardDeleteSession(deleteTarget)
     : false;
@@ -216,33 +242,12 @@ function ActivitiesPageContent({
     }
   }
 
-  async function handleDuplicate(row: ActivityRow) {
-    const source = row.session;
-    const { id: _id, bookings: _bookings, createdAt: _createdAt, ...rest } =
-      source;
-
-    try {
-      await dataLayer.sessions.save({
-        ...rest,
-        sessionTitle: `${source.sessionTitle} (copy)`,
-        published: false,
-      });
-      setActionMessage("Activity duplicated as draft.");
-      handleRefresh();
-    } catch (duplicateError) {
-      setError(
-        duplicateError instanceof Error
-          ? duplicateError.message
-          : "Could not duplicate this activity.",
-      );
-    }
-  }
-
   function handlePreview(row: ActivityRow) {
     window.open(`/book/${row.id}`, "_blank", "noopener,noreferrer");
   }
 
-  function handleShare(_row: ActivityRow) {
+  function handleShare(row: ActivityRow) {
+    setShareRow(row);
     setShareOpen(true);
   }
 
@@ -250,7 +255,7 @@ function ActivitiesPageContent({
     setDeleteTarget(row);
   }
 
-  async function handleBulkAction(
+  function handleBulkActionRequest(
     action: "delete" | "archive" | "publish" | "export",
   ) {
     if (action === "export") {
@@ -279,43 +284,60 @@ function ActivitiesPageContent({
     }
 
     if (selectedRows.length === 0) {
-      setActionMessage("Select at least one activity first.");
       return;
     }
 
+    if (action === "delete" && !bulkAvailability.delete) {
+      setActionMessage(
+        "Activities with bookings cannot be deleted. Archive instead.",
+      );
+      return;
+    }
+
+    if (action === "archive" && !bulkAvailability.archive) {
+      return;
+    }
+
+    if (action === "publish" && !bulkAvailability.publish) {
+      return;
+    }
+
+    setBulkConfirmAction(action);
+  }
+
+  async function handleBulkConfirm() {
+    if (!bulkConfirmAction || selectedRows.length === 0) {
+      setBulkConfirmAction(null);
+      return;
+    }
+
+    const action = bulkConfirmAction;
+    const count = selectedRows.length;
+    setBulkConfirmAction(null);
     setActionLoading(true);
     setError(null);
 
     try {
       if (action === "archive") {
-        const count = await bulkArchiveSessions(selectedRows);
+        const archived = await bulkArchiveSessions(selectedRows);
         setActionMessage(
-          `Archived ${count} activit${count === 1 ? "y" : "ies"}.`,
+          `Archived ${archived} activit${archived === 1 ? "y" : "ies"}.`,
         );
       }
 
       if (action === "publish") {
-        const count = await bulkPublishSessions(selectedRows);
+        const drafts = selectedRows.filter((row) => row.status === "draft");
+        const published = await bulkPublishSessions(drafts);
         setActionMessage(
-          `Published ${count} activit${count === 1 ? "y" : "ies"}.`,
+          `Published ${published} activit${published === 1 ? "y" : "ies"}.`,
         );
       }
 
       if (action === "delete") {
-        const blocked = selectedRows.filter(
-          (row) => getActiveBookingCount(row) > 0,
-        );
-        if (blocked.length === selectedRows.length) {
-          setDeleteTarget(blocked[0]);
-          return;
-        }
-
-        const { deleted, skipped } = await bulkDeleteSessions(selectedRows);
+        const { deleted } = await bulkDeleteSessions(selectedRows);
         setActionMessage(
           deleted > 0
-            ? `Deleted ${deleted} activit${deleted === 1 ? "y" : "ies"}${
-                skipped > 0 ? `. ${skipped} skipped due to bookings.` : "."
-              }`
+            ? `Deleted ${deleted} activit${deleted === 1 ? "y" : "ies"}.`
             : "No activities could be deleted.",
         );
       }
@@ -333,6 +355,31 @@ function ActivitiesPageContent({
     }
   }
 
+  const bulkConfirmTitle =
+    bulkConfirmAction === "delete"
+      ? "Delete activities?"
+      : bulkConfirmAction === "archive"
+        ? "Archive activities?"
+        : bulkConfirmAction === "publish"
+          ? "Publish activities?"
+          : "";
+
+  const bulkConfirmDescription =
+    bulkConfirmAction && selectedRows.length > 0
+      ? `You are about to ${bulkConfirmAction} ${selectedRows.length} activit${
+          selectedRows.length === 1 ? "y" : "ies"
+        }.`
+      : "";
+
+  const bulkConfirmLabel =
+    bulkConfirmAction === "delete"
+      ? "Delete"
+      : bulkConfirmAction === "archive"
+        ? "Archive"
+        : bulkConfirmAction === "publish"
+          ? "Publish"
+          : "Confirm";
+
   function handleVisibilityToggle(row: ActivityRow) {
     setActivityVisibility(row.id, !row.visibility);
     handleRefresh();
@@ -346,7 +393,8 @@ function ActivitiesPageContent({
     <div className="space-y-6">
       <ActivitiesHeader
         selectedCount={selectedIds.length}
-        onBulkAction={handleBulkAction}
+        bulkAvailability={bulkAvailability}
+        onBulkAction={handleBulkActionRequest}
       />
       <ActivitiesMetrics metrics={metrics} />
 
@@ -410,7 +458,7 @@ function ActivitiesPageContent({
           onRowClick={setSelectedRow}
           onVisibilityToggle={handleVisibilityToggle}
           onPreview={handlePreview}
-          onDuplicate={handleDuplicate}
+          onShare={handleShare}
           onArchive={(row) => void handleArchive(row)}
           onDelete={handleDeleteRequest}
         />
@@ -436,13 +484,27 @@ function ActivitiesPageContent({
         onCancel={() => setDeleteTarget(null)}
       />
 
-      {profile ? (
-        <ShareClubModal
+      <ConfirmDialog
+        open={bulkConfirmAction !== null}
+        title={bulkConfirmTitle}
+        description={bulkConfirmDescription}
+        confirmLabel={bulkConfirmLabel}
+        onConfirm={() => void handleBulkConfirm()}
+        onCancel={() => setBulkConfirmAction(null)}
+      />
+
+      {shareRow && profile ? (
+        <ShareActivityModal
           open={shareOpen}
-          onClose={() => setShareOpen(false)}
+          onClose={() => {
+            setShareOpen(false);
+            setShareRow(null);
+          }}
+          activityId={shareRow.id}
+          activityTitle={shareRow.title}
+          published={shareRow.session.published}
+          status={shareRow.status}
           clubName={profile.clubName}
-          slug={profile.publicSlug}
-          providerId={profile.providerId}
           logoUrl={profile.logoUrl}
           primaryColor={profile.branding?.primaryColor}
           secondaryColor={profile.branding?.secondaryColor}

@@ -14,6 +14,7 @@ import {
   buildSessionLocationLabel,
   initialSessionVenueForm,
   SessionVenueForm,
+  sessionVenueToForm,
   validateSessionVenueForm,
   venueFormToSessionVenue,
 } from "./session-location";
@@ -684,6 +685,48 @@ export function compileWizardToSession(
     maxSessionCapacity: maxCapacity,
     published: true,
     providerVenueId: data.venue.providerVenueId,
+  };
+}
+
+export function sessionToWizardFormData(
+  session: ClubSession,
+  options?: { copyTitle?: boolean },
+): WizardFormData {
+  const details = session.details;
+  const schedule = session.schedule ?? initialWizardFormData.schedule;
+  const copyTitle = options?.copyTitle ?? true;
+  const titleSuffix = copyTitle ? " (copy)" : "";
+
+  return {
+    bookingStructure: session.bookingStructure ?? "individual",
+    sessionTitle: `${session.sessionTitle}${titleSuffix}`,
+    description: session.description ?? details?.description ?? "",
+    attendeeCriteria:
+      details?.attendeeCriteria ?? createDefaultAttendeeCriteria(),
+    mainImage: details?.images?.mainImage ?? null,
+    extraImages: [...(details?.images?.extraImages ?? [])],
+    parentsBring: details?.parentsBring ?? "",
+    clubProvides: details?.clubProvides ?? "",
+    venue: sessionVenueToForm(session.venue, session.providerVenueId ?? null),
+    schedule: {
+      ...initialWizardFormData.schedule,
+      ...schedule,
+      dates: (schedule.dates ?? []).map((date) => ({
+        ...date,
+        id: crypto.randomUUID(),
+      })),
+    },
+    defaultCapacity: session.defaultCapacity ?? session.capacity,
+    capacityApplyScope: "this_session",
+    selectedCapacityDateId: null,
+    tickets: (session.tickets ?? []).map((ticket) => ({
+      ...ticket,
+      id: crypto.randomUUID(),
+    })),
+    confirmationEmail:
+      session.confirmationEmail ?? initialWizardFormData.confirmationEmail,
+    bookingQuestions:
+      session.bookingQuestions ?? createDefaultBookingQuestions(),
   };
 }
 

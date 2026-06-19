@@ -17,6 +17,7 @@ import {
   getPaidSessionBlockMessage,
   sessionHasPaidTickets,
 } from "@/lib/club-setup";
+import { CopyFromExistingStep } from "./CopyFromExistingStep";
 import { BookingStructureStep } from "./BookingStructureStep";
 import { CapacityStep } from "./CapacityStep";
 import { StepperButton } from "./shared";
@@ -56,6 +57,7 @@ const LAST_STEP = 8 satisfies WizardStep;
 
 export function SessionWizard() {
   const router = useRouter();
+  const [setupComplete, setSetupComplete] = useState(false);
   const [step, setStep] = useState<WizardStep>(0);
   const [data, setData] = useState<WizardFormData>(initialWizardFormData);
   const [errors, setErrors] = useState<string[]>([]);
@@ -122,6 +124,20 @@ export function SessionWizard() {
   const progress = Math.round(((step + 1) / WIZARD_STEP_LABELS.length) * 100);
   const paidBlocked =
     sessionHasPaidTickets(data) && !canPublishPaidSessions();
+
+  if (!setupComplete) {
+    return (
+      <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-8">
+        <CopyFromExistingStep
+          onStartFresh={() => setSetupComplete(true)}
+          onCopyFrom={(copied) => {
+            setData(copied);
+            setSetupComplete(true);
+          }}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

@@ -78,7 +78,7 @@ export type SocialShareAction = {
   href?: string;
 };
 
-export function getSocialShareActions(
+function buildShareActions(
   clubName: string,
   link: string,
 ): SocialShareAction[] {
@@ -100,45 +100,11 @@ export function getSocialShareActions(
       href: getFacebookShareUrl(link),
     },
     {
-      platform: "instagram",
-      label: "Instagram",
-      color: "#E4405F",
-      action: "instagram",
-    },
-    {
-      platform: "x",
-      label: "X",
-      color: "#000000",
-      action: "url",
-      href: getXShareUrl(content),
-    },
-    {
       platform: "email",
       label: "Email",
       color: "#52525b",
       action: "url",
       href: getEmailShareUrl(content),
-    },
-    {
-      platform: "linkedin",
-      label: "LinkedIn",
-      color: "#0A66C2",
-      action: "url",
-      href: getLinkedInShareUrl(link),
-    },
-    {
-      platform: "messenger",
-      label: "Messenger",
-      color: "#0084FF",
-      action: "url",
-      href: getMessengerShareUrl(link),
-    },
-    {
-      platform: "telegram",
-      label: "Telegram",
-      color: "#26A5E4",
-      action: "url",
-      href: getTelegramShareUrl(content),
     },
     {
       platform: "sms",
@@ -148,23 +114,17 @@ export function getSocialShareActions(
       href: getSmsShareUrl(content),
     },
     {
-      platform: "copy_link",
-      label: "Copy link",
-      color: "#0d9488",
-      action: "copy",
+      platform: "instagram",
+      label: "Instagram",
+      color: "#E4405F",
+      action: "instagram",
     },
     {
-      platform: "more",
-      label: "More",
-      color: "#71717a",
-      action: "native",
-    },
-    {
-      platform: "pinterest",
-      label: "Pinterest",
-      color: "#BD081C",
+      platform: "linkedin",
+      label: "LinkedIn",
+      color: "#0A66C2",
       action: "url",
-      href: getPinterestShareUrl(content),
+      href: getLinkedInShareUrl(link),
     },
     {
       platform: "reddit",
@@ -174,11 +134,17 @@ export function getSocialShareActions(
       href: getRedditShareUrl(content),
     },
     {
-      platform: "nextdoor",
-      label: "Nextdoor",
-      color: "#8ED500",
+      platform: "pinterest",
+      label: "Pinterest",
+      color: "#BD081C",
       action: "url",
-      href: getNextdoorShareUrl(link),
+      href: getPinterestShareUrl(content),
+    },
+    {
+      platform: "slack",
+      label: "Slack",
+      color: "#4A154B",
+      action: "copy",
     },
     {
       platform: "teams",
@@ -188,11 +154,66 @@ export function getSocialShareActions(
       href: getTeamsShareUrl(content),
     },
     {
-      platform: "slack",
-      label: "Slack",
-      color: "#4A154B",
-      action: "copy",
+      platform: "telegram",
+      label: "Telegram",
+      color: "#26A5E4",
+      action: "url",
+      href: getTelegramShareUrl(content),
     },
+    {
+      platform: "nextdoor",
+      label: "Nextdoor",
+      color: "#8ED500",
+      action: "url",
+      href: getNextdoorShareUrl(link),
+    },
+  ];
+}
+
+export function getPrimarySocialShareActions(
+  clubName: string,
+  link: string,
+): SocialShareAction[] {
+  const primaryPlatforms = new Set<SharePlatform>([
+    "whatsapp",
+    "facebook",
+    "email",
+    "sms",
+    "instagram",
+    "linkedin",
+  ]);
+
+  return buildShareActions(clubName, link).filter((action) =>
+    primaryPlatforms.has(action.platform),
+  );
+}
+
+export function getMoreSocialShareActions(
+  clubName: string,
+  link: string,
+): SocialShareAction[] {
+  const morePlatforms = new Set<SharePlatform>([
+    "reddit",
+    "pinterest",
+    "slack",
+    "teams",
+    "telegram",
+    "nextdoor",
+  ]);
+
+  return buildShareActions(clubName, link).filter((action) =>
+    morePlatforms.has(action.platform),
+  );
+}
+
+/** @deprecated Use getPrimarySocialShareActions and getMoreSocialShareActions. */
+export function getSocialShareActions(
+  clubName: string,
+  link: string,
+): SocialShareAction[] {
+  return [
+    ...getPrimarySocialShareActions(clubName, link),
+    ...getMoreSocialShareActions(clubName, link),
   ];
 }
 

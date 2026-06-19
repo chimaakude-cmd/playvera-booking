@@ -116,7 +116,7 @@ type ActivitiesTableProps = {
   onRowClick: (row: ActivityRow) => void;
   onVisibilityToggle: (row: ActivityRow) => void;
   onPreview: (row: ActivityRow) => void;
-  onDuplicate: (row: ActivityRow) => void;
+  onShare: (row: ActivityRow) => void;
   onArchive: (row: ActivityRow) => void;
   onDelete: (row: ActivityRow) => void;
 };
@@ -134,7 +134,7 @@ export function ActivitiesTable({
   onRowClick,
   onVisibilityToggle,
   onPreview,
-  onDuplicate,
+  onShare,
   onArchive,
   onDelete,
 }: ActivitiesTableProps) {
@@ -317,13 +317,13 @@ export function ActivitiesTable({
                       <ActivityRowHoverActions
                         row={row}
                         onPreview={onPreview}
-                        onDuplicate={onDuplicate}
                         onArchive={onArchive}
                         onDelete={onDelete}
                       />
                       <ActivityRowActions
                         row={row}
-                        onDuplicate={onDuplicate}
+                        onPreview={onPreview}
+                        onShare={onShare}
                         onArchive={onArchive}
                         onDelete={onDelete}
                       />
@@ -393,7 +393,8 @@ export function ActivitiesTable({
                     <div onClick={(event) => event.stopPropagation()}>
                       <ActivityRowActions
                         row={row}
-                        onDuplicate={onDuplicate}
+                        onPreview={onPreview}
+                        onShare={onShare}
                         onArchive={onArchive}
                         onDelete={onDelete}
                       />

@@ -3,11 +3,11 @@
 import Link from "next/link";
 import { Archive, Trash2 } from "lucide-react";
 import type { ActivityRow } from "@/lib/club-activities";
+import { canHardDeleteSession } from "@/lib/club-activities/session-actions";
 
 type ActivityRowHoverActionsProps = {
   row: ActivityRow;
   onPreview: (row: ActivityRow) => void;
-  onDuplicate: (row: ActivityRow) => void;
   onArchive: (row: ActivityRow) => void;
   onDelete: (row: ActivityRow) => void;
 };
@@ -18,29 +18,13 @@ const shortcutClass =
 export function ActivityRowHoverActions({
   row,
   onPreview,
-  onDuplicate,
   onArchive,
   onDelete,
 }: ActivityRowHoverActionsProps) {
+  const deletable = canHardDeleteSession(row);
+
   return (
     <div className="hidden items-center gap-1 lg:group-hover:flex">
-      <Link
-        href={`/club/sessions/${row.id}/edit`}
-        onClick={(event) => event.stopPropagation()}
-        className={shortcutClass}
-      >
-        Edit
-      </Link>
-      <button
-        type="button"
-        onClick={(event) => {
-          event.stopPropagation();
-          onDuplicate(row);
-        }}
-        className={shortcutClass}
-      >
-        Duplicate
-      </button>
       <button
         type="button"
         onClick={(event) => {
@@ -57,15 +41,6 @@ export function ActivityRowHoverActions({
         className="rounded-lg bg-teal-600 px-2 py-1 text-[10px] font-semibold text-white transition-colors hover:bg-teal-700"
       >
         Register
-      </Link>
-      <Link
-        href={`/book/${row.id}`}
-        target="_blank"
-        rel="noopener noreferrer"
-        onClick={(event) => event.stopPropagation()}
-        className={shortcutClass}
-      >
-        Example booking
       </Link>
       <button
         type="button"
@@ -84,6 +59,11 @@ export function ActivityRowHoverActions({
           event.stopPropagation();
           onDelete(row);
         }}
+        title={
+          deletable
+            ? "Delete session"
+            : "Cannot delete — session has bookings. Archive instead."
+        }
         className="inline-flex items-center gap-0.5 rounded-lg border border-rose-200 px-2 py-1 text-[10px] font-semibold text-rose-600 transition-colors hover:bg-rose-50"
         aria-label={`Delete ${row.title}`}
       >

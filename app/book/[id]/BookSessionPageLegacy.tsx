@@ -5,6 +5,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { LoadingState } from "@/components/club/LoadingState";
 import { BookingQuestionsForm } from "@/components/booking/BookingQuestionsForm";
 import { SessionImage } from "@/components/sessions/SessionImage";
+import { SessionNotFoundPage } from "@/components/booking/SessionNotFoundPage";
 import { PoweredByActivoraFooter } from "@/components/PoweredByActivoraFooter";
 import { Logo } from "@/components/branding";
 import { VatBreakdownPanel } from "@/components/club/finance/VatBreakdownPanel";
@@ -252,28 +253,7 @@ export default function BookSessionPageLegacy({
   }
 
   if (!session) {
-    return (
-      <div className="flex min-h-full flex-col bg-white text-zinc-900">
-        <header className="border-b border-zinc-100">
-          <nav className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-            <Logo size="desktop" href="/" />
-          </nav>
-        </header>
-        <main className="mx-auto max-w-2xl flex-1 px-6 py-14 text-center">
-          <h1 className="text-2xl font-bold text-zinc-900">Session not found</h1>
-          <p className="mt-2 text-zinc-500">
-            This session may no longer be available.
-          </p>
-          <a
-            href="/sessions"
-            className="mt-6 inline-flex rounded-lg bg-black px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-zinc-800"
-          >
-            Back to Sessions
-          </a>
-        </main>
-        <PoweredByActivoraFooter />
-      </div>
-    );
+    return <SessionNotFoundPage />;
   }
 
   const feeSettings = getFeeSettings();

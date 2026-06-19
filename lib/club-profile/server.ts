@@ -4,6 +4,7 @@ import {
   createSupabaseServerClient,
   createSupabaseServiceRoleClient,
   isSupabaseConfigured,
+  isSupabaseServiceRoleConfigured,
 } from "@/lib/supabase";
 import {
   mapClubProfileInputToRow,
@@ -90,23 +91,94 @@ export async function fetchClubProfileForProvider(
 export async function fetchPublicClubProfileBySlug(
   slug: string,
 ): Promise<ClubProfile | null> {
-  if (!isSupabaseConfigured() || !slug.trim()) {
+  const normalizedSlug = slug.trim().toLowerCase();
+  if (!normalizedSlug || !isSupabaseConfigured()) {
     return null;
   }
 
-  const supabase = createSupabaseServerClient();
-  const { data, error } = await supabase
-    .from("club_profiles")
-    .select(PROFILE_SELECT)
-    .eq("public_slug", slug.trim())
-    .in("visibility", ["published", "hidden"])
-    .maybeSingle();
+  const clients: ActivoraSupabaseClient[] = [createSupabaseServerClient()];
+  if (isSupabaseServiceRoleConfigured()) {
+    clients.push(createSupabaseServiceRoleClient());
+  }
+
+  for (const supabase of clients) {
+    const byPublicSlug = await queryPublicClubProfile(
+      supabase,
+      (query) => query.eq("public_slug", normalizedSlug),
+    );
+    if (byPublicSlug) {
+      return byPublicSlug;
+    }
+
+    const byProviderSlug = await fetchPublicClubProfileByProviderSlug(
+      supabase,
+      normalizedSlug,
+    );
+    if (byProviderSlug) {
+      return byProviderSlug;
+    }
+  }
+
+  return null;
+}
+
+function isPublicClubProfileRow(
+  row: Pick<
+    ProfileQueryRow,
+    "visibility" | "published" | "public_slug"
+  >,
+): boolean {
+  const slug = row.public_slug?.trim();
+  if (!slug) {
+    return false;
+  }
+
+  if (row.visibility === "published" || row.visibility === "hidden") {
+    return true;
+  }
+
+  // Legacy rows created before visibility enum (published flag only).
+  return row.published === true;
+}
+
+async function queryPublicClubProfile(
+  supabase: ActivoraSupabaseClient,
+  applyFilter: (
+    query: ReturnType<ActivoraSupabaseClient["from"]>,
+  ) => ReturnType<ActivoraSupabaseClient["from"]>,
+): Promise<ClubProfile | null> {
+  const baseQuery = supabase.from("club_profiles").select(PROFILE_SELECT);
+  const { data, error } = await applyFilter(baseQuery).maybeSingle();
 
   if (error || !data) {
     return null;
   }
 
-  return mapQueryRow(data as ProfileQueryRow);
+  const row = data as ProfileQueryRow;
+  if (!isPublicClubProfileRow(row)) {
+    return null;
+  }
+
+  return mapQueryRow(row);
+}
+
+async function fetchPublicClubProfileByProviderSlug(
+  supabase: ActivoraSupabaseClient,
+  slug: string,
+): Promise<ClubProfile | null> {
+  const { data: provider, error: providerError } = await supabase
+    .from("providers")
+    .select("id")
+    .eq("slug", slug)
+    .maybeSingle();
+
+  if (providerError || !provider?.id) {
+    return null;
+  }
+
+  return queryPublicClubProfile(supabase, (query) =>
+    query.eq("provider_id", provider.id),
+  );
 }
 
 async function syncClubProfileLocations(
@@ -196,6 +268,13 @@ export async function saveClubProfileForProvider(
 
   if (saveError) {
     return { ok: false, error: saveError.message };
+  }
+
+  if (slug) {
+    await supabase
+      .from("providers")
+      .update({ slug })
+      .eq("id", providerId);
   }
 
   const locationError = await syncClubProfileLocations(
