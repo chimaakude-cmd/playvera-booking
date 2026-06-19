@@ -49,6 +49,12 @@ export async function GET() {
       );
     }
 
+    console.info("[club-profile] GET visibility:", {
+      visibility: profile.visibility,
+      published: profile.published,
+      publicSlug: profile.publicSlug,
+    });
+
     return NextResponse.json({ profile });
   } catch (error) {
     console.error("[club-profile] GET failed:", error);

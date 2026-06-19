@@ -92,6 +92,21 @@ where visibility = 'draft'::public.club_profile_visibility
   and published = true;
 
 -- ---------------------------------------------------------------------------
+-- 00048 — published_at timestamp
+-- ---------------------------------------------------------------------------
+
+alter table public.club_profiles
+  add column if not exists published_at timestamptz;
+
+comment on column public.club_profiles.published_at is
+  'Timestamp when the profile was first published (visibility published or hidden).';
+
+update public.club_profiles
+set published_at = coalesce(published_at, updated_at, created_at, now())
+where visibility in ('published', 'hidden')
+  and published_at is null;
+
+-- ---------------------------------------------------------------------------
 -- Verify
 -- ---------------------------------------------------------------------------
 
@@ -107,6 +122,7 @@ where table_schema = 'public'
     'social_links',
     'verification_status',
     'visibility',
+    'published_at',
     'media_gallery',
     'branding',
     'customer_view'

@@ -1,4 +1,4 @@
-import { isPubliclyAccessibleProfile } from "@/lib/club-profile/types";
+import type { ClubProfileVisibility } from "@/lib/club-profile/types";
 
 export type ShareValidationResult =
   | { ok: true }
@@ -6,8 +6,7 @@ export type ShareValidationResult =
 
 export function validateClubShareTarget(options: {
   slug: string;
-  visibility?: "draft" | "published" | "hidden";
-  published?: boolean;
+  visibility?: ClubProfileVisibility;
 }): ShareValidationResult {
   const slug = options.slug.trim();
   if (!slug) {
@@ -18,10 +17,8 @@ export function validateClubShareTarget(options: {
   }
 
   if (
-    !isPubliclyAccessibleProfile({
-      visibility: options.visibility,
-      published: options.published,
-    })
+    options.visibility !== "published" &&
+    options.visibility !== "hidden"
   ) {
     return {
       ok: false,

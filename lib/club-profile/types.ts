@@ -333,8 +333,15 @@ export function isPubliclyAccessibleProfile(profile: {
   visibility?: ClubProfileVisibility;
   published?: boolean;
 }): boolean {
-  if (profile.visibility) {
-    return profile.visibility === "published" || profile.visibility === "hidden";
+  if (
+    profile.visibility === "published" ||
+    profile.visibility === "hidden"
+  ) {
+    return true;
+  }
+
+  if (profile.visibility === "draft") {
+    return false;
   }
 
   return Boolean(profile.published);

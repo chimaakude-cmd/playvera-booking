@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ShareClubButton } from "@/components/club/share/ShareClubButton";
+import { fetchClubProfileFromApi } from "@/lib/club-profile/client";
 import { getClubProfile } from "@/lib/club-profile";
+import type { ClubProfile } from "@/lib/club-profile";
 
 type BulkAction = "delete" | "archive" | "publish" | "export";
 
@@ -34,9 +36,25 @@ export function ActivitiesHeader({
   bulkAvailability = { delete: false, archive: false, publish: false },
   onBulkAction,
 }: ActivitiesHeaderProps) {
-  const profile = getClubProfile();
+  const [profile, setProfile] = useState<ClubProfile>(() => getClubProfile());
   const detailsRef = useRef<HTMLDetailsElement>(null);
   const hasSelection = selectedCount > 0;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void fetchClubProfileFromApi().then((result) => {
+      if (cancelled || !result.ok) {
+        return;
+      }
+
+      setProfile(result.profile);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const bulkLabel = hasSelection
     ? `Bulk actions (${selectedCount} selected)`
     : "Bulk actions";

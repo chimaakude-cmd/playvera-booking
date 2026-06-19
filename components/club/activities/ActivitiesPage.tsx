@@ -27,7 +27,9 @@ import {
   deleteSessionActivity,
   getActiveBookingCount,
 } from "@/lib/club-activities/session-actions";
+import { fetchClubProfileFromApi } from "@/lib/club-profile/client";
 import { getClubProfile } from "@/lib/club-profile";
+import type { ClubProfile } from "@/lib/club-profile";
 import { loadSessionsWithMeta } from "@/lib/data";
 import { paginateItems } from "@/lib/pagination";
 import type { ClubSession } from "@/lib/sessions";
@@ -76,7 +78,23 @@ function ActivitiesPageContent({
     "delete" | "archive" | "publish" | null
   >(null);
 
-  const profile = getClubProfile();
+  const [profile, setProfile] = useState<ClubProfile>(() => getClubProfile());
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void fetchClubProfileFromApi().then((result) => {
+      if (cancelled || !result.ok) {
+        return;
+      }
+
+      setProfile(result.profile);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const loadSessions = useCallback(async () => {
     setLoading(true);

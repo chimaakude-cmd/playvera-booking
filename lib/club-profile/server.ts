@@ -14,6 +14,10 @@ import {
 } from "./db-mapper";
 import type { ClubProfile, ClubProfileInput } from "./types";
 import { slugifyClubName } from "./types";
+import {
+  hasPublishErrors,
+  validateClubProfilePublish,
+} from "./validation";
 
 const PROFILE_SELECT = `
   *,
@@ -216,6 +220,7 @@ const LEGACY_CLUB_PROFILE_COLUMNS = [
   "contact",
   "verification_status",
   "visibility",
+  "published_at",
 ] as const;
 
 function isLegacyClubProfileSchemaError(error: PostgrestError): boolean {
@@ -229,17 +234,65 @@ function isLegacyClubProfileSchemaError(error: PostgrestError): boolean {
   );
 }
 
+function normalizePublishInput(
+  input: ClubProfileInput,
+  existingPublishedAt?: string | null,
+): ClubProfileInput {
+  const wantsLive =
+    input.published ||
+    input.visibility === "published" ||
+    input.visibility === "hidden";
+
+  if (!wantsLive) {
+    return input;
+  }
+
+  const publishErrors = validateClubProfilePublish({
+    ...input,
+    visibility: input.visibility === "hidden" ? "hidden" : "published",
+    published: true,
+  });
+
+  if (hasPublishErrors(publishErrors)) {
+    return input;
+  }
+
+  return {
+    ...input,
+    visibility: input.visibility === "hidden" ? "hidden" : "published",
+    published: true,
+    profileDesign: input.profileDesign
+      ? {
+          ...input.profileDesign,
+          publishedAt:
+            input.profileDesign.publishedAt ??
+            existingPublishedAt ??
+            new Date().toISOString(),
+        }
+      : input.profileDesign,
+  };
+}
+
 async function persistClubProfileRow(
   supabase: ActivoraSupabaseClient,
   providerId: string,
   existingId: string | undefined,
   input: ClubProfileInput,
   profileId: string,
+  existingPublishedAt?: string | null,
 ): Promise<PostgrestError | null> {
-  const fullRow = mapClubProfileInputToRow(profileId, providerId, {
-    ...input,
-    publicSlug: input.publicSlug.trim() || slugifyClubName(input.clubName),
-  });
+  const normalizedInput = normalizePublishInput(input, existingPublishedAt);
+  const persistOptions = { existingPublishedAt };
+  const slug =
+    normalizedInput.publicSlug.trim() ||
+    slugifyClubName(normalizedInput.clubName);
+
+  const fullRow = mapClubProfileInputToRow(
+    profileId,
+    providerId,
+    { ...normalizedInput, publicSlug: slug },
+    persistOptions,
+  );
 
   if (existingId) {
     const { error } = await supabase
@@ -255,10 +308,12 @@ async function persistClubProfileRow(
       return error;
     }
 
-    const legacyRow = mapClubProfileInputToLegacyRow(profileId, providerId, {
-      ...input,
-      publicSlug: input.publicSlug.trim() || slugifyClubName(input.clubName),
-    });
+    const legacyRow = mapClubProfileInputToLegacyRow(
+      profileId,
+      providerId,
+      { ...normalizedInput, publicSlug: slug },
+      persistOptions,
+    );
     const { error: legacyError } = await supabase
       .from("club_profiles")
       .update(legacyRow)
@@ -276,10 +331,12 @@ async function persistClubProfileRow(
     return error;
   }
 
-  const legacyRow = mapClubProfileInputToLegacyRow(profileId, providerId, {
-    ...input,
-    publicSlug: input.publicSlug.trim() || slugifyClubName(input.clubName),
-  });
+  const legacyRow = mapClubProfileInputToLegacyRow(
+    profileId,
+    providerId,
+    { ...normalizedInput, publicSlug: slug },
+    persistOptions,
+  );
   const { error: legacyError } = await supabase
     .from("club_profiles")
     .insert(legacyRow);
@@ -299,7 +356,7 @@ export async function saveClubProfileForProvider(
 
   const { data: existing, error: lookupError } = await supabase
     .from("club_profiles")
-    .select("id, public_slug")
+    .select("id, public_slug, published_at")
     .eq("provider_id", providerId)
     .maybeSingle();
 
@@ -332,6 +389,7 @@ export async function saveClubProfileForProvider(
     existing?.id,
     { ...input, publicSlug: slug },
     profileId,
+    existing?.published_at,
   );
 
   if (saveError) {

@@ -31,6 +31,7 @@ export type MinimalClubProfilesRow = {
   verified: boolean;
   published: boolean;
   visibility: "published";
+  published_at: string;
 };
 
 function buildOnboardingDescriptionFallbacks(
@@ -73,6 +74,7 @@ export function buildMinimalClubProfilesRow(
     verified: false,
     published: true,
     visibility: "published",
+    published_at: new Date().toISOString(),
   };
 }
 

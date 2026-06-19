@@ -206,7 +206,8 @@ export function ClubProfileEditForm({
 
     void onSave({
       ...profile,
-      published: profile.visibility !== "draft",
+      visibility: profile.visibility === "hidden" ? "hidden" : "published",
+      published: true,
     });
   }
 

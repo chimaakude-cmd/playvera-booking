@@ -21,6 +21,7 @@ import {
   type EmbedType,
   type SharePlatform,
 } from "@/lib/club-share";
+import { fetchClubProfileFromApi } from "@/lib/club-profile/client";
 import { getClubProfile } from "@/lib/club-profile";
 import type { ClubProfileVisibility } from "@/lib/club-profile/types";
 import { SharePlatformButton } from "./SharePlatformButton";
@@ -54,7 +55,7 @@ export function ShareClubModal({
   primaryColor = "#0d9488",
   secondaryColor = "#14b8a6",
   visibility: visibilityProp,
-  published: publishedProp,
+  published: _publishedProp,
 }: ShareClubModalProps) {
   const [tab, setTab] = useState<TabId>("share");
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
@@ -65,22 +66,74 @@ export function ShareClubModal({
   const [showInstagram, setShowInstagram] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
+  const [resolvedVisibility, setResolvedVisibility] = useState<
+    ClubProfileVisibility | undefined
+  >(visibilityProp);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    setResolvedVisibility(visibilityProp);
+
+    let cancelled = false;
+    void fetchClubProfileFromApi().then((result) => {
+      if (cancelled || !result.ok) {
+        return;
+      }
+
+      setResolvedVisibility(result.profile.visibility);
+      console.log("[ShareClubModal] visibility from API:", result.profile.visibility, {
+        slug: result.profile.publicSlug,
+        published: result.profile.published,
+      });
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, visibilityProp]);
+
   const cachedProfile = getClubProfile();
+  const effectiveVisibility =
+    resolvedVisibility ?? visibilityProp ?? cachedProfile.visibility;
+
   const shareValidation = useMemo(
     () =>
       validateClubShareTarget({
         slug,
-        visibility: visibilityProp ?? cachedProfile.visibility,
-        published: publishedProp ?? cachedProfile.published,
+        visibility: effectiveVisibility,
       }),
-    [slug, visibilityProp, publishedProp, cachedProfile.visibility, cachedProfile.published],
+    [slug, effectiveVisibility],
   );
   const canShare = shareValidation.ok;
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    console.log("[ShareClubModal] share validation visibility:", effectiveVisibility, {
+      visibilityProp,
+      resolvedVisibility,
+      cachedVisibility: cachedProfile.visibility,
+      slug,
+      canShare,
+    });
+  }, [
+    open,
+    effectiveVisibility,
+    visibilityProp,
+    resolvedVisibility,
+    cachedProfile.visibility,
+    slug,
+    canShare,
+  ]);
 
   const publicUrl = useMemo(() => getClubPublicUrl(slug), [slug]);
   const qrUrl = useMemo(() => getClubPublicUrl(slug, { forQr: true }), [slug]);

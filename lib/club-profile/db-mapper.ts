@@ -224,12 +224,14 @@ function compactContactForDb(contact: ClubProfileContact): Record<string, string
 
 function resolveVisibility(row: ClubProfileRow): ClubProfileVisibility {
   const visibility = (row as ClubProfileRow & { visibility?: string }).visibility;
-  if (
-    visibility === "draft" ||
-    visibility === "published" ||
-    visibility === "hidden"
-  ) {
+
+  if (visibility === "published" || visibility === "hidden") {
     return visibility;
+  }
+
+  if (visibility === "draft") {
+    // Legacy rows: published flag may be set before visibility backfill ran.
+    return row.published ? "published" : "draft";
   }
 
   return row.published ? "published" : "draft";
@@ -290,27 +292,40 @@ export type LegacyClubProfilePersistRow = Omit<
 
 function buildClubProfilePersistScalars(
   input: ClubProfileInput,
+  options?: { existingPublishedAt?: string | null },
 ): {
   contact: ClubProfileContact;
   socialLinks: ClubSocialLinks;
   visibility: ClubProfileVisibility;
   published: boolean;
+  publishedAt: string | null;
 } {
   const { contact } = normalizeClubContact(input.contact);
   const { socialLinks } = normalizeClubSocialLinks(input.socialLinks);
-  const visibility = input.visibility ?? (input.published ? "published" : "draft");
-  const published = visibility !== "draft";
 
-  return { contact, socialLinks, visibility, published };
+  let visibility =
+    input.visibility ?? (input.published ? "published" : "draft");
+
+  if (input.published && visibility === "draft") {
+    visibility = "published";
+  }
+
+  const published = visibility !== "draft";
+  const publishedAt = published
+    ? (options?.existingPublishedAt ?? new Date().toISOString())
+    : null;
+
+  return { contact, socialLinks, visibility, published, publishedAt };
 }
 
 export function mapClubProfileInputToLegacyRow(
   profileId: string,
   providerId: string,
   input: ClubProfileInput,
+  options?: { existingPublishedAt?: string | null },
 ): LegacyClubProfilePersistRow {
   const { contact, socialLinks, visibility, published } =
-    buildClubProfilePersistScalars(input);
+    buildClubProfilePersistScalars(input, options);
 
   return {
     id: profileId,
@@ -348,17 +363,19 @@ export function mapClubProfileInputToRow(
   profileId: string,
   providerId: string,
   input: ClubProfileInput,
+  options?: { existingPublishedAt?: string | null },
 ): ClubProfilePersistRow {
-  const { contact, socialLinks, visibility, published } =
-    buildClubProfilePersistScalars(input);
+  const { contact, socialLinks, visibility, published, publishedAt } =
+    buildClubProfilePersistScalars(input, options);
 
   return {
-    ...mapClubProfileInputToLegacyRow(profileId, providerId, input),
+    ...mapClubProfileInputToLegacyRow(profileId, providerId, input, options),
     contact: compactContactForDb(contact),
     social_links: compactSocialLinksForDb(socialLinks),
     verification_status: input.verificationStatus,
     visibility,
     published,
+    published_at: publishedAt,
   };
 }
 

@@ -213,6 +213,7 @@ export type Database = {
           meta_description: string;
           published: boolean;
           visibility: Database["public"]["Enums"]["club_profile_visibility"];
+          published_at: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -249,6 +250,7 @@ export type Database = {
           meta_description?: string;
           published?: boolean;
           visibility?: Database["public"]["Enums"]["club_profile_visibility"];
+          published_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -285,6 +287,7 @@ export type Database = {
           meta_description?: string;
           published?: boolean;
           visibility?: Database["public"]["Enums"]["club_profile_visibility"];
+          published_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
