@@ -83,7 +83,7 @@ export type SessionWizardDetails = {
 };
 
 export type ConfirmationEmailSettings = {
-  imagePlaceholder: string | null;
+  confirmationImage: string | null;
   welcomeMessage: string;
   extraInformation: string;
   clubContactDetails?: string;

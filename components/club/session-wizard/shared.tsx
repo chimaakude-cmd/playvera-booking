@@ -31,40 +31,6 @@ export function WizardField({ label, htmlFor, error, children, hint }: FieldProp
   );
 }
 
-type ImageUploadPlaceholderProps = {
-  label: string;
-  selected: boolean;
-  onSelect: () => void;
-  compact?: boolean;
-};
-
-export function ImageUploadPlaceholder({
-  label,
-  selected,
-  onSelect,
-  compact = false,
-}: ImageUploadPlaceholderProps) {
-  return (
-    <button
-      type="button"
-      onClick={onSelect}
-      className={`flex w-full flex-col items-center justify-center rounded-2xl border-2 border-dashed text-center transition-colors ${
-        compact ? "min-h-[96px] px-3 py-4" : "min-h-[160px] px-4 py-6"
-      } ${
-        selected
-          ? "border-pink-500 bg-pink-50 text-pink-700"
-          : "border-zinc-200 bg-zinc-50 text-zinc-500 hover:border-zinc-300 hover:bg-zinc-100"
-      }`}
-    >
-      <span className="text-2xl">{selected ? "✓" : "↑"}</span>
-      <span className={`mt-2 font-medium ${compact ? "text-xs" : "text-sm"}`}>
-        {label}
-      </span>
-      <span className="mt-1 text-xs text-zinc-400">Upload coming soon</span>
-    </button>
-  );
-}
-
 type StepSectionProps = {
   title: string;
   description: string;

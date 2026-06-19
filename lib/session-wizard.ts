@@ -8,6 +8,7 @@ import {
   createDefaultBookingQuestions,
   type BookingQuestionConfig,
 } from "./booking-questions";
+import { loadClubProfile } from "./club/new-club-mode";
 import { hasStoredImage } from "./session-images";
 import {
   buildSessionLocationLabel,
@@ -158,11 +159,9 @@ export const initialWizardFormData: WizardFormData = {
   selectedCapacityDateId: null,
   tickets: [],
   confirmationEmail: {
-    imagePlaceholder: null,
+    confirmationImage: null,
     welcomeMessage: "",
     extraInformation: "",
-    clubContactDetails: "",
-    replyToEmail: "",
   },
   bookingQuestions: createDefaultBookingQuestions(),
 };
@@ -554,20 +553,26 @@ export function validateWizardStep(
   }
 
   if (step === 6) {
-    if (!data.confirmationEmail.imagePlaceholder) {
-      errors.push("Confirmation email image placeholder is required");
+    const profile = loadClubProfile();
+    const clubPhone = profile.contact.phone.trim();
+    const clubEmail = profile.contact.email.trim();
+
+    if (!clubPhone || !clubEmail) {
+      errors.push(
+        "Please complete your club profile contact details before publishing this session.",
+      );
+    }
+    if (
+      !data.confirmationEmail.confirmationImage ||
+      !hasStoredImage(data.confirmationEmail.confirmationImage)
+    ) {
+      errors.push("Confirmation email image is required");
     }
     if (!data.confirmationEmail.welcomeMessage.trim()) {
       errors.push("Welcome message is required");
     }
     if (!data.confirmationEmail.extraInformation.trim()) {
       errors.push("Extra information for parents is required");
-    }
-    if (
-      data.confirmationEmail.replyToEmail?.trim() &&
-      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.confirmationEmail.replyToEmail)
-    ) {
-      errors.push("Reply-to email must be a valid email address");
     }
   }
 
@@ -633,6 +638,10 @@ export function compileWizardToSession(
       data.bookingStructure === "individual" ? "single" : "block",
   };
 
+  const profile = loadClubProfile();
+  const clubPhone = profile.contact.phone.trim();
+  const clubEmail = profile.contact.email.trim();
+
   return {
     sessionTitle: data.sessionTitle.trim(),
     description: data.description.trim(),
@@ -663,11 +672,11 @@ export function compileWizardToSession(
     defaultCapacity: data.defaultCapacity,
     tickets: data.tickets,
     confirmationEmail: {
-      imagePlaceholder: data.confirmationEmail.imagePlaceholder,
+      confirmationImage: data.confirmationEmail.confirmationImage,
       welcomeMessage: data.confirmationEmail.welcomeMessage.trim(),
       extraInformation: data.confirmationEmail.extraInformation.trim(),
-      clubContactDetails: data.confirmationEmail.clubContactDetails?.trim() || undefined,
-      replyToEmail: data.confirmationEmail.replyToEmail?.trim() || undefined,
+      clubContactDetails: clubPhone || undefined,
+      replyToEmail: clubEmail || undefined,
     },
     bookingQuestions: data.bookingQuestions.filter((q) => q.enabled),
     ticketSummaryPrimaryId: getPrimaryTicket(data.tickets)?.id,

@@ -159,7 +159,7 @@ function parseScheduleConfig(value: Json, dates: SessionDateSlot[]): SessionSche
 function parseConfirmationEmail(value: Json): ConfirmationEmailSettings {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return {
-      imagePlaceholder: null,
+      confirmationImage: null,
       welcomeMessage: "",
       extraInformation: "",
     };
@@ -167,11 +167,15 @@ function parseConfirmationEmail(value: Json): ConfirmationEmailSettings {
 
   const record = value as Record<string, unknown>;
 
-  return {
-    imagePlaceholder:
-      typeof record.imagePlaceholder === "string"
+  const confirmationImage =
+    typeof record.confirmationImage === "string"
+      ? record.confirmationImage
+      : typeof record.imagePlaceholder === "string"
         ? record.imagePlaceholder
-        : null,
+        : null;
+
+  return {
+    confirmationImage,
     welcomeMessage:
       typeof record.welcomeMessage === "string" ? record.welcomeMessage : "",
     extraInformation:
