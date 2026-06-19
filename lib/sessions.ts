@@ -44,6 +44,8 @@ export type SessionSchedule = {
   blockDayOfWeek: string;
   /** @deprecated legacy field */
   bookingType?: "single" | "block";
+  /** Recurring billing settings when bookingStructure is subscription. */
+  subscriptionConfig?: import("./session-wizard/payment-model").SessionSubscriptionConfig;
 };
 
 export type TicketPriceType =

@@ -7,7 +7,11 @@ import {
 import {
   formatSessionDateLabel,
   formatSessionTimeLabel,
+  formatSubscriptionConfigSummary,
   getActiveWizardDates,
+  SESSION_PAYMENT_MODEL_LABELS,
+  SUBSCRIPTION_CANCELLATION_LABELS,
+  SUBSCRIPTION_JOINING_OPTION_LABELS,
   summarizeTickets,
   WizardFormData,
 } from "@/lib/session-wizard";
@@ -87,6 +91,42 @@ export function ReviewStep({ data }: ReviewStepProps) {
             </div>
           </div>
           <dl className="mt-4 space-y-3 text-sm">
+            <div>
+              <dt className="text-zinc-500">Payment model</dt>
+              <dd className="font-medium text-zinc-900">
+                {data.paymentModel
+                  ? SESSION_PAYMENT_MODEL_LABELS[data.paymentModel]
+                  : "Not set"}
+              </dd>
+            </div>
+            {data.paymentModel === "subscription" ? (
+              <div>
+                <dt className="text-zinc-500">Subscription billing</dt>
+                <dd className="font-medium text-zinc-900">
+                  {formatSubscriptionConfigSummary(data.subscriptionConfig)}
+                </dd>
+                <dd className="mt-1 text-xs text-zinc-500">
+                  Joining:{" "}
+                  {
+                    SUBSCRIPTION_JOINING_OPTION_LABELS[
+                      data.subscriptionConfig.joiningOption
+                    ]
+                  }
+                  {" · "}
+                  Cancellation:{" "}
+                  {
+                    SUBSCRIPTION_CANCELLATION_LABELS[
+                      data.subscriptionConfig.cancellationPolicy
+                    ]
+                  }
+                  {" · "}
+                  Pause: {data.subscriptionConfig.pauseEnabled ? "On" : "Off"}
+                  {" · "}
+                  Retry failed payments:{" "}
+                  {data.subscriptionConfig.retryFailedPayments ? "On" : "Off"}
+                </dd>
+              </div>
+            ) : null}
             <div>
               <dt className="text-zinc-500">Booking structure</dt>
               <dd className="font-medium text-zinc-900">

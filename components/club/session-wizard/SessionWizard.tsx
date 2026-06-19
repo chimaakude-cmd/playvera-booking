@@ -2,10 +2,12 @@
 
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   initialWizardFormData,
+  paymentModelToBookingStructure,
   saveWizardSession,
+  validatePaymentModelStep,
   validateWizardForPublish,
   validateWizardStep,
   WIZARD_STEP_LABELS,
@@ -13,12 +15,18 @@ import {
   WizardStep,
 } from "@/lib/session-wizard";
 import {
+  clearSessionWizardDraft,
+  loadSessionWizardDraft,
+  saveSessionWizardDraft,
+  type SessionWizardPhase,
+} from "@/lib/session-wizard/draft-storage";
+import {
   canPublishPaidSessions,
   getPaidSessionBlockMessage,
   sessionHasPaidTickets,
 } from "@/lib/club-setup";
 import { CopyFromExistingStep } from "./CopyFromExistingStep";
-import { BookingStructureStep } from "./BookingStructureStep";
+import { PaymentModelStep } from "./PaymentModelStep";
 import { CapacityStep } from "./CapacityStep";
 import { StepperButton } from "./shared";
 import { SectionSkeleton } from "@/components/ui/SectionSkeleton";
@@ -53,21 +61,102 @@ const ReviewStep = dynamic(
   { loading: () => <SectionSkeleton rows={5} /> },
 );
 
-const LAST_STEP = 8 satisfies WizardStep;
+const LAST_STEP = 7 satisfies WizardStep;
 
 export function SessionWizard() {
   const router = useRouter();
-  const [setupComplete, setSetupComplete] = useState(false);
+  const [phase, setPhase] = useState<SessionWizardPhase>("payment");
   const [step, setStep] = useState<WizardStep>(0);
   const [data, setData] = useState<WizardFormData>(initialWizardFormData);
   const [errors, setErrors] = useState<string[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [draftLoaded, setDraftLoaded] = useState(false);
+
+  const persistDraft = useCallback(
+    (
+      next: Partial<{
+        phase: SessionWizardPhase;
+        step: WizardStep;
+        data: WizardFormData;
+      }> = {},
+    ) => {
+      const draftPhase = next.phase ?? phase;
+      const draftStep = next.step ?? step;
+      const draftData = next.data ?? data;
+
+      saveSessionWizardDraft({
+        paymentModel: draftData.paymentModel,
+        phase: draftPhase,
+        step: draftStep,
+        data: draftData,
+      });
+    },
+    [data, phase, step],
+  );
+
+  useEffect(() => {
+    const draft = loadSessionWizardDraft();
+    if (draft) {
+      setPhase(draft.phase);
+      setStep(draft.step);
+      setData(draft.data);
+    }
+    setDraftLoaded(true);
+  }, []);
 
   function updateData(updates: Partial<WizardFormData>) {
-    setData((current) => ({ ...current, ...updates }));
+    setData((current) => {
+      const next: WizardFormData = { ...current, ...updates };
+
+      if (updates.paymentModel) {
+        next.bookingStructure = paymentModelToBookingStructure(
+          updates.paymentModel,
+          current.bookingStructure,
+        );
+      }
+
+      persistDraft({ data: next });
+      return next;
+    });
     setErrors([]);
     setNotice(null);
+  }
+
+  function handlePaymentContinue() {
+    const paymentErrors = validatePaymentModelStep(data);
+    if (paymentErrors.length > 0) {
+      setErrors(paymentErrors);
+      return;
+    }
+
+    setErrors([]);
+    setPhase("setup");
+    persistDraft({ phase: "setup" });
+  }
+
+  function handleSetupStartFresh() {
+    setPhase("wizard");
+    setStep(0);
+    persistDraft({ phase: "wizard", step: 0 });
+  }
+
+  function handleSetupCopyFrom(copied: WizardFormData) {
+    const merged: WizardFormData = {
+      ...copied,
+      paymentModel: data.paymentModel,
+      subscriptionConfig: data.subscriptionConfig,
+      bookingStructure: data.paymentModel
+        ? paymentModelToBookingStructure(
+            data.paymentModel,
+            copied.bookingStructure,
+          )
+        : copied.bookingStructure,
+    };
+    setData(merged);
+    setPhase("wizard");
+    setStep(0);
+    persistDraft({ phase: "wizard", step: 0, data: merged });
   }
 
   function validateCurrentStep(): boolean {
@@ -81,13 +170,30 @@ export function SessionWizard() {
       return;
     }
 
-    setStep((current) => Math.min(LAST_STEP, current + 1) as WizardStep);
+    const nextStep = Math.min(LAST_STEP, step + 1) as WizardStep;
+    setStep(nextStep);
+    persistDraft({ step: nextStep });
   }
 
   function handleBack() {
     setErrors([]);
     setNotice(null);
-    setStep((current) => Math.max(0, current - 1) as WizardStep);
+
+    if (phase === "wizard" && step === 0) {
+      setPhase("setup");
+      persistDraft({ phase: "setup" });
+      return;
+    }
+
+    if (phase === "setup") {
+      setPhase("payment");
+      persistDraft({ phase: "payment" });
+      return;
+    }
+
+    const previousStep = Math.max(0, step - 1) as WizardStep;
+    setStep(previousStep);
+    persistDraft({ step: previousStep });
   }
 
   function handlePublish() {
@@ -109,6 +215,7 @@ export function SessionWizard() {
 
     void saveWizardSession(data)
       .then(() => {
+        clearSessionWizardDraft();
         router.push("/club/activities?created=1");
       })
       .catch((error) => {
@@ -121,20 +228,60 @@ export function SessionWizard() {
       });
   }
 
-  const progress = Math.round(((step + 1) / WIZARD_STEP_LABELS.length) * 100);
+  const progress =
+    phase === "wizard"
+      ? Math.round(((step + 1) / WIZARD_STEP_LABELS.length) * 100)
+      : 0;
   const paidBlocked =
     sessionHasPaidTickets(data) && !canPublishPaidSessions();
 
-  if (!setupComplete) {
+  if (!draftLoaded) {
+    return <SectionSkeleton rows={6} />;
+  }
+
+  if (phase === "payment") {
     return (
-      <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-8">
-        <CopyFromExistingStep
-          onStartFresh={() => setSetupComplete(true)}
-          onCopyFrom={(copied) => {
-            setData(copied);
-            setSetupComplete(true);
+      <div className="rounded-2xl border border-orange-100/80 bg-white p-4 shadow-sm sm:p-8">
+        {errors.length > 0 ? (
+          <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
+            <p className="text-sm font-medium text-red-800">
+              Please fix the following before continuing:
+            </p>
+            <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-red-700">
+              {errors.map((error) => (
+                <li key={error}>{error}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+
+        <PaymentModelStep
+          data={{
+            paymentModel: data.paymentModel,
+            subscriptionConfig: data.subscriptionConfig,
           }}
+          onChange={updateData}
         />
+
+        <div className="mt-8 flex justify-end border-t border-orange-50 pt-6">
+          <StepperButton variant="primary" onClick={handlePaymentContinue}>
+            Continue
+          </StepperButton>
+        </div>
+      </div>
+    );
+  }
+
+  if (phase === "setup") {
+    return (
+      <div className="rounded-2xl border border-orange-100/80 bg-white p-4 shadow-sm sm:p-8">
+        <CopyFromExistingStep
+          onStartFresh={handleSetupStartFresh}
+          onCopyFrom={handleSetupCopyFrom}
+        />
+        <div className="mt-8 border-t border-orange-50 pt-6">
+          <StepperButton onClick={handleBack}>Back</StepperButton>
+        </div>
       </div>
     );
   }
@@ -147,10 +294,10 @@ export function SessionWizard() {
         </div>
       ) : null}
 
-      <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-6">
+      <div className="rounded-2xl border border-orange-100/80 bg-white p-4 shadow-sm sm:p-6">
         <div className="mb-4 flex items-center justify-between gap-3">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-pink-600">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#F87128]">
               Activora
             </p>
             <p className="mt-1 text-sm text-zinc-500">
@@ -161,7 +308,7 @@ export function SessionWizard() {
         </div>
 
         <div className="overflow-x-auto pb-1">
-          <div className="flex min-w-[860px] gap-2">
+          <div className="flex min-w-[760px] gap-2">
             {WIZARD_STEP_LABELS.map((label, index) => {
               const stepNumber = index as WizardStep;
               const isActive = step === stepNumber;
@@ -172,9 +319,9 @@ export function SessionWizard() {
                   <div
                     className={`h-2 rounded-full transition-colors ${
                       isComplete
-                        ? "bg-pink-500"
+                        ? "bg-[#F87128]"
                         : isActive
-                          ? "bg-pink-300"
+                          ? "bg-orange-300"
                           : "bg-zinc-100"
                     }`}
                   />
@@ -192,7 +339,7 @@ export function SessionWizard() {
         </div>
       </div>
 
-      <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-8">
+      <div className="rounded-2xl border border-orange-100/80 bg-white p-4 shadow-sm sm:p-8">
         {errors.length > 0 ? (
           <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
             <p className="text-sm font-medium text-red-800">
@@ -213,29 +360,26 @@ export function SessionWizard() {
         ) : null}
 
         {step === 0 ? (
-          <BookingStructureStep data={data} onChange={updateData} />
-        ) : null}
-        {step === 1 ? (
           <SessionDetailsStep data={data} onChange={updateData} />
         ) : null}
-        {step === 2 ? (
+        {step === 1 ? (
           <LocationStep data={data} onChange={updateData} />
         ) : null}
-        {step === 3 ? (
+        {step === 2 ? (
           <ScheduleCalendarStep data={data} onChange={updateData} />
         ) : null}
-        {step === 4 ? <CapacityStep data={data} onChange={updateData} /> : null}
-        {step === 5 ? <TicketsStep data={data} onChange={updateData} /> : null}
-        {step === 6 ? (
+        {step === 3 ? <CapacityStep data={data} onChange={updateData} /> : null}
+        {step === 4 ? <TicketsStep data={data} onChange={updateData} /> : null}
+        {step === 5 ? (
           <ConfirmationEmailStep data={data} onChange={updateData} />
         ) : null}
-        {step === 7 ? (
+        {step === 6 ? (
           <BookingQuestionsStep data={data} onChange={updateData} />
         ) : null}
-        {step === 8 ? <ReviewStep data={data} /> : null}
+        {step === 7 ? <ReviewStep data={data} /> : null}
 
-        <div className="mt-8 flex flex-col-reverse gap-3 border-t border-zinc-100 pt-6 sm:flex-row sm:items-center sm:justify-between">
-          <StepperButton onClick={handleBack} disabled={step === 0 || saving}>
+        <div className="mt-8 flex flex-col-reverse gap-3 border-t border-orange-50 pt-6 sm:flex-row sm:items-center sm:justify-between">
+          <StepperButton onClick={handleBack} disabled={saving}>
             Back
           </StepperButton>
 

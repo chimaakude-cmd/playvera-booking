@@ -58,11 +58,20 @@ export function StepperButton({
 }) {
   const className =
     variant === "primary"
-      ? "rounded-lg bg-black px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-300"
+      ? "rounded-lg px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:opacity-90 disabled:cursor-not-allowed disabled:bg-zinc-300"
       : "rounded-lg border border-zinc-200 bg-white px-5 py-2.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 disabled:cursor-not-allowed disabled:text-zinc-400";
 
   return (
-    <button type="button" className={className} {...props}>
+    <button
+      type="button"
+      className={className}
+      style={
+        variant === "primary" && !props.disabled
+          ? { backgroundColor: "#F87128" }
+          : undefined
+      }
+      {...props}
+    >
       {children}
     </button>
   );

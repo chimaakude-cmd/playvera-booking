@@ -49,7 +49,7 @@ export function CopyFromExistingStep({
           <button
             type="button"
             onClick={onStartFresh}
-            className="rounded-2xl border border-pink-500 bg-pink-50 p-5 text-left ring-1 ring-pink-500 transition-colors hover:bg-pink-100/70"
+            className="rounded-2xl border border-[#F87128] bg-orange-50 p-5 text-left ring-1 ring-[#F87128] transition-colors hover:bg-orange-100/70"
           >
             <p className="font-semibold text-zinc-900">Start from scratch</p>
             <p className="mt-2 text-sm leading-6 text-zinc-600">
@@ -123,7 +123,8 @@ export function CopyFromExistingStep({
           type="button"
           onClick={handleCopyConfirm}
           disabled={!selectedId}
-          className="rounded-xl bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-50"
+          className="rounded-xl px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
+          style={{ backgroundColor: "#F87128" }}
         >
           Continue with copied details
         </button>

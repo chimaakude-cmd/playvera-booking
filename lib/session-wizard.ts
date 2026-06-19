@@ -20,6 +20,10 @@ import {
 } from "./session-location";
 import { PLATFORM_FEE_PERCENT, formatMoney, resolvePlatformFeePercent } from "./payments";
 import {
+  createDefaultSubscriptionConfig,
+  validateSessionSubscriptionConfig,
+} from "./session-wizard/payment-model";
+import {
   BookingStructureType,
   CalendarViewMode,
   CapacityApplyScope,
@@ -96,9 +100,23 @@ export function isTicketPriceEditable(priceType: TicketPriceType): boolean {
   );
 }
 
-export type WizardStep = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
+export type WizardStep = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
+
+export type { SessionPaymentModel, SessionSubscriptionConfig } from "./session-wizard/payment-model";
+export {
+  createDefaultSubscriptionConfig,
+  formatSubscriptionConfigSummary,
+  paymentModelToBookingStructure,
+  SESSION_PAYMENT_MODEL_LABELS,
+  SUBSCRIPTION_BILLING_FREQUENCY_LABELS,
+  SUBSCRIPTION_CANCELLATION_LABELS,
+  SUBSCRIPTION_JOINING_OPTION_LABELS,
+  validateSessionSubscriptionConfig,
+} from "./session-wizard/payment-model";
 
 export type WizardFormData = {
+  paymentModel: import("./session-wizard/payment-model").SessionPaymentModel | null;
+  subscriptionConfig: import("./session-wizard/payment-model").SessionSubscriptionConfig;
   bookingStructure: BookingStructureType | null;
   sessionTitle: string;
   description: string;
@@ -118,7 +136,6 @@ export type WizardFormData = {
 };
 
 export const WIZARD_STEP_LABELS = [
-  "Booking Structure",
   "Session Details",
   "Location",
   "Schedule",
@@ -130,6 +147,8 @@ export const WIZARD_STEP_LABELS = [
 ] as const;
 
 export const initialWizardFormData: WizardFormData = {
+  paymentModel: null,
+  subscriptionConfig: createDefaultSubscriptionConfig(),
   bookingStructure: null,
   sessionTitle: "",
   description: "",
@@ -492,12 +511,6 @@ export function validateWizardStep(
   const errors: string[] = [];
 
   if (step === 0) {
-    if (!data.bookingStructure) {
-      errors.push("Select a booking structure to continue");
-    }
-  }
-
-  if (step === 1) {
     if (!data.sessionTitle.trim()) errors.push("Session name is required");
     if (!data.description.trim()) errors.push("Session description is required");
     if (!data.mainImage || !hasStoredImage(data.mainImage)) {
@@ -512,17 +525,17 @@ export function validateWizardStep(
     errors.push(...validateAttendeeCriteria(data.attendeeCriteria));
   }
 
-  if (step === 2) {
+  if (step === 1) {
     errors.push(...validateSessionVenueForm(data.venue));
   }
 
-  if (step === 3) {
+  if (step === 2) {
     if (getActiveWizardDates(data).length === 0) {
       errors.push("Add at least one session date to the calendar");
     }
   }
 
-  if (step === 4) {
+  if (step === 3) {
     if (data.defaultCapacity < 1) {
       errors.push("Default capacity must be at least 1");
     }
@@ -531,7 +544,7 @@ export function validateWizardStep(
     }
   }
 
-  if (step === 5) {
+  if (step === 4) {
     if (data.tickets.length === 0) {
       errors.push("Add at least one ticket");
     }
@@ -553,7 +566,7 @@ export function validateWizardStep(
     });
   }
 
-  if (step === 6) {
+  if (step === 5) {
     const profile = loadClubProfile();
     const clubPhone = profile.contact.phone.trim();
     const clubEmail = profile.contact.email.trim();
@@ -577,7 +590,7 @@ export function validateWizardStep(
     }
   }
 
-  if (step === 7) {
+  if (step === 6) {
     const enabled = data.bookingQuestions.filter((q) => q.enabled);
     enabled.forEach((question, index) => {
       if (!question.label.trim()) {
@@ -595,8 +608,24 @@ export function validateWizardStep(
   return errors;
 }
 
+export function validatePaymentModelStep(data: WizardFormData): string[] {
+  const errors: string[] = [];
+
+  if (!data.paymentModel) {
+    errors.push("Select how parents will pay for this activity");
+  }
+
+  if (data.paymentModel === "subscription") {
+    errors.push(...validateSessionSubscriptionConfig(data.subscriptionConfig));
+  }
+
+  return errors;
+}
+
 export function validateWizardForPublish(data: WizardFormData): string[] {
   const errors: string[] = [];
+
+  errors.push(...validatePaymentModelStep(data));
 
   for (let step = 0; step < WIZARD_STEP_LABELS.length; step += 1) {
     errors.push(...validateWizardStep(step as WizardStep, data));
@@ -637,11 +666,26 @@ export function compileWizardToSession(
     dates: activeDates,
     bookingType:
       data.bookingStructure === "individual" ? "single" : "block",
+    subscriptionConfig:
+      data.paymentModel === "subscription" ? data.subscriptionConfig : undefined,
   };
 
   const profile = loadClubProfile();
   const clubPhone = profile.contact.phone.trim();
   const clubEmail = profile.contact.email.trim();
+
+  const tickets =
+    data.paymentModel === "subscription" && data.tickets.length === 0
+      ? [
+          {
+            ...createEmptyTicket(),
+            name: `${formatMoney(data.subscriptionConfig.amount)} ${data.subscriptionConfig.billingFrequency} subscription`,
+            description: "Recurring subscription for this activity",
+            priceType: "subscription" as const,
+            price: data.subscriptionConfig.amount,
+          },
+        ]
+      : data.tickets;
 
   return {
     sessionTitle: data.sessionTitle.trim(),
@@ -653,7 +697,10 @@ export function compileWizardToSession(
     day: firstDate ? dateToDayName(firstDate.date) : "monday",
     startTime: firstDate?.startTime ?? data.schedule.defaultStartTime,
     endTime: firstDate?.endTime ?? data.schedule.defaultEndTime,
-    price: getPrimaryTicketPrice(data.tickets),
+    price:
+      data.paymentModel === "subscription"
+        ? data.subscriptionConfig.amount
+        : getPrimaryTicketPrice(tickets),
     capacity: maxCapacity,
     providerStripeAccountId: "",
     platformFeePercent: resolvePlatformFeePercent(),
@@ -671,7 +718,7 @@ export function compileWizardToSession(
     },
     schedule,
     defaultCapacity: data.defaultCapacity,
-    tickets: data.tickets,
+    tickets,
     confirmationEmail: {
       confirmationImage: data.confirmationEmail.confirmationImage,
       welcomeMessage: data.confirmationEmail.welcomeMessage.trim(),
@@ -697,8 +744,15 @@ export function sessionToWizardFormData(
   const copyTitle = options?.copyTitle ?? true;
   const titleSuffix = copyTitle ? " (copy)" : "";
 
+  const bookingStructure = session.bookingStructure ?? "individual";
+  const subscriptionConfig =
+    schedule.subscriptionConfig ?? createDefaultSubscriptionConfig();
+
   return {
-    bookingStructure: session.bookingStructure ?? "individual",
+    paymentModel:
+      bookingStructure === "subscription" ? "subscription" : "block_individual",
+    subscriptionConfig,
+    bookingStructure,
     sessionTitle: `${session.sessionTitle}${titleSuffix}`,
     description: session.description ?? details?.description ?? "",
     attendeeCriteria:
