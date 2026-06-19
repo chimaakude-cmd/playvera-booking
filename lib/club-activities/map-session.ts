@@ -1,5 +1,6 @@
 import { getBookings } from "@/lib/bookings";
-import { getReviewsForActivity } from "@/lib/reviews/storage";
+import { getActivityRatingSummary } from "@/lib/reviews/ratings";
+import { getReviews } from "@/lib/reviews/storage";
 import { formatSessionLocation, getActiveSessionDates } from "@/lib/sessions";
 import { formatActivityType } from "@/lib/sessions";
 import { getSessionImages } from "@/lib/session-images";
@@ -146,22 +147,11 @@ function buildTags(session: ClubSession): string[] {
 }
 
 function resolveReviews(sessionId: string): ActivityReviews {
-  const reviews = getReviewsForActivity(sessionId).filter(
-    (review) => review.status === "published",
-  );
+  const summary = getActivityRatingSummary(sessionId, getReviews());
 
-  if (reviews.length === 0) {
-    const seed = sessionId.charCodeAt(0) % 5;
-    return {
-      rating: Number((4.2 + seed * 0.15).toFixed(1)),
-      count: 12 + (sessionId.length % 20),
-    };
-  }
-
-  const total = reviews.reduce((sum, review) => sum + review.rating, 0);
   return {
-    rating: Number((total / reviews.length).toFixed(1)),
-    count: reviews.length,
+    rating: summary.averageRating,
+    count: summary.reviewCount,
   };
 }
 

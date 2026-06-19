@@ -68,7 +68,7 @@ function StarRating({
   count: number;
 }) {
   if (count === 0) {
-    return <span className="text-xs text-zinc-400">No reviews</span>;
+    return <span className="text-xs text-zinc-400">No reviews yet</span>;
   }
 
   return (
