@@ -1,9 +1,9 @@
 "use client";
 
-import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { ShareActivityModal } from "@/components/club/share/ShareActivityModal";
+import { ShareClubModal } from "@/components/club/share/ShareClubModal";
 import {
   computeActivityMetrics,
   DEFAULT_ACTIVITY_FILTERS,
@@ -40,16 +40,8 @@ import {
 } from "./ActivitiesHeader";
 import { ActivitiesMetrics } from "./ActivitiesMetrics";
 import { ActivitiesSkeleton } from "./ActivitiesSkeleton";
-import { ActivitiesTable } from "./ActivitiesTable";
+import { ActivitiesCardsGrid } from "./ActivitiesCardsGrid";
 import { SessionDeleteDialog } from "./SessionDeleteDialog";
-
-const ActivityOverviewDrawer = dynamic(
-  () =>
-    import("./ActivityOverviewDrawer").then(
-      (module) => module.ActivityOverviewDrawer,
-    ),
-  { ssr: false },
-);
 
 type ActivitiesPageProps = {
   showCreated?: boolean;
@@ -70,12 +62,12 @@ function ActivitiesPageContent({
     DEFAULT_ACTIVITY_FILTERS,
   );
   const [page, setPage] = useState(1);
-  const [selectedRow, setSelectedRow] = useState<ActivityRow | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [deleteTarget, setDeleteTarget] = useState<ActivityRow | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [shareRow, setShareRow] = useState<ActivityRow | null>(null);
+  const [shareClubOpen, setShareClubOpen] = useState(false);
   const [showCreated, setShowCreated] = useState(showCreatedProp);
   const [showUpdated, setShowUpdated] = useState(showUpdatedProp);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
@@ -152,7 +144,7 @@ function ActivitiesPageContent({
   );
 
   const pagination = useMemo(
-    () => paginateItems(filtered, page, 10),
+    () => paginateItems(filtered, page, 12),
     [filtered, page],
   );
 
@@ -201,7 +193,6 @@ function ActivitiesPageContent({
       await archiveSessionActivity(row);
       setActionMessage(`"${row.title}" archived.`);
       setDeleteTarget(null);
-      setSelectedRow(null);
       setSelectedIds((current) => current.filter((id) => id !== row.id));
       handleRefresh();
     } catch (archiveError) {
@@ -226,7 +217,6 @@ function ActivitiesPageContent({
       await deleteSessionActivity(deleteTarget);
       setActionMessage(`"${deleteTarget.title}" deleted.`);
       setDeleteTarget(null);
-      setSelectedRow(null);
       setSelectedIds((current) =>
         current.filter((id) => id !== deleteTarget.id),
       );
@@ -312,7 +302,6 @@ function ActivitiesPageContent({
     }
 
     const action = bulkConfirmAction;
-    const count = selectedRows.length;
     setBulkConfirmAction(null);
     setActionLoading(true);
     setError(null);
@@ -445,7 +434,7 @@ function ActivitiesPageContent({
       {filtered.length === 0 ? (
         <ActivitiesEmptyState />
       ) : (
-        <ActivitiesTable
+        <ActivitiesCardsGrid
           rows={pagination.items}
           page={pagination.page}
           totalPages={pagination.totalPages}
@@ -455,20 +444,15 @@ function ActivitiesPageContent({
           selectedIds={selectedIds}
           onSelectionChange={setSelectedIds}
           onPageChange={setPage}
-          onRowClick={setSelectedRow}
           onVisibilityToggle={handleVisibilityToggle}
           onPreview={handlePreview}
-          onShare={handleShare}
+          onShareActivity={handleShare}
+          onShareClub={() => setShareClubOpen(true)}
           onArchive={(row) => void handleArchive(row)}
           onDelete={handleDeleteRequest}
+          onToast={(message) => setActionMessage(message)}
         />
       )}
-
-      <ActivityOverviewDrawer
-        row={selectedRow}
-        onClose={() => setSelectedRow(null)}
-        onShare={handleShare}
-      />
 
       <SessionDeleteDialog
         open={Boolean(deleteTarget)}
@@ -505,6 +489,19 @@ function ActivitiesPageContent({
           published={shareRow.session.published}
           status={shareRow.status}
           clubName={profile.clubName}
+          logoUrl={profile.logoUrl}
+          primaryColor={profile.branding?.primaryColor}
+          secondaryColor={profile.branding?.secondaryColor}
+        />
+      ) : null}
+
+      {profile ? (
+        <ShareClubModal
+          open={shareClubOpen}
+          onClose={() => setShareClubOpen(false)}
+          clubName={profile.clubName}
+          slug={profile.publicSlug}
+          providerId={profile.providerId}
           logoUrl={profile.logoUrl}
           primaryColor={profile.branding?.primaryColor}
           secondaryColor={profile.branding?.secondaryColor}
