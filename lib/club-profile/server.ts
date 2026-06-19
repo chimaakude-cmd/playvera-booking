@@ -7,6 +7,7 @@ import {
   isSupabaseServiceRoleConfigured,
 } from "@/lib/supabase";
 import {
+  mapClubProfileInputToLegacyRow,
   mapClubProfileInputToRow,
   mapClubProfileRowToProfile,
   mapLocationInputToRow,
@@ -210,6 +211,82 @@ async function syncClubProfileLocations(
   return insertError;
 }
 
+const LEGACY_CLUB_PROFILE_COLUMNS = [
+  "social_links",
+  "contact",
+  "verification_status",
+  "visibility",
+] as const;
+
+function isLegacyClubProfileSchemaError(error: PostgrestError): boolean {
+  const message = error.message.toLowerCase();
+  if (!message.includes("schema cache")) {
+    return false;
+  }
+
+  return LEGACY_CLUB_PROFILE_COLUMNS.some((column) =>
+    message.includes(column),
+  );
+}
+
+async function persistClubProfileRow(
+  supabase: ActivoraSupabaseClient,
+  providerId: string,
+  existingId: string | undefined,
+  input: ClubProfileInput,
+  profileId: string,
+): Promise<PostgrestError | null> {
+  const fullRow = mapClubProfileInputToRow(profileId, providerId, {
+    ...input,
+    publicSlug: input.publicSlug.trim() || slugifyClubName(input.clubName),
+  });
+
+  if (existingId) {
+    const { error } = await supabase
+      .from("club_profiles")
+      .update(fullRow)
+      .eq("provider_id", providerId);
+
+    if (!error) {
+      return null;
+    }
+
+    if (!isLegacyClubProfileSchemaError(error)) {
+      return error;
+    }
+
+    const legacyRow = mapClubProfileInputToLegacyRow(profileId, providerId, {
+      ...input,
+      publicSlug: input.publicSlug.trim() || slugifyClubName(input.clubName),
+    });
+    const { error: legacyError } = await supabase
+      .from("club_profiles")
+      .update(legacyRow)
+      .eq("provider_id", providerId);
+
+    return legacyError;
+  }
+
+  const { error } = await supabase.from("club_profiles").insert(fullRow);
+  if (!error) {
+    return null;
+  }
+
+  if (!isLegacyClubProfileSchemaError(error)) {
+    return error;
+  }
+
+  const legacyRow = mapClubProfileInputToLegacyRow(profileId, providerId, {
+    ...input,
+    publicSlug: input.publicSlug.trim() || slugifyClubName(input.clubName),
+  });
+  const { error: legacyError } = await supabase
+    .from("club_profiles")
+    .insert(legacyRow);
+
+  return legacyError;
+}
+
 export async function saveClubProfileForProvider(
   supabase: ActivoraSupabaseClient,
   providerId: string,
@@ -248,23 +325,14 @@ export async function saveClubProfileForProvider(
   }
 
   const profileId = existing?.id ?? crypto.randomUUID();
-  const row = mapClubProfileInputToRow(profileId, providerId, {
-    ...input,
-    publicSlug: slug,
-  });
 
-  let saveError: PostgrestError | null = null;
-
-  if (existing?.id) {
-    const { error } = await supabase
-      .from("club_profiles")
-      .update(row)
-      .eq("provider_id", providerId);
-    saveError = error;
-  } else {
-    const { error } = await supabase.from("club_profiles").insert(row);
-    saveError = error;
-  }
+  const saveError = await persistClubProfileRow(
+    supabase,
+    providerId,
+    existing?.id,
+    { ...input, publicSlug: slug },
+    profileId,
+  );
 
   if (saveError) {
     return { ok: false, error: saveError.message };

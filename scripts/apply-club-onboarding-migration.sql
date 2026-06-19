@@ -289,3 +289,9 @@ alter table public.providers
 
 comment on column public.providers.managed_by_franchisor is
   'When true and parent_provider_id is set, the club is managed by the franchisor parent provider.';
+
+-- ---------------------------------------------------------------------------
+-- Club profile JSONB columns (00047)
+-- If club profile save fails with "social_links" schema cache error, run:
+--   scripts/apply-club-profile-migration.sql
+-- ---------------------------------------------------------------------------

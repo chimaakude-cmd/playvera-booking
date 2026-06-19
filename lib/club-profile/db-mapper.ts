@@ -4,7 +4,10 @@ import {
   DEFAULT_CLUB_BRANDING,
   DEFAULT_CLUB_CUSTOMER_VIEW,
 } from "./defaults";
-import { normalizeClubContact, normalizeClubSocialLinks } from "./links";
+import {
+  normalizeClubContact,
+  normalizeClubSocialLinks,
+} from "./links";
 import type {
   ClubProfile,
   ClubProfileBranding,
@@ -192,6 +195,33 @@ function mapLocationRow(row: ClubProfileLocationRow): ClubProfileLocation {
   };
 }
 
+/** Persist only non-empty social URLs; empty form state becomes `{}` in Postgres. */
+export function compactSocialLinksForDb(
+  socialLinks: ClubSocialLinks,
+): Record<string, string> {
+  const result: Record<string, string> = {};
+
+  for (const [key, value] of Object.entries(socialLinks)) {
+    if (typeof value === "string" && value.trim()) {
+      result[key] = value.trim();
+    }
+  }
+
+  return result;
+}
+
+function compactContactForDb(contact: ClubProfileContact): Record<string, string> {
+  const result: Record<string, string> = {};
+
+  for (const [key, value] of Object.entries(contact)) {
+    if (typeof value === "string" && value.trim()) {
+      result[key] = value.trim();
+    }
+  }
+
+  return result;
+}
+
 function resolveVisibility(row: ClubProfileRow): ClubProfileVisibility {
   const visibility = (row as ClubProfileRow & { visibility?: string }).visibility;
   if (
@@ -249,15 +279,38 @@ export function mapClubProfileRowToProfile(
   };
 }
 
-export function mapClubProfileInputToRow(
-  profileId: string,
-  providerId: string,
+type ClubProfilePersistRow =
+  Database["public"]["Tables"]["club_profiles"]["Insert"];
+
+/** Base schema (00008) row — omits jsonb columns added in 00009/00045 for legacy production. */
+export type LegacyClubProfilePersistRow = Omit<
+  ClubProfilePersistRow,
+  "contact" | "social_links" | "verification_status" | "visibility"
+>;
+
+function buildClubProfilePersistScalars(
   input: ClubProfileInput,
-): Database["public"]["Tables"]["club_profiles"]["Insert"] {
+): {
+  contact: ClubProfileContact;
+  socialLinks: ClubSocialLinks;
+  visibility: ClubProfileVisibility;
+  published: boolean;
+} {
   const { contact } = normalizeClubContact(input.contact);
   const { socialLinks } = normalizeClubSocialLinks(input.socialLinks);
   const visibility = input.visibility ?? (input.published ? "published" : "draft");
   const published = visibility !== "draft";
+
+  return { contact, socialLinks, visibility, published };
+}
+
+export function mapClubProfileInputToLegacyRow(
+  profileId: string,
+  providerId: string,
+  input: ClubProfileInput,
+): LegacyClubProfilePersistRow {
+  const { contact, socialLinks, visibility, published } =
+    buildClubProfilePersistScalars(input);
 
   return {
     id: profileId,
@@ -269,14 +322,11 @@ export function mapClubProfileInputToRow(
     short_description: input.shortDescription.trim(),
     established_year: input.establishedYear,
     verified: input.verificationStatus !== "unverified",
-    verification_status: input.verificationStatus,
     long_description: input.longDescription.trim(),
     unique_selling_points: input.uniqueSellingPoints.trim(),
     categories: input.categories,
     age_ranges: input.ageRanges,
     accessibility_options: input.accessibilityOptions,
-    contact,
-    social_links: socialLinks,
     email: contact.email,
     phone: contact.phone,
     whatsapp: contact.whatsapp,
@@ -291,8 +341,25 @@ export function mapClubProfileInputToRow(
     meta_title: input.metaTitle.trim(),
     meta_description: input.metaDescription.trim(),
     published,
+  };
+}
+
+export function mapClubProfileInputToRow(
+  profileId: string,
+  providerId: string,
+  input: ClubProfileInput,
+): ClubProfilePersistRow {
+  const { contact, socialLinks, visibility, published } =
+    buildClubProfilePersistScalars(input);
+
+  return {
+    ...mapClubProfileInputToLegacyRow(profileId, providerId, input),
+    contact: compactContactForDb(contact),
+    social_links: compactSocialLinksForDb(socialLinks),
+    verification_status: input.verificationStatus,
     visibility,
-  } as Database["public"]["Tables"]["club_profiles"]["Insert"];
+    published,
+  };
 }
 
 export function mapLocationInputToRow(
