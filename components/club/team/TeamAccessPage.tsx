@@ -17,6 +17,7 @@ import {
   removeTeamMember,
   resendTeamInvite,
   roleHasPermission,
+  syncClubTeamFromServer,
   type ClubRole,
   type ClubTeamState,
   type InviteStaffInput,
@@ -81,13 +82,26 @@ export function TeamAccessPage() {
   const canManageTeam = roleHasPermission(currentRole, "manage_team");
 
   useEffect(() => {
-    setState(getClubTeamState());
-    const subscription = getProviderSubscription();
-    const plan = getPlanByIdOrDefault(subscription.planId);
-    setPlanLabel(getPlanLabel(plan.id));
-    setPlanPrice(formatMonthlyPrice(plan));
-    setPlanFee(formatPlatformFee(plan));
-    setLoading(false);
+    let cancelled = false;
+
+    async function loadTeam() {
+      const team = await syncClubTeamFromServer();
+      if (!cancelled) {
+        setState(team);
+        const subscription = getProviderSubscription();
+        const plan = getPlanByIdOrDefault(subscription.planId);
+        setPlanLabel(getPlanLabel(plan.id));
+        setPlanPrice(formatMonthlyPrice(plan));
+        setPlanFee(formatPlatformFee(plan));
+        setLoading(false);
+      }
+    }
+
+    void loadTeam();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const owner = useMemo(
@@ -128,7 +142,7 @@ export function TeamAccessPage() {
   }, [state, pendingInvites]);
 
   function refresh() {
-    setState(getClubTeamState());
+    void syncClubTeamFromServer().then(setState);
   }
 
   function handleInvite(input: InviteStaffInput) {

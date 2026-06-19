@@ -1,6 +1,8 @@
 "use client";
 
 import { login, logout, writeAuthSession, type AuthUser } from "@/lib/auth";
+import { initializeClubTeamFromOwner } from "@/lib/club-team/storage";
+import { syncClubTeamFromServer } from "@/lib/club-team/sync";
 import {
   isValidLoginEmail,
   loginErrorMessage,
@@ -39,6 +41,10 @@ export async function submitPortalLogin(
       return { ok: false, kind: "wrongPortal" };
     }
 
+    if (portal === "club") {
+      initializeClubTeamFromOwner(user);
+    }
+
     const redirectTo =
       portal === "club"
         ? "/club/dashboard"
@@ -71,6 +77,11 @@ export async function submitPortalLogin(
   }
 
   writeAuthSession(payload.user);
+
+  if (portal === "club") {
+    initializeClubTeamFromOwner(payload.user);
+    void syncClubTeamFromServer();
+  }
 
   return {
     ok: true,

@@ -1,6 +1,11 @@
 import { isDevelopmentEnvironment } from "@/lib/admin-users/production-gates";
 import { readAuthSession } from "@/lib/auth/session";
 import type { AuthUser } from "@/lib/auth/types";
+import { isPlaceholderEmail } from "@/lib/email/placeholder";
+import {
+  isRealClubAccountSession,
+  resolveClubOwnerEmail,
+} from "./owner-email";
 import type {
   ClubTeamState,
   InviteStaffInput,
@@ -11,8 +16,6 @@ import { SUBSCRIPTION_PLAN_LABELS } from "./types";
 import { CLUB_TEAM_STORAGE_KEY } from "./types";
 import type { ClubRole } from "./permissions";
 import { INVITABLE_ROLES } from "./permissions";
-
-const PLACEHOLDER_EMAIL_DOMAIN = "@playvera.example";
 
 function createDemoTeamState(): ClubTeamState {
   const now = new Date().toISOString();
@@ -102,7 +105,7 @@ export function createOwnerOnlyTeamState(options?: {
 }): ClubTeamState {
   const session = typeof window !== "undefined" ? readAuthSession() : null;
   const now = new Date().toISOString();
-  const email = options?.email?.trim() ?? session?.email?.trim() ?? "";
+  const email = options?.email?.trim() || resolveClubOwnerEmail();
   const { firstName, lastName } =
     options?.firstName !== undefined
       ? {
@@ -133,6 +136,10 @@ export function createOwnerOnlyTeamState(options?: {
 }
 
 function createDefaultTeamState(): ClubTeamState {
+  if (isRealClubAccountSession()) {
+    return createOwnerOnlyTeamState();
+  }
+
   if (isDevelopmentEnvironment()) {
     return createDemoTeamState();
   }
@@ -143,11 +150,11 @@ function createDefaultTeamState(): ClubTeamState {
 function isSeededDemoTeamState(state: ClubTeamState): boolean {
   const hasPlaceholderMember = state.members.some(
     (member) =>
-      member.email.endsWith(PLACEHOLDER_EMAIL_DOMAIN) ||
+      isPlaceholderEmail(member.email) ||
       (!member.isOwner && member.id.startsWith("member-")),
   );
   const hasPlaceholderInvite = state.invites.some((invite) =>
-    invite.email.endsWith(PLACEHOLDER_EMAIL_DOMAIN),
+    isPlaceholderEmail(invite.email),
   );
 
   return hasPlaceholderMember || hasPlaceholderInvite;
@@ -166,6 +173,87 @@ function normalizeSubscriptionPlan(
   return legacyMap[normalized] ?? "starter";
 }
 
+function repairOwnerMember(
+  members: TeamMember[],
+  realOwnerEmail: string,
+): TeamMember[] {
+  const session = typeof window !== "undefined" ? readAuthSession() : null;
+  const { firstName, lastName } = session
+    ? splitDisplayName(session.name)
+    : { firstName: "Club", lastName: "Owner" };
+  const ownerId = session?.id;
+
+  const ownerIndex = members.findIndex(
+    (member) => member.isOwner || member.role === "owner",
+  );
+
+  if (ownerIndex >= 0) {
+    const owner = members[ownerIndex];
+    if (
+      isPlaceholderEmail(owner.email) ||
+      (realOwnerEmail && owner.email !== realOwnerEmail)
+    ) {
+      const next = [...members];
+      next[ownerIndex] = {
+        ...owner,
+        email: realOwnerEmail || owner.email,
+        ...(ownerId ? { id: ownerId } : {}),
+        firstName: owner.firstName || firstName,
+        lastName: owner.lastName || lastName,
+        status: "active",
+        isOwner: true,
+        role: "owner",
+      };
+      return next;
+    }
+
+    return members;
+  }
+
+  if (!realOwnerEmail) {
+    return members;
+  }
+
+  return [createOwnerOnlyTeamState({ email: realOwnerEmail }).members[0], ...members];
+}
+
+export function repairClubTeamState(state: ClubTeamState): ClubTeamState {
+  const realOwnerEmail = resolveClubOwnerEmail();
+  const useRealAccountRules = isRealClubAccountSession() || !isDevelopmentEnvironment();
+
+  let members = state.members;
+  let invites = state.invites;
+
+  if (useRealAccountRules && isSeededDemoTeamState(state)) {
+    return createOwnerOnlyTeamState({
+      userId: readAuthSession()?.id,
+      email: realOwnerEmail,
+    });
+  }
+
+  if (useRealAccountRules) {
+    members = members.filter(
+      (member) =>
+        member.isOwner ||
+        (!isPlaceholderEmail(member.email) && !member.id.startsWith("member-")),
+    );
+    invites = invites.filter((invite) => !isPlaceholderEmail(invite.email));
+    members = repairOwnerMember(members, realOwnerEmail);
+  }
+
+  const session = typeof window !== "undefined" ? readAuthSession() : null;
+
+  return {
+    ...state,
+    members,
+    invites,
+    currentUserId:
+      session?.id ??
+      members.find((member) => member.isOwner)?.id ??
+      state.currentUserId,
+  };
+}
+
 function normalizeTeamState(raw: Partial<ClubTeamState>): ClubTeamState {
   const defaults = createDefaultTeamState();
 
@@ -177,11 +265,40 @@ function normalizeTeamState(raw: Partial<ClubTeamState>): ClubTeamState {
     invites: raw.invites ?? defaults.invites,
   };
 
-  if (!isDevelopmentEnvironment() && isSeededDemoTeamState(normalized)) {
-    return createOwnerOnlyTeamState();
+  return repairClubTeamState(normalized);
+}
+
+function loadClubTeamState(): ClubTeamState {
+  if (typeof window === "undefined") {
+    return createDefaultTeamState();
   }
 
-  return normalized;
+  try {
+    const raw = localStorage.getItem(CLUB_TEAM_STORAGE_KEY);
+    if (!raw) {
+      return repairClubTeamState(createDefaultTeamState());
+    }
+
+    return normalizeTeamState(JSON.parse(raw) as Partial<ClubTeamState>);
+  } catch {
+    return repairClubTeamState(createDefaultTeamState());
+  }
+}
+
+function persistIfChanged(previous: string | null, state: ClubTeamState): void {
+  const serialized = JSON.stringify(state);
+  if (previous !== serialized) {
+    localStorage.setItem(CLUB_TEAM_STORAGE_KEY, serialized);
+  }
+}
+
+export function applyClubTeamState(state: ClubTeamState): ClubTeamState {
+  const repaired = repairClubTeamState(state);
+  if (typeof window !== "undefined") {
+    const previous = localStorage.getItem(CLUB_TEAM_STORAGE_KEY);
+    persistIfChanged(previous, repaired);
+  }
+  return repaired;
 }
 
 export function initializeClubTeamFromOwner(
@@ -196,37 +313,27 @@ export function initializeClubTeamFromOwner(
         }
       : splitDisplayName(user.name);
 
-  const state = createOwnerOnlyTeamState({
-    userId: user.id,
-    email: user.email,
-    firstName,
-    lastName,
-  });
-  saveClubTeamState(state);
-  return state;
+  return applyClubTeamState(
+    createOwnerOnlyTeamState({
+      userId: user.id,
+      email: user.email,
+      firstName,
+      lastName,
+    }),
+  );
 }
 
 export function getClubTeamState(): ClubTeamState {
-  if (typeof window === "undefined") {
-    return createDefaultTeamState();
+  const state = loadClubTeamState();
+  if (typeof window !== "undefined") {
+    const previous = localStorage.getItem(CLUB_TEAM_STORAGE_KEY);
+    persistIfChanged(previous, state);
   }
-
-  try {
-    const raw = localStorage.getItem(CLUB_TEAM_STORAGE_KEY);
-    if (!raw) {
-      return createDefaultTeamState();
-    }
-
-    return normalizeTeamState(JSON.parse(raw) as Partial<ClubTeamState>);
-  } catch {
-    return createDefaultTeamState();
-  }
+  return state;
 }
 
 function saveClubTeamState(state: ClubTeamState): void {
-  if (typeof window !== "undefined") {
-    localStorage.setItem(CLUB_TEAM_STORAGE_KEY, JSON.stringify(state));
-  }
+  applyClubTeamState(state);
 }
 
 export function getCurrentClubRole(): ClubRole {
@@ -252,6 +359,10 @@ export function inviteStaffMember(input: InviteStaffInput): TeamInvite {
 
   if (!INVITABLE_ROLES.includes(input.role)) {
     throw new Error("Owner role cannot be assigned via invite.");
+  }
+
+  if (isPlaceholderEmail(input.email)) {
+    throw new Error("Enter a real email address for the invite.");
   }
 
   const invite: TeamInvite = {
@@ -333,7 +444,7 @@ export function cancelTeamInvite(inviteId: string): void {
 }
 
 export function setCurrentClubRoleForDemo(role: ClubRole): void {
-  if (!isDevelopmentEnvironment()) {
+  if (!isDevelopmentEnvironment() || isRealClubAccountSession()) {
     return;
   }
 

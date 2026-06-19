@@ -1,4 +1,5 @@
 import type { ClubProfileInput } from "./types";
+import { isPlaceholderEmail } from "@/lib/email/placeholder";
 
 export type ClubProfilePublishErrors = {
   logoUrl?: string;
@@ -36,6 +37,9 @@ export function validateClubProfilePublish(
   if (!hasEmail && !hasPhone) {
     errors.contact =
       "Add a contact email or phone number before publishing.";
+  } else if (hasEmail && isPlaceholderEmail(input.contact.email)) {
+    errors.contact =
+      "Replace the placeholder contact email with your real club email before publishing.";
   }
 
   return errors;

@@ -7,6 +7,7 @@
 
 import { isDevelopmentEnvironment } from "@/lib/admin-users/production-gates";
 import { readAuthSession } from "@/lib/auth/session";
+import { isPlaceholderEmail } from "@/lib/email/placeholder";
 
 export const VAT_SETTINGS_STORAGE_KEY = "activora-vat-settings";
 
@@ -79,7 +80,7 @@ export function getVatSettings(): VatSettings {
 
     if (
       !isDevelopmentEnvironment() &&
-      parsed.clubAccountEmail === PLACEHOLDER_CLUB_ACCOUNT_EMAIL
+      isPlaceholderEmail(parsed.clubAccountEmail)
     ) {
       parsed.clubAccountEmail = defaults.clubAccountEmail;
     }
