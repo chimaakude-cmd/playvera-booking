@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { isGoCardlessConnected } from "@/lib/gocardless";
+import { getGoCardlessConnection, isGoCardlessConnected } from "@/lib/gocardless";
 import {
   isStripeProviderConnected,
   PAYMENT_PROVIDER_ORDER,
@@ -39,8 +39,12 @@ export function PaymentProvidersSection() {
   }
 
   const stripe = getStripeConnectState();
+  const gocardless = getGoCardlessConnection(settings.provider_id);
   const stripeConnected = isStripeProviderConnected(stripe.status);
-  const gocardlessConnected = isGoCardlessConnected(settings.gocardless_status);
+  const gocardlessConnected = isGoCardlessConnected(
+    settings.gocardless_status,
+    gocardless.merchant_id,
+  );
   const anyProviderConnected = stripeConnected || gocardlessConnected;
 
   function toggleMethod(methodId: PaymentMethodId, enabled: boolean) {

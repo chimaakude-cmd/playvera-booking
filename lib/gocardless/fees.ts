@@ -23,7 +23,7 @@ export function estimateGoCardlessFee(chargeAmount: number): number {
 }
 
 /**
- * Direct Debit split: customer payment minus GoCardless fee minus Activora 2%,
+ * Direct Debit split: customer payment minus GoCardless processing fee minus Activora platform fee (default 2.5%),
  * remainder to provider.
  */
 export function calculateGoCardlessPayoutBreakdown(

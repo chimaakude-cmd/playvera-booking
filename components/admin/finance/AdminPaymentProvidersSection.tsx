@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import type { AdminPaymentProviderRow } from "@/lib/admin/payment-providers-data";
 import {
   isProviderGoCardlessConnected,
@@ -92,15 +93,22 @@ export function AdminPaymentProvidersSection() {
     <div className="space-y-6">
       <article className="rounded-2xl border border-zinc-200/80 bg-white shadow-sm">
         <div className="border-b border-zinc-100 px-6 py-5">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h2 className="text-lg font-semibold text-zinc-900">
-                Payment providers
-              </h2>
-              <p className="mt-1 text-sm text-zinc-500">
-                Platform-wide Stripe and GoCardless connection status by provider.
-              </p>
-            </div>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold text-zinc-900">
+              Payment providers
+            </h2>
+            <p className="mt-1 text-sm text-zinc-500">
+              Platform-wide Stripe and GoCardless connection status by provider.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href="/admin/finance/payment-providers/gocardless"
+              className="rounded-xl border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
+            >
+              GoCardless setup
+            </Link>
             {dataSource === "supabase" ? (
               <span className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-800">
                 Live data
@@ -112,6 +120,7 @@ export function AdminPaymentProvidersSection() {
               </span>
             ) : null}
           </div>
+        </div>
         </div>
         <div className="grid gap-4 p-6 sm:grid-cols-2 xl:grid-cols-4">
           <SummaryCard label="Stripe connected" value={stripeProviders.length} />

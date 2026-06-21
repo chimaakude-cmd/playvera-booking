@@ -2,16 +2,19 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import type { GoCardlessConnectConfigResponse } from "@/app/api/gocardless/connect/config/route";
 import {
   calculateGoCardlessPayoutBreakdown,
   completeMockGoCardlessOnboarding,
-  disconnectGoCardless,
-  getGoCardlessConnection,
+  disconnectGoCardlessRemote,
+  fetchGoCardlessConnection,
+  resolveGoCardlessProviderId,
   startGoCardlessOnboarding,
   testGoCardlessConnection,
   type GoCardlessConnection,
   type GoCardlessConnectionStatus,
 } from "@/lib/gocardless";
+import { isGoCardlessConnected } from "@/lib/gocardless/types";
 import {
   PAYMENT_PROVIDER_DEFINITIONS,
   getGoCardlessConnectionLabel,
@@ -21,10 +24,21 @@ import { FinanceButton } from "./shared";
 
 const SAMPLE_PAYMENT = 50;
 const GOCARDLESS = PAYMENT_PROVIDER_DEFINITIONS.gocardless;
+const NOT_CONFIGURED_MESSAGE =
+  "GoCardless unavailable. Activora is still configuring Direct Debit.";
 
-function StatusBadge({ status }: { status: GoCardlessConnectionStatus }) {
-  const label = getGoCardlessConnectionLabel(status);
+function StatusBadge({
+  status,
+  platformUnavailable,
+}: {
+  status: GoCardlessConnectionStatus;
+  platformUnavailable: boolean;
+}) {
+  const label = platformUnavailable
+    ? "Not available"
+    : getGoCardlessConnectionLabel(status);
   const styles: Record<string, string> = {
+    "Not available": "bg-zinc-100 text-zinc-500 ring-zinc-200",
     "Not connected": "bg-zinc-100 text-zinc-600 ring-zinc-200",
     "Action required": "bg-amber-50 text-amber-800 ring-amber-200",
     Connected: "bg-emerald-50 text-emerald-700 ring-emerald-200",
@@ -44,31 +58,95 @@ export function GoCardlessConnectCard() {
   const [connection, setConnection] = useState<GoCardlessConnection | null>(
     null,
   );
+  const [platformConfig, setPlatformConfig] =
+    useState<GoCardlessConnectConfigResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const isDev = process.env.NODE_ENV !== "production";
 
-  const refresh = useCallback(() => {
-    setLoading(true);
-    setConnection(getGoCardlessConnection());
-    setLoading(false);
+  useEffect(() => {
+    resolveGoCardlessProviderId();
   }, []);
 
   useEffect(() => {
-    refresh();
+    async function loadConfig() {
+      try {
+        const response = await fetch("/api/gocardless/connect/config");
+        if (response.ok) {
+          setPlatformConfig(
+            (await response.json()) as GoCardlessConnectConfigResponse,
+          );
+        } else {
+          setPlatformConfig(null);
+        }
+      } catch {
+        setPlatformConfig(null);
+      }
+    }
+
+    void loadConfig();
+  }, []);
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const next = await fetchGoCardlessConnection();
+      setConnection(next);
+    } catch (refreshError) {
+      setConnection(null);
+      setError(
+        refreshError instanceof Error
+          ? refreshError.message
+          : "Could not refresh GoCardless status.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void refresh();
   }, [refresh]);
 
   useEffect(() => {
     const connected = searchParams.get("gocardless");
-    if (connected === "connected") {
-      const next = completeMockGoCardlessOnboarding();
-      setConnection(next);
-      setMessage("GoCardless connected successfully (placeholder flow).");
+    const mock = searchParams.get("mock") === "1";
+    const oauthError = searchParams.get("gocardless") === "error";
+
+    if (oauthError) {
+      setError("GoCardless connection could not be completed. Please try again.");
+      void refresh();
+      return;
     }
-  }, [searchParams]);
+
+    if (connected === "connected") {
+      if (mock && isDev) {
+        const next = completeMockGoCardlessOnboarding();
+        if (next) {
+          setConnection(next);
+          setMessage("GoCardless connected (development mock).");
+        }
+      } else {
+        void refresh();
+        setMessage("GoCardless connected successfully.");
+      }
+    }
+  }, [searchParams, refresh, isDev]);
+
+  const platformConfigured = platformConfig?.platformConfigured ?? false;
+  const platformUnavailable = platformConfig?.platformUnavailable ?? true;
+  const configLoaded = platformConfig !== null;
 
   async function handleConnect() {
+    if (!platformConfigured) {
+      setError(NOT_CONFIGURED_MESSAGE);
+      return;
+    }
+
     setActionLoading(true);
     setError(null);
     setMessage(null);
@@ -95,7 +173,7 @@ export function GoCardlessConnectCard() {
       const result = await testGoCardlessConnection();
       if (result.ok) {
         setMessage(result.message);
-        refresh();
+        await refresh();
       } else {
         setError(result.message);
       }
@@ -111,27 +189,7 @@ export function GoCardlessConnectCard() {
   }
 
   async function handleRefreshStatus() {
-    setActionLoading(true);
-    setError(null);
-    setMessage(null);
-
-    try {
-      const result = await testGoCardlessConnection();
-      if (result.ok) {
-        setMessage(result.message);
-        refresh();
-      } else {
-        setError(result.message);
-      }
-    } catch (testError) {
-      setError(
-        testError instanceof Error
-          ? testError.message
-          : "Could not refresh GoCardless status.",
-      );
-    } finally {
-      setActionLoading(false);
-    }
+    await handleManage();
   }
 
   async function handleDisconnect() {
@@ -146,15 +204,24 @@ export function GoCardlessConnectCard() {
     setActionLoading(true);
     setError(null);
 
-    const next = disconnectGoCardless();
-    setConnection(next);
-    setMessage("GoCardless disconnected.");
-    setActionLoading(false);
+    try {
+      const next = await disconnectGoCardlessRemote();
+      setConnection(next);
+      setMessage("GoCardless disconnected.");
+    } catch (disconnectError) {
+      setError(
+        disconnectError instanceof Error
+          ? disconnectError.message
+          : "Could not disconnect GoCardless.",
+      );
+    } finally {
+      setActionLoading(false);
+    }
   }
 
   const status = connection?.status ?? "not_connected";
   const breakdown = calculateGoCardlessPayoutBreakdown(SAMPLE_PAYMENT);
-  const isConnected = status === "connected";
+  const connected = isGoCardlessConnected(status, connection?.merchant_id);
   const needsSetup =
     status === "pending_setup" || status === "action_required";
 
@@ -188,23 +255,31 @@ export function GoCardlessConnectCard() {
               <p className="mt-1 text-sm text-zinc-500">Loading status…</p>
             ) : (
               <div className="mt-1">
-                <StatusBadge status={status} />
+                <StatusBadge
+                  status={status}
+                  platformUnavailable={configLoaded && platformUnavailable}
+                />
               </div>
             )}
           </div>
         </div>
 
         <div className="flex flex-wrap gap-2">
-          {status === "not_connected" || status === "disconnected" ? (
+          {configLoaded && platformUnavailable ? (
+            <FinanceButton disabled>Unavailable</FinanceButton>
+          ) : null}
+
+          {!platformUnavailable &&
+          (status === "not_connected" || status === "disconnected") ? (
             <FinanceButton
               onClick={() => void handleConnect()}
-              disabled={actionLoading}
+              disabled={actionLoading || !platformConfigured}
             >
               Connect GoCardless
             </FinanceButton>
           ) : null}
 
-          {isConnected || needsSetup ? (
+          {!platformUnavailable && (connected || needsSetup) ? (
             <FinanceButton
               variant="secondary"
               onClick={() => void handleManage()}
@@ -214,7 +289,9 @@ export function GoCardlessConnectCard() {
             </FinanceButton>
           ) : null}
 
-          {status !== "not_connected" && status !== "disconnected" ? (
+          {!platformUnavailable &&
+          status !== "not_connected" &&
+          status !== "disconnected" ? (
             <FinanceButton
               variant="secondary"
               onClick={() => void handleRefreshStatus()}
@@ -224,7 +301,9 @@ export function GoCardlessConnectCard() {
             </FinanceButton>
           ) : null}
 
-          {status !== "not_connected" && status !== "disconnected" ? (
+          {!platformUnavailable &&
+          status !== "not_connected" &&
+          status !== "disconnected" ? (
             <FinanceButton
               variant="danger"
               onClick={() => void handleDisconnect()}
@@ -236,7 +315,11 @@ export function GoCardlessConnectCard() {
         </div>
       </div>
 
-      <p className="mt-3 text-sm text-zinc-600">{GOCARDLESS.description}</p>
+      {configLoaded && platformUnavailable ? (
+        <p className="mt-3 text-sm text-zinc-600">{NOT_CONFIGURED_MESSAGE}</p>
+      ) : (
+        <p className="mt-3 text-sm text-zinc-600">{GOCARDLESS.description}</p>
+      )}
 
       {connection?.merchant_id ? (
         <p className="mt-2 font-mono text-xs text-zinc-500">

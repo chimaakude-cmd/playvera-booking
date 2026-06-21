@@ -888,6 +888,163 @@ export type Database = {
           },
         ];
       };
+      gocardless_platform_config: {
+        Row: {
+          id: number;
+          environment: string;
+          access_token: string | null;
+          webhook_secret: string | null;
+          client_id: string | null;
+          client_secret: string | null;
+          redirect_uri: string | null;
+          callback_uri: string | null;
+          platform_enabled: boolean;
+          platform_fee_percent: number;
+          connection_status: string;
+          last_tested_at: string | null;
+          last_error: string | null;
+          created_at: string;
+          updated_at: string;
+          updated_by: string | null;
+        };
+        Insert: {
+          id?: number;
+          environment?: string;
+          access_token?: string | null;
+          webhook_secret?: string | null;
+          client_id?: string | null;
+          client_secret?: string | null;
+          redirect_uri?: string | null;
+          callback_uri?: string | null;
+          platform_enabled?: boolean;
+          platform_fee_percent?: number;
+          connection_status?: string;
+          last_tested_at?: string | null;
+          last_error?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Update: {
+          id?: number;
+          environment?: string;
+          access_token?: string | null;
+          webhook_secret?: string | null;
+          client_id?: string | null;
+          client_secret?: string | null;
+          redirect_uri?: string | null;
+          callback_uri?: string | null;
+          platform_enabled?: boolean;
+          platform_fee_percent?: number;
+          connection_status?: string;
+          last_tested_at?: string | null;
+          last_error?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "gocardless_platform_config_updated_by_fkey";
+            columns: ["updated_by"];
+            isOneToOne: false;
+            referencedRelation: "admin_users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      gocardless_platform_logs: {
+        Row: {
+          id: string;
+          level: string;
+          event_type: string;
+          message: string;
+          metadata: Json;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          level?: string;
+          event_type: string;
+          message: string;
+          metadata?: Json;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          level?: string;
+          event_type?: string;
+          message?: string;
+          metadata?: Json;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      gocardless_payments: {
+        Row: {
+          id: string;
+          booking_id: string;
+          provider_id: string;
+          amount: number;
+          activora_fee: number;
+          gocardless_fee: number;
+          provider_net: number;
+          gross_amount: number | null;
+          processing_fee: number | null;
+          platform_fee: number | null;
+          net_amount: number | null;
+          status: string;
+          mandate_id: string | null;
+          payment_id: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          booking_id: string;
+          provider_id: string;
+          amount: number;
+          activora_fee?: number;
+          gocardless_fee?: number;
+          provider_net?: number;
+          gross_amount?: number | null;
+          processing_fee?: number | null;
+          platform_fee?: number | null;
+          net_amount?: number | null;
+          status?: string;
+          mandate_id?: string | null;
+          payment_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          booking_id?: string;
+          provider_id?: string;
+          amount?: number;
+          activora_fee?: number;
+          gocardless_fee?: number;
+          provider_net?: number;
+          gross_amount?: number | null;
+          processing_fee?: number | null;
+          platform_fee?: number | null;
+          net_amount?: number | null;
+          status?: string;
+          mandate_id?: string | null;
+          payment_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "gocardless_payments_provider_id_fkey";
+            columns: ["provider_id"];
+            isOneToOne: false;
+            referencedRelation: "providers";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       platform_settings: {
         Row: {
           id: number;

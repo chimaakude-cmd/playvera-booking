@@ -101,7 +101,8 @@ export function isGoCardlessCheckoutAvailable(providerId?: string): boolean {
   const gocardless = getGoCardlessConnection(settings.provider_id);
   return (
     settings.enabled_methods.gocardless_direct_debit &&
-    gocardless.status === "connected"
+    gocardless.status === "connected" &&
+    Boolean(gocardless.merchant_id?.trim())
   );
 }
 

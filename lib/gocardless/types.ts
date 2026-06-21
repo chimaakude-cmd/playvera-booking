@@ -19,6 +19,7 @@ export type GoCardlessConnection = {
   access_token: string | null;
   merchant_id: string | null;
   status: GoCardlessConnectionStatus;
+  connected_at: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -63,6 +64,9 @@ export const GOCARDLESS_PAYMENT_STATUS_LABELS: Record<
   refunded: "Refunded",
 };
 
-export function isGoCardlessConnected(status: GoCardlessConnectionStatus): boolean {
-  return status === "connected";
+export function isGoCardlessConnected(
+  status: GoCardlessConnectionStatus,
+  merchantId?: string | null,
+): boolean {
+  return status === "connected" && Boolean(merchantId?.trim());
 }

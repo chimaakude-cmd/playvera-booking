@@ -10,6 +10,7 @@ import {
 import type { AdminFinanceData } from "@/lib/admin/finance-data";
 import dynamic from "next/dynamic";
 import { AdminStripePlatformCard } from "./AdminStripePlatformCard";
+import { AdminGoCardlessPlatformCard } from "./AdminGoCardlessPlatformCard";
 
 const AdminPaymentProvidersSection = dynamic(
   () =>
@@ -87,6 +88,7 @@ export function AdminFinanceSection({ data }: Props) {
         supabaseConfigured={dataSource !== "env_missing"}
       />
       <AdminStripePlatformCard />
+      <AdminGoCardlessPlatformCard />
       <AdminPaymentProvidersSection />
 
       <article className="overflow-hidden rounded-2xl border border-zinc-200/80 bg-white shadow-sm">

@@ -1,3 +1,4 @@
+import { isDevelopmentEnvironment } from "@/lib/admin-users/production-gates";
 import gocardless, { Environments, type GoCardlessClient } from "gocardless-nodejs";
 import { getGoCardlessEnv } from "@/lib/gocardless/env";
 import { getPlanByIdOrDefault, type PlanId } from "@/src/config/pricing";
@@ -55,6 +56,9 @@ export async function createCustomer(params: {
 }): Promise<GoCardlessCustomerResult> {
   const client = getClient();
   if (!client) {
+    if (!isDevelopmentEnvironment()) {
+      throw new Error("GoCardless is not configured.");
+    }
     return { id: mockResourceId("CU"), mock: true };
   }
 
@@ -79,6 +83,9 @@ export async function createMandate(params: {
 }): Promise<GoCardlessMandateSetupResult> {
   const client = getClient();
   if (!client) {
+    if (!isDevelopmentEnvironment()) {
+      throw new Error("GoCardless is not configured.");
+    }
     const redirectFlowId = mockResourceId("RF");
     const baseUrl = params.successRedirectUrl.split("?")[0] ?? params.successRedirectUrl;
     const redirectUrl = `${baseUrl}?mock_gocardless=1&redirect_flow_id=${redirectFlowId}&session_token=${encodeURIComponent(params.sessionToken)}`;
@@ -115,6 +122,9 @@ export async function completeMandate(params: {
 }): Promise<GoCardlessMandateCompleteResult> {
   const client = getClient();
   if (!client) {
+    if (!isDevelopmentEnvironment()) {
+      throw new Error("GoCardless is not configured.");
+    }
     return {
       mandateId: mockResourceId("MD"),
       customerId: mockResourceId("CU"),
@@ -148,6 +158,9 @@ export async function createSubscription(params: {
   const amount = subscriptionAmountPence(params.planId);
 
   if (!client) {
+    if (!isDevelopmentEnvironment()) {
+      throw new Error("GoCardless is not configured.");
+    }
     const nextMonth = new Date();
     nextMonth.setMonth(nextMonth.getMonth() + 1);
     return {
@@ -180,6 +193,9 @@ export async function cancelSubscription(
 ): Promise<{ status: string; mock: boolean }> {
   const client = getClient();
   if (!client) {
+    if (!isDevelopmentEnvironment()) {
+      throw new Error("GoCardless is not configured.");
+    }
     return { status: "cancelled", mock: true };
   }
 
@@ -192,6 +208,9 @@ export async function getSubscriptionStatus(
 ): Promise<GoCardlessSubscriptionResult> {
   const client = getClient();
   if (!client) {
+    if (!isDevelopmentEnvironment()) {
+      throw new Error("GoCardless is not configured.");
+    }
     const nextMonth = new Date();
     nextMonth.setMonth(nextMonth.getMonth() + 1);
     return {

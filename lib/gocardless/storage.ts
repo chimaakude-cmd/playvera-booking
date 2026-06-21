@@ -1,3 +1,6 @@
+import { isDevelopmentEnvironment } from "@/lib/admin-users/production-gates";
+import { getClubProfile } from "@/lib/club-profile";
+import { getDefaultProviderIdFromEnv } from "@/lib/data/providers/supabase/default-provider";
 import { DEMO_PROVIDER_ID } from "@/lib/stripe-connect/types";
 import type {
   GoCardlessConnection,
@@ -8,7 +11,10 @@ import type {
 import {
   GOCARDLESS_CONNECTIONS_STORAGE_KEY,
   GOCARDLESS_PAYMENTS_STORAGE_KEY,
+  isGoCardlessConnected,
 } from "./types";
+
+const PLACEHOLDER_PROVIDER_IDS = new Set(["local-provider", DEMO_PROVIDER_ID]);
 
 function createDefaultConnection(providerId: string): GoCardlessConnection {
   return {
@@ -17,15 +23,50 @@ function createDefaultConnection(providerId: string): GoCardlessConnection {
     access_token: null,
     merchant_id: null,
     status: "not_connected",
+    connected_at: null,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   };
 }
 
+function readCachedDefaultProviderId(): string | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  return localStorage.getItem("activora-default-provider-id")?.trim() || null;
+}
+
+export function resolveGoCardlessProviderId(): string {
+  const connection = getGoCardlessConnection();
+  const envProviderId = getDefaultProviderIdFromEnv();
+  const profileProviderId = getClubProfile().providerId?.trim();
+  const cachedProviderId = readCachedDefaultProviderId();
+
+  const resolved =
+    (profileProviderId && !PLACEHOLDER_PROVIDER_IDS.has(profileProviderId)
+      ? profileProviderId
+      : null) ??
+    (cachedProviderId && !PLACEHOLDER_PROVIDER_IDS.has(cachedProviderId)
+      ? cachedProviderId
+      : null) ??
+    envProviderId ??
+    connection.provider_id;
+
+  if (resolved !== connection.provider_id) {
+    saveGoCardlessConnection({
+      ...connection,
+      provider_id: resolved,
+    });
+  }
+
+  return resolved;
+}
+
 export function getGoCardlessConnection(
   providerId?: string,
 ): GoCardlessConnection {
-  const id = providerId ?? DEMO_PROVIDER_ID;
+  const id = providerId ?? resolveGoCardlessProviderId();
 
   if (typeof window === "undefined") {
     return createDefaultConnection(id);
@@ -41,7 +82,16 @@ export function getGoCardlessConnection(
     if (parsed.provider_id !== id) {
       return createDefaultConnection(id);
     }
-    return { ...createDefaultConnection(id), ...parsed };
+
+    const merged = { ...createDefaultConnection(id), ...parsed };
+    if (
+      merged.status === "connected" &&
+      !merged.merchant_id?.trim()
+    ) {
+      merged.status = "not_connected";
+    }
+
+    return merged;
   } catch {
     return createDefaultConnection(id);
   }
@@ -63,24 +113,35 @@ export function saveGoCardlessConnection(
 export function updateGoCardlessStatus(
   status: GoCardlessConnectionStatus,
   providerId?: string,
+  details?: Partial<
+    Pick<
+      GoCardlessConnection,
+      "organisation_id" | "merchant_id" | "connected_at" | "access_token"
+    >
+  >,
 ): GoCardlessConnection {
   const current = getGoCardlessConnection(providerId);
   const now = new Date().toISOString();
+
   return saveGoCardlessConnection({
     ...current,
     status,
     organisation_id:
-      status === "connected"
-        ? current.organisation_id ?? `OR${Date.now().toString(36).toUpperCase()}`
+      details?.organisation_id !== undefined
+        ? details.organisation_id
         : current.organisation_id,
     merchant_id:
-      status === "connected"
-        ? current.merchant_id ?? `MR${Date.now().toString(36).toUpperCase()}`
+      details?.merchant_id !== undefined
+        ? details.merchant_id
         : current.merchant_id,
     access_token:
-      status === "connected"
-        ? current.access_token ?? "mock_gc_access_token"
+      details?.access_token !== undefined
+        ? details.access_token
         : current.access_token,
+    connected_at:
+      status === "connected"
+        ? details?.connected_at ?? current.connected_at ?? now
+        : details?.connected_at ?? null,
     created_at: current.created_at ?? now,
   });
 }
@@ -125,6 +186,7 @@ export function saveGoCardlessPayment(payment: GoCardlessPayment): void {
   }
 }
 
+/** Dev-only mock payment — never used in production. */
 export function createMockGoCardlessPayment(
   bookingId: string,
   providerId: string,
@@ -132,7 +194,11 @@ export function createMockGoCardlessPayment(
   activoraFee: number,
   gocardlessFee: number,
   providerNet: number,
-): GoCardlessPayment {
+): GoCardlessPayment | null {
+  if (!isDevelopmentEnvironment()) {
+    return null;
+  }
+
   const payment: GoCardlessPayment = {
     booking_id: bookingId,
     provider_id: providerId,
@@ -150,65 +216,75 @@ export function createMockGoCardlessPayment(
   return payment;
 }
 
-export async function startGoCardlessOnboarding(
+export async function fetchGoCardlessConnection(
   providerId?: string,
-): Promise<{ url: string; mock: boolean }> {
-  const id = providerId ?? getGoCardlessConnection().provider_id;
+): Promise<GoCardlessConnection> {
+  const id = providerId ?? resolveGoCardlessProviderId();
 
   try {
-    const response = await fetch("/api/gocardless/connect/onboard", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ providerId: id }),
-    });
+    const response = await fetch(
+      `/api/gocardless/connect/status?providerId=${encodeURIComponent(id)}`,
+    );
 
     if (response.ok) {
-      const data = (await response.json()) as { url: string; mock?: boolean };
-      updateGoCardlessStatus("pending_setup", id);
-      return { url: data.url, mock: data.mock ?? false };
+      const data = (await response.json()) as {
+        providerId: string;
+        status: GoCardlessConnectionStatus;
+        merchantId: string | null;
+        organisationId: string | null;
+        connectedAt: string | null;
+      };
+
+      const connection = saveGoCardlessConnection({
+        ...createDefaultConnection(data.providerId),
+        status: data.status,
+        merchant_id: data.merchantId,
+        organisation_id: data.organisationId,
+        connected_at: data.connectedAt,
+      });
+
+      return connection;
     }
   } catch {
-    // fall through to local mock
+    // fall through to cached state
   }
 
+  return getGoCardlessConnection(id);
+}
+
+export async function startGoCardlessOnboarding(
+  providerId?: string,
+): Promise<{ url: string }> {
+  const id = providerId ?? resolveGoCardlessProviderId();
+
+  const response = await fetch("/api/gocardless/connect/onboard", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ providerId: id }),
+  });
+
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => ({}))) as {
+      error?: string;
+    };
+    throw new Error(payload.error ?? "Could not start GoCardless connect.");
+  }
+
+  const data = (await response.json()) as { url: string };
   updateGoCardlessStatus("pending_setup", id);
-  const base =
-    typeof window !== "undefined" ? window.location.origin : "http://localhost:3000";
-  return {
-    url: `${base}/club/finance?tab=payment-providers&gocardless=connected`,
-    mock: true,
-  };
+  return { url: data.url };
 }
 
 export async function testGoCardlessConnection(
   providerId?: string,
 ): Promise<{ ok: boolean; message: string }> {
-  const connection = getGoCardlessConnection(providerId);
+  const connection = await fetchGoCardlessConnection(providerId);
 
-  try {
-    const response = await fetch("/api/gocardless/connect/status", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ providerId: connection.provider_id }),
-    });
-
-    if (response.ok) {
-      const data = (await response.json()) as {
-        ok: boolean;
-        message: string;
-        status?: GoCardlessConnectionStatus;
-      };
-      if (data.status) {
-        updateGoCardlessStatus(data.status, connection.provider_id);
-      }
-      return { ok: data.ok, message: data.message };
-    }
-  } catch {
-    // local mock
-  }
-
-  if (connection.status === "connected") {
-    return { ok: true, message: "GoCardless connection is active (mock)." };
+  if (isGoCardlessConnected(connection.status, connection.merchant_id)) {
+    return {
+      ok: true,
+      message: "GoCardless connection verified.",
+    };
   }
 
   if (connection.status === "pending_setup") {
@@ -221,8 +297,35 @@ export async function testGoCardlessConnection(
   return { ok: false, message: "GoCardless is not connected." };
 }
 
+export async function disconnectGoCardlessRemote(
+  providerId?: string,
+): Promise<GoCardlessConnection> {
+  const id = providerId ?? resolveGoCardlessProviderId();
+
+  try {
+    await fetch("/api/gocardless/connect/disconnect", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ providerId: id }),
+    });
+  } catch {
+    // local cache still cleared below
+  }
+
+  return disconnectGoCardless(id);
+}
+
+/** @deprecated Dev-only — use OAuth callback in production */
 export function completeMockGoCardlessOnboarding(
   providerId?: string,
-): GoCardlessConnection {
-  return updateGoCardlessStatus("connected", providerId);
+): GoCardlessConnection | null {
+  if (!isDevelopmentEnvironment()) {
+    return null;
+  }
+
+  return updateGoCardlessStatus("connected", providerId, {
+    organisation_id: `OR_DEV_${Date.now().toString(36).toUpperCase()}`,
+    merchant_id: `CR_DEV_${Date.now().toString(36).toUpperCase()}`,
+    connected_at: new Date().toISOString(),
+  });
 }

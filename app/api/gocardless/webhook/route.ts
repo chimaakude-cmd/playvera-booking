@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { parse as parseGoCardlessWebhook } from "gocardless-nodejs/webhooks";
-import { getGoCardlessEnv } from "@/lib/gocardless/env";
-import { mapGoCardlessSubscriptionStatus } from "@/lib/provider-subscriptions/storage";
+import { handleGoCardlessBookingWebhookEvent } from "@/lib/gocardless/webhook-handlers";
+import {
+  appendGoCardlessPlatformLog,
+  getResolvedGoCardlessEnv,
+} from "@/lib/gocardless/platform-config";
 import {
   applyServerSubscriptionStatus,
   findProviderByMandateId,
@@ -73,11 +76,11 @@ function handleMandateEvent(
 }
 
 export async function POST(request: Request) {
-  const env = getGoCardlessEnv();
+  const env = await getResolvedGoCardlessEnv(request);
   const rawBody = await request.text();
   const signature = request.headers.get("webhook-signature");
 
-  if (env.isConfigured && env.webhookSecret && signature) {
+  if (env.isBillingConfigured && env.webhookSecret && signature) {
     try {
       const events = parseGoCardlessWebhook(
         rawBody,
@@ -100,14 +103,27 @@ export async function POST(request: Request) {
 
         if (resourceType === "mandates") {
           handleMandateEvent(action, links.mandates ?? links.mandate);
+          await handleGoCardlessBookingWebhookEvent({
+            resourceType: "mandates",
+            action,
+            links,
+          });
         }
 
-        if (resourceType === "payments" && action === "failed") {
-          const subscriptionId = links.subscription;
-          if (subscriptionId) {
-            const record = findProviderBySubscriptionId(subscriptionId);
-            if (record) {
-              applyServerSubscriptionStatus(record.providerId, "payment_failed");
+        if (resourceType === "payments") {
+          await handleGoCardlessBookingWebhookEvent({
+            resourceType: "payments",
+            action,
+            links,
+          });
+
+          if (action === "failed") {
+            const subscriptionId = links.subscription;
+            if (subscriptionId) {
+              const record = findProviderBySubscriptionId(subscriptionId);
+              if (record) {
+                applyServerSubscriptionStatus(record.providerId, "payment_failed");
+              }
             }
           }
         }
@@ -117,13 +133,29 @@ export async function POST(request: Request) {
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Webhook verification failed.";
+      await appendGoCardlessPlatformLog({
+        level: "error",
+        eventType: "webhook_verification_failed",
+        message,
+      });
       return NextResponse.json({ error: message }, { status: 400 });
     }
   }
 
+  if (!env.isBillingConfigured) {
+    return NextResponse.json(
+      {
+        received: false,
+        mock: false,
+        error: "GoCardless webhooks are not configured.",
+      },
+      { status: 503 },
+    );
+  }
+
   return NextResponse.json({
     received: true,
-    mock: true,
-    message: "Webhook stub — configure GOCARDLESS_ACCESS_TOKEN and GOCARDLESS_WEBHOOK_SECRET.",
+    mock: false,
+    message: "Webhook received without signature verification.",
   });
 }
