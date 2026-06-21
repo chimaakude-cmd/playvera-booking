@@ -30,6 +30,7 @@ export type AdminNavSection =
   | "reviews"
   | "finance"
   | "settings"
+  | "plans"
   | "users";
 
 export type ProviderStripeStatus =

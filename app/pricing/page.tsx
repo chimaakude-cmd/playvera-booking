@@ -1,12 +1,29 @@
 import Link from "next/link";
-import { getAllPlans } from "@/src/config/pricing";
+import { getServerSubscriptionPlans } from "@/lib/subscription-plans/server-store";
 import { HomeHeader } from "@/components/home/HomeHeader";
 import { ACTIVORA_ACTION, ACTIVORA_PRIMARY } from "@/lib/home/constants";
 import { PricingDisclaimer } from "@/components/pricing/PricingDisclaimer";
 import { PricingPlanCard } from "@/components/pricing/PricingPlanCard";
+import { subscriptionPlanToPricingShape } from "@/lib/subscription-plans/mappers";
+import type { PlanId } from "@/src/config/pricing";
 
-export default function PricingPage() {
-  const plans = getAllPlans();
+export default async function PricingPage() {
+  const subscriptionPlans = await getServerSubscriptionPlans();
+  const plans = subscriptionPlans.map((plan) => {
+    const shape = subscriptionPlanToPricingShape(plan);
+    return {
+      id: shape.legacyId as PlanId,
+      slug: shape.slug,
+      monthlyPrice: shape.monthlyPrice,
+      platformFeePercent: shape.platformFeePercent,
+      description: shape.description,
+      features: shape.features,
+      cta: shape.cta,
+      highlighted: shape.highlighted,
+      contactSales: shape.contactSales,
+      monthlyPriceIsMinimum: shape.monthlyPriceIsMinimum,
+    };
+  });
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] font-[family-name:var(--font-inter)]">
@@ -24,8 +41,8 @@ export default function PricingPage() {
             Simple pricing for clubs and franchises
           </h1>
           <p className="mt-4 text-base leading-relaxed text-slate-600 sm:text-lg">
-            Choose the plan that fits your club. Platform fees apply only when
-            bookings are processed — no hidden charges on free plans.
+            All plans include a 2.5% platform booking fee when payments are
+            processed. Stripe and GoCardless processing fees apply separately.
           </p>
         </div>
 
@@ -52,8 +69,8 @@ export default function PricingPage() {
             Need help choosing a plan?
           </h2>
           <p className="mt-2 text-sm leading-relaxed text-slate-600">
-            Start free on Starter and upgrade anytime from your dashboard. Franchise
-            and Enterprise plans include dedicated onboarding support.
+            Start free and upgrade anytime from your dashboard. Franchisor and
+            Enterprise plans include dedicated onboarding support.
           </p>
           <div className="mt-5 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Link

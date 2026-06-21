@@ -10,11 +10,8 @@ import {
 import {
   INDEPENDENT_CLUB_ORGANISATION_FIELDS,
 } from "@/lib/organisation/franchise-status";
-import {
-  DEFAULT_PLAN_ID,
-  getPlanByIdOrDefault,
-  type PlanId,
-} from "@/src/config/pricing";
+import { DEFAULT_PLAN_ID, type PlanId } from "@/src/config/pricing";
+import { DEFAULT_PLAN_SLUG, getDefaultPlanBySlug } from "@/lib/subscription-plans";
 import {
   formatOwnerFullLegalName,
   type ClubOnboardingState,
@@ -359,7 +356,7 @@ async function ensureProviderForOwner(
   }
 
   const slug = await resolveUniqueProviderSlug(supabase, clubName);
-  const starterPlan = getPlanByIdOrDefault(DEFAULT_PLAN_ID);
+  const freePlan = getDefaultPlanBySlug(DEFAULT_PLAN_SLUG);
 
   const { data: provider, error: providerError } = await supabase
     .from("providers")
@@ -371,7 +368,7 @@ async function ensureProviderForOwner(
       auth_user_id: authUserId,
       ...independentFields,
       account_status: "active",
-      platform_fee_percent: starterPlan.platformFeePercent,
+      platform_fee_percent: freePlan.bookingFeePercent,
     })
     .select("id")
     .single();
@@ -474,7 +471,7 @@ async function ensureProviderSubscription(
     const { error: updateError } = await supabase
       .from("provider_subscriptions")
       .update({
-        plan: DEFAULT_PLAN_ID,
+        plan: DEFAULT_PLAN_SLUG,
         status: "active",
       })
       .eq("provider_id", providerId);
@@ -490,7 +487,7 @@ async function ensureProviderSubscription(
     .from("provider_subscriptions")
     .insert({
       provider_id: providerId,
-      plan: DEFAULT_PLAN_ID,
+      plan: DEFAULT_PLAN_SLUG,
       status: "active",
     });
 
@@ -498,7 +495,7 @@ async function ensureProviderSubscription(
     const { error: updateError } = await supabase
       .from("provider_subscriptions")
       .update({
-        plan: DEFAULT_PLAN_ID,
+        plan: DEFAULT_PLAN_SLUG,
         status: "active",
       })
       .eq("provider_id", providerId);
@@ -641,7 +638,7 @@ export async function submitClubOnboardingToSupabase(
 
   const authUserId = authResult.authUserId;
   const clubName = state.club.name.trim();
-  const starterPlan = getPlanByIdOrDefault(DEFAULT_PLAN_ID);
+  const freePlan = getDefaultPlanBySlug(DEFAULT_PLAN_SLUG);
 
   const dbClientResult = await createOnboardingDatabaseClient(
     state.owner.email,
@@ -752,9 +749,9 @@ export async function submitClubOnboardingToSupabase(
   console.info("[club-onboarding] provider subscription insert result:", {
     success: true,
     providerId,
-    plan: DEFAULT_PLAN_ID,
+    plan: DEFAULT_PLAN_SLUG,
     status: "active",
-    platformFeePercent: starterPlan.platformFeePercent,
+    platformFeePercent: freePlan.bookingFeePercent,
   });
 
   const ownerResult = await ensureOwnerTeamMember(

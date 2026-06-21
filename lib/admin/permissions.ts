@@ -125,6 +125,7 @@ export const ROLE_NAV_SECTIONS: Record<AdminRole, AdminNavSection[]> = {
     "reviews",
     "finance",
     "settings",
+    "plans",
     "users",
   ],
   super_admin: [
@@ -144,9 +145,10 @@ export const ROLE_NAV_SECTIONS: Record<AdminRole, AdminNavSection[]> = {
     "reviews",
     "finance",
     "settings",
+    "plans",
     "users",
   ],
-  finance_admin: ["dashboard", "providers", "bookings", "finance"],
+  finance_admin: ["dashboard", "providers", "bookings", "finance", "plans"],
   support_admin: [
     "dashboard",
     "providers",
@@ -270,6 +272,12 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
     section: "settings",
     href: "/admin/settings",
     label: "Settings",
+    group: "System",
+  },
+  {
+    section: "plans",
+    href: "/admin/plans",
+    label: "Plans",
     group: "System",
   },
   {

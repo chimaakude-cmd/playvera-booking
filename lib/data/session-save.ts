@@ -95,6 +95,25 @@ export async function saveSessionToSupabase(
 ): Promise<ClubSession> {
   assertSupabaseConfigured();
 
+  if (!existingSessionId) {
+    const { checkCanCreateActivitySync } = await import(
+      "@/lib/subscription-plans/enforcement"
+    );
+    const { getProviderPlanId } = await import("@/lib/provider-subscription");
+    const providerId = await getOrCreateDefaultProviderId();
+    const { count } = await getSupabaseBrowserClient()
+      .from("sessions")
+      .select("id", { count: "exact", head: true })
+      .eq("provider_id", providerId);
+
+    const gate = checkCanCreateActivitySync(getProviderPlanId(), count ?? 0);
+    if (!gate.allowed) {
+      throw new SupabaseSaveError(
+        "Activity limit reached on your current plan. Upgrade to Pro for unlimited activities.",
+      );
+    }
+  }
+
   const missingFields = validateRequiredSessionFields(session);
   if (missingFields.length > 0) {
     throw new SupabaseSaveError(

@@ -22,7 +22,13 @@ export function getCachedPlatformPublicSettings(): PlatformPublicSettings | null
 }
 
 export function getCachedPlatformFeeMatrix(): PlatformFeeMatrix {
-  return cachedPublicSettings?.defaultFees ?? buildFallbackFeeMatrix();
+  const fee = cachedPublicSettings?.defaultFees?.STARTER ?? 2.5;
+  return {
+    STARTER: fee,
+    PRO: fee,
+    FRANCHISE: fee,
+    ENTERPRISE: fee,
+  };
 }
 
 export function getCachedBookingQuestionDefaults(): AdminBookingQuestion[] | null {
@@ -57,7 +63,12 @@ export async function hydratePlatformPublicSettings(): Promise<PlatformPublicSet
         marketplaceEnabled: true,
         marketplaceFooterText: "Powered by Activora",
         aiSearchAssistantEnabled: false,
-        defaultFees: buildFallbackFeeMatrix(),
+        defaultFees: {
+          STARTER: 2.5,
+          PRO: 2.5,
+          FRANCHISE: 2.5,
+          ENTERPRISE: 2.5,
+        },
         bookingQuestionDefaults: SEED_ADMIN_BOOKING_QUESTIONS,
       };
       cachedPublicSettings = fallback;

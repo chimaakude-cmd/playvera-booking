@@ -220,7 +220,7 @@ export function SubscriptionManagementSection() {
 
     if (
       !window.confirm(
-        "Cancel your paid subscription? You will be moved to the free Starter plan at the end of the current billing period.",
+        "Cancel your paid subscription? You will be moved to the Free plan at the end of the current billing period.",
       )
     ) {
       return;
@@ -232,7 +232,7 @@ export function SubscriptionManagementSection() {
 
     try {
       await cancelProviderSubscriptionBilling();
-      setSavedMessage("Subscription cancelled — you are now on the Starter plan.");
+      setSavedMessage("Subscription cancelled — you are now on the Free plan.");
       await loadState();
     } catch (error) {
       setErrorMessage(
@@ -330,7 +330,7 @@ export function SubscriptionManagementSection() {
 
         {!currentPlan.contactSales && currentPlanId === "STARTER" ? (
           <p className="mt-4 text-sm text-zinc-600">
-            Starter is free — no Direct Debit setup required. Upgrade to Pro or Franchise
+            Free plan — no Direct Debit setup required. Upgrade to Pro or Franchisor
             to start monthly billing.
           </p>
         ) : null}

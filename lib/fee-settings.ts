@@ -1,113 +1,21 @@
 /**
- * Club fee settings persistence (localStorage).
- *
- * Storage keys:
- * - activora-fee-settings — per-club fee handling
- *
- * Platform fee tiers are loaded from `/api/platform-settings/public` (see client-cache).
- *
- * Supabase migration:
- * - Table: public.club_settings
- * - Access via: dataLayer.feeSettings
+ * Platform booking fee resolution — backed by subscription_plans (2.5% universal).
  */
 import {
-  getCachedPlatformFeeMatrix,
-  getCachedPlatformPublicSettings,
-  hydratePlatformPublicSettings,
-} from "@/lib/platform-settings/client-cache";
-import {
-  DEFAULT_PLAN_ID,
-  getAllPlans,
-  getPlanByIdOrDefault,
+  DEFAULT_PLAN_SLUG,
+  getCachedBookingFeeForPlan,
+  getCachedSubscriptionPlanByLegacyId,
+  hydrateSubscriptionPlans,
+  legacyIdToPlanSlug,
+  normalizePlanSlug,
   type PlanId,
-} from "@/src/config/pricing";
+} from "@/lib/subscription-plans";
 import { getProviderSubscription } from "@/lib/provider-subscription";
+
+export const UNIVERSAL_BOOKING_FEE_PERCENT = 2.5;
 
 export const MIN_PLATFORM_FEE_PERCENT = 0;
 export const MAX_PLATFORM_FEE_PERCENT = 10;
-
-export type PlatformFeeMatrix = Record<PlanId, number>;
-
-export type PlatformFeeTier = {
-  planId: PlanId;
-  label: string;
-  description: string;
-};
-
-export const PLATFORM_FEE_TIERS: PlatformFeeTier[] = [
-  {
-    planId: "STARTER",
-    label: "Free account",
-    description: "Clubs on Free plan (Starter)",
-  },
-  {
-    planId: "PRO",
-    label: "Pro account",
-    description: "Clubs on Pro plan",
-  },
-  {
-    planId: "FRANCHISE",
-    label: "Franchisor",
-    description: "Franchisor + all managed clubs",
-  },
-  {
-    planId: "ENTERPRISE",
-    label: "Enterprise",
-    description: "Enterprise organisations",
-  },
-];
-
-export function buildDefaultPlatformFeeMatrix(): PlatformFeeMatrix {
-  const matrix = {} as PlatformFeeMatrix;
-  for (const plan of getAllPlans()) {
-    matrix[plan.id] = plan.platformFeePercent;
-  }
-  return matrix;
-}
-
-export const DEFAULT_PLATFORM_FEE_MATRIX = buildDefaultPlatformFeeMatrix();
-
-export function validatePlatformFeePercent(value: number): boolean {
-  return (
-    Number.isFinite(value) &&
-    value >= MIN_PLATFORM_FEE_PERCENT &&
-    value <= MAX_PLATFORM_FEE_PERCENT
-  );
-}
-
-export function validatePlatformFeeMatrix(
-  matrix: Partial<PlatformFeeMatrix>,
-): matrix is PlatformFeeMatrix {
-  return PLATFORM_FEE_TIERS.every((tier) =>
-    validatePlatformFeePercent(matrix[tier.planId] ?? NaN),
-  );
-}
-
-export function getPlatformFeeMatrix(): PlatformFeeMatrix {
-  if (typeof window !== "undefined" && !getCachedPlatformPublicSettings()) {
-    void hydratePlatformPublicSettings();
-  }
-  return getCachedPlatformFeeMatrix();
-}
-
-export async function hydratePlatformFeeMatrix(): Promise<PlatformFeeMatrix> {
-  const settings = await hydratePlatformPublicSettings();
-  return settings.defaultFees;
-}
-
-export function getPlatformFeeForPlan(
-  planId: PlanId | string | null | undefined,
-): number {
-  const normalized = getPlanByIdOrDefault(planId).id;
-  return getPlatformFeeMatrix()[normalized];
-}
-
-export function calculatePlatformFeeAmount(
-  bookingAmount: number,
-  feePercent: number,
-): number {
-  return Math.round(((bookingAmount * feePercent) / 100) * 100) / 100;
-}
 
 export type FeeHandling =
   | "provider_absorbs"
@@ -121,10 +29,33 @@ export type FeeSettings = {
 
 export const FEE_SETTINGS_STORAGE_KEY = "activora-fee-settings";
 
+export function getPlatformFeeForPlan(
+  planId: PlanId | string | null | undefined,
+): number {
+  if (typeof window !== "undefined") {
+    return getCachedBookingFeeForPlan(planId);
+  }
+
+  const plan = getCachedSubscriptionPlanByLegacyId(planId);
+  return plan.bookingFeePercent;
+}
+
+export function calculatePlatformFeeAmount(
+  bookingAmount: number,
+  feePercent: number,
+): number {
+  return Math.round(((bookingAmount * feePercent) / 100) * 100) / 100;
+}
+
 export const DEFAULT_FEE_SETTINGS: FeeSettings = {
   feeHandling: "provider_absorbs",
-  platformFeePercent: getPlatformFeeForPlan(DEFAULT_PLAN_ID),
+  platformFeePercent: UNIVERSAL_BOOKING_FEE_PERCENT,
 };
+
+export async function hydratePlatformFeeSettings(): Promise<number> {
+  await hydrateSubscriptionPlans();
+  return getPlatformFeeForPlan(DEFAULT_PLAN_SLUG);
+}
 
 export function getFeeSettings(): FeeSettings {
   if (typeof window === "undefined") {
@@ -168,9 +99,69 @@ export const feeHandlingLabels: Record<FeeHandling, string> = {
 
 export const feeHandlingDescriptions: Record<FeeHandling, string> = {
   provider_absorbs:
-    "Platform and Stripe fees are deducted from your payout. Parents pay the listed session price.",
+    "Platform and payment processor fees are deducted from your payout. Parents pay the listed session price.",
   fees_on_top:
-    "Platform and Stripe fees are added on top of the session price. Parents pay the full amount including fees.",
+    "Platform and payment processor fees are added on top of the session price. Parents pay the full amount including fees.",
   split_fee:
-    "Platform and Stripe fees are shared equally between the club and the parent.",
+    "Platform and payment processor fees are shared equally between the club and the parent.",
 };
+
+/** @deprecated Use subscription_plans via getPlatformFeeForPlan */
+export type PlatformFeeMatrix = Record<PlanId, number>;
+
+/** @deprecated All plans share one booking fee — kept for platform_settings compat */
+export function buildDefaultPlatformFeeMatrix(): PlatformFeeMatrix {
+  const fee = UNIVERSAL_BOOKING_FEE_PERCENT;
+  return {
+    STARTER: fee,
+    PRO: fee,
+    FRANCHISE: fee,
+    ENTERPRISE: fee,
+  };
+}
+
+export const DEFAULT_PLATFORM_FEE_MATRIX = buildDefaultPlatformFeeMatrix();
+
+/** @deprecated */
+export const PLATFORM_FEE_TIERS = [
+  { planId: "STARTER" as PlanId, label: "All plans", description: "Universal booking fee" },
+];
+
+/** @deprecated */
+export function validatePlatformFeePercent(value: number): boolean {
+  return (
+    Number.isFinite(value) &&
+    value >= MIN_PLATFORM_FEE_PERCENT &&
+    value <= MAX_PLATFORM_FEE_PERCENT
+  );
+}
+
+/** @deprecated Prefer subscription_plans — kept for platform_settings compat */
+export function validatePlatformFeeMatrix(
+  matrix?: Partial<PlatformFeeMatrix>,
+): matrix is PlatformFeeMatrix {
+  if (!matrix) {
+    return false;
+  }
+  const keys: PlanId[] = ["STARTER", "PRO", "FRANCHISE", "ENTERPRISE"];
+  return keys.every((key) => validatePlatformFeePercent(matrix[key] ?? NaN));
+}
+
+/** @deprecated */
+export function getPlatformFeeMatrix(): PlatformFeeMatrix {
+  return DEFAULT_PLATFORM_FEE_MATRIX;
+}
+
+/** @deprecated */
+export async function hydratePlatformFeeMatrix(): Promise<PlatformFeeMatrix> {
+  await hydrateSubscriptionPlans();
+  return DEFAULT_PLATFORM_FEE_MATRIX;
+}
+
+export function resolvePlanSlug(planRef: string | null | undefined): string {
+  return legacyIdToPlanSlug(planRef);
+}
+
+export function normalizePlanSlugRef(value: string | null | undefined): string {
+  return normalizePlanSlug(value);
+}

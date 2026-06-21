@@ -15,7 +15,7 @@ export function Step4Complete({ clubName }: StepProps) {
     <div className="space-y-8 text-center">
       <OnboardingStepIntro
         title="Club created ✓"
-        description={`${clubName || "Your club"} is live on the free Starter plan. Finish setup at your own pace from the dashboard.`}
+        description={`${clubName || "Your club"} is live on the Free plan. Finish setup at your own pace from the dashboard.`}
       />
 
       <div className="mx-auto max-w-md rounded-2xl border border-teal-200 bg-teal-50/70 px-6 py-5 text-left">

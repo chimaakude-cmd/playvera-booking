@@ -1,7 +1,27 @@
-export type PlanId = "STARTER" | "PRO" | "FRANCHISE" | "ENTERPRISE";
+/**
+ * Pricing facade — reads from subscription_plans (DB) via client cache on the
+ * browser and DEFAULT_SUBSCRIPTION_PLANS on the server. Do not hardcode limits
+ * or fee tiers here; use lib/subscription-plans/capabilities.ts.
+ */
+import {
+  DEFAULT_PLAN_SLUG,
+  DEFAULT_SUBSCRIPTION_PLANS,
+  getCachedSubscriptionPlans,
+  getCachedSubscriptionPlanByLegacyId,
+  hydrateSubscriptionPlans,
+  legacyIdToPlanSlug,
+  normalizePlanSlug,
+  planSlugToLegacyId,
+  type PlanId,
+} from "@/lib/subscription-plans";
+import type { PlanSlug, SubscriptionPlan } from "@/lib/subscription-plans/types";
+import { subscriptionPlanToPricingShape } from "@/lib/subscription-plans/mappers";
+
+export type { PlanId } from "@/lib/subscription-plans/defaults";
 
 export type PricingPlan = {
   id: PlanId;
+  slug: PlanSlug;
   monthlyPrice: number;
   platformFeePercent: number;
   description: string;
@@ -9,117 +29,78 @@ export type PricingPlan = {
   cta: string;
   highlighted: boolean;
   contactSales: boolean;
+  monthlyPriceIsMinimum: boolean;
 };
 
-export const MIN_ENTERPRISE_PLATFORM_FEE = 1;
-
-export const DEFAULT_PLAN_ID: PlanId = "STARTER";
+export const DEFAULT_PLAN_ID: PlanId = planSlugToLegacyId(DEFAULT_PLAN_SLUG);
 
 export const PRICING_DISCLAIMER =
-  "Payment processor fees may apply separately.";
+  "Payment processor fees (Stripe / GoCardless) apply separately from the platform booking fee.";
 
-const PLANS: PricingPlan[] = [
-  {
-    id: "STARTER",
-    monthlyPrice: 0,
-    platformFeePercent: 2.5,
-    description: "Everything you need to start taking bookings online.",
-    features: [
-      "Online bookings",
-      "Parent dashboard",
-      "Session creation",
-      "Standard support",
-    ],
-    cta: "Get started free",
-    highlighted: false,
-    contactSales: false,
-  },
-  {
-    id: "PRO",
-    monthlyPrice: 19.99,
-    platformFeePercent: 2.0,
-    description: "Lower platform fees and tools for growing clubs.",
-    features: [
-      "Everything in Starter",
-      "Reduced platform fee",
-      "Priority support",
-      "Bank transfer payout options",
-      "Enhanced reporting",
-      "Limited staff accounts",
-    ],
-    cta: "Start Pro trial",
-    highlighted: true,
-    contactSales: false,
-  },
-  {
-    id: "FRANCHISE",
-    monthlyPrice: 149,
-    platformFeePercent: 1.5,
-    description: "Multi-location management for franchise operators.",
-    features: [
-      "Multi-location management",
-      "Franchise dashboard",
-      "Unlimited staff accounts",
-      "Central reporting",
-      "Revenue split support",
-      "White-label email",
-    ],
-    cta: "Choose Franchise",
-    highlighted: false,
-    contactSales: false,
-  },
-  {
-    id: "ENTERPRISE",
-    monthlyPrice: 499,
-    platformFeePercent: 1.0,
-    description: "Dedicated support and advanced controls at scale.",
-    features: [
-      "Dedicated onboarding",
-      "Advanced reporting",
-      "Priority support",
-      "Bulk import",
-      "Account management",
-    ],
-    cta: "Contact sales",
-    highlighted: false,
-    contactSales: true,
-  },
-];
+function planToPricing(plan: SubscriptionPlan): PricingPlan {
+  const shape = subscriptionPlanToPricingShape(plan);
+  return {
+    id: shape.legacyId as PlanId,
+    slug: shape.slug,
+    monthlyPrice: shape.monthlyPrice,
+    platformFeePercent: shape.platformFeePercent,
+    description: shape.description,
+    features: shape.features,
+    cta: shape.cta,
+    highlighted: shape.highlighted,
+    contactSales: shape.contactSales,
+    monthlyPriceIsMinimum: shape.monthlyPriceIsMinimum,
+  };
+}
 
 export function getAllPlans(): PricingPlan[] {
-  return PLANS;
+  const plans =
+    typeof window !== "undefined"
+      ? getCachedSubscriptionPlans()
+      : DEFAULT_SUBSCRIPTION_PLANS;
+  return plans.map(planToPricing);
+}
+
+export async function hydratePricingPlans(): Promise<PricingPlan[]> {
+  await hydrateSubscriptionPlans();
+  return getAllPlans();
+}
+
+export function getPlanBySlug(slug: string | null | undefined): PricingPlan | undefined {
+  const normalized = normalizePlanSlug(slug);
+  const plans =
+    typeof window !== "undefined"
+      ? getCachedSubscriptionPlans()
+      : DEFAULT_SUBSCRIPTION_PLANS;
+  const match = plans.find((plan) => plan.slug === normalized);
+  return match ? planToPricing(match) : undefined;
 }
 
 export function getPlanById(planId: PlanId): PricingPlan | undefined {
-  return PLANS.find((plan) => plan.id === planId);
+  const plan = getCachedSubscriptionPlanByLegacyId(planId);
+  return plan ? planToPricing(plan) : undefined;
 }
 
 export function getPlanByIdOrDefault(planId: PlanId | string | null | undefined): PricingPlan {
-  const normalized = normalizePlanId(planId);
-  return getPlanById(normalized) ?? getPlanById(DEFAULT_PLAN_ID)!;
+  const slug = legacyIdToPlanSlug(String(planId ?? DEFAULT_PLAN_ID));
+  const plan =
+    (typeof window !== "undefined"
+      ? getCachedSubscriptionPlans()
+      : DEFAULT_SUBSCRIPTION_PLANS
+    ).find((item) => item.slug === slug) ??
+    DEFAULT_SUBSCRIPTION_PLANS.find((item) => item.slug === slug)!;
+
+  return planToPricing(plan);
 }
 
 export function normalizePlanId(value: PlanId | string | null | undefined): PlanId {
-  if (!value) {
-    return DEFAULT_PLAN_ID;
-  }
-
-  const upper = String(value).toUpperCase();
-
-  if (upper === "STARTER" || upper === "PRO" || upper === "FRANCHISE" || upper === "ENTERPRISE") {
-    return upper;
-  }
-
-  // Legacy club-team plan ids
-  const legacyMap: Record<string, PlanId> = {
-    GROWTH: "PRO",
-  };
-
-  return legacyMap[upper] ?? DEFAULT_PLAN_ID;
+  return planSlugToLegacyId(normalizePlanSlug(value));
 }
 
-export function formatMonthlyPrice(plan: Pick<PricingPlan, "monthlyPrice" | "contactSales">): string {
-  if (plan.contactSales) {
+export function formatMonthlyPrice(
+  plan: Pick<PricingPlan, "monthlyPrice" | "contactSales" | "monthlyPriceIsMinimum">,
+): string {
+  if (plan.contactSales || plan.monthlyPriceIsMinimum) {
     return `£${plan.monthlyPrice.toLocaleString("en-GB")}+`;
   }
 
@@ -133,32 +114,30 @@ export function formatMonthlyPrice(plan: Pick<PricingPlan, "monthlyPrice" | "con
   })}/mo`;
 }
 
-export function formatPlatformFee(plan: Pick<PricingPlan, "platformFeePercent" | "contactSales">): string {
-  const suffix = plan.contactSales ? " minimum" : "";
-  return `${plan.platformFeePercent}%${suffix}`;
+export function formatPlatformFee(
+  plan: Pick<PricingPlan, "platformFeePercent">,
+): string {
+  return `${plan.platformFeePercent}%`;
 }
 
-export function validatePlatformFee(planId: PlanId, fee: number): boolean {
-  if (planId === "ENTERPRISE") {
-    return fee >= MIN_ENTERPRISE_PLATFORM_FEE;
-  }
-
-  return fee >= 0;
-}
-
-/** Pro and Franchise are billed monthly via GoCardless Direct Debit. */
-export function planRequiresGoCardlessBilling(planId: PlanId | string | null | undefined): boolean {
+export function planRequiresGoCardlessBilling(
+  planId: PlanId | string | null | undefined,
+): boolean {
   const plan = getPlanByIdOrDefault(planId);
   return !plan.contactSales && plan.monthlyPrice > 0;
 }
 
-export function getPlanLabel(planId: PlanId): string {
-  const labels: Record<PlanId, string> = {
-    STARTER: "Starter",
-    PRO: "Pro",
-    FRANCHISE: "Franchise",
-    ENTERPRISE: "Enterprise",
-  };
+export function getPlanLabel(planId: PlanId | string | null | undefined): string {
+  const slug = legacyIdToPlanSlug(String(planId));
+  const plans =
+    typeof window !== "undefined"
+      ? getCachedSubscriptionPlans()
+      : DEFAULT_SUBSCRIPTION_PLANS;
+  return plans.find((plan) => plan.slug === slug)?.displayName ?? "Free";
+}
 
-  return labels[normalizePlanId(planId)];
+export function getSubscriptionPlanForLegacyId(
+  planId: PlanId | string | null | undefined,
+): SubscriptionPlan {
+  return getCachedSubscriptionPlanByLegacyId(planId);
 }

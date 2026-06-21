@@ -4,6 +4,10 @@ import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import { PageHeader } from "@/components/club/PageHeader";
 import {
+  PlanUpgradeModal,
+  usePlanCapabilities,
+} from "@/components/subscription/PlanUpgradeModal";
+import {
   createFranchiseeClub,
   FRANCHISEE_SETTING_LABELS,
   getFranchiseeClubs,
@@ -223,7 +227,9 @@ export default function OrganisationClubsPage() {
     null,
   );
   const [modalOpen, setModalOpen] = useState(false);
+  const [clubUpgradeOpen, setClubUpgradeOpen] = useState(false);
   const [editingClub, setEditingClub] = useState<FranchiseeClub | undefined>();
+  const { capabilities } = usePlanCapabilities({ clubCount: clubs.length });
 
   function refresh() {
     setClubs(getFranchiseeClubs());
@@ -257,6 +263,10 @@ export default function OrganisationClubsPage() {
           <button
             type="button"
             onClick={() => {
+              if (!capabilities.canCreateClub) {
+                setClubUpgradeOpen(true);
+                return;
+              }
               setEditingClub(undefined);
               setModalOpen(true);
             }}
@@ -372,6 +382,14 @@ export default function OrganisationClubsPage() {
           setEditingClub(undefined);
         }}
         onSave={handleSave}
+      />
+
+      <PlanUpgradeModal
+        open={clubUpgradeOpen}
+        reason="club_limit"
+        onClose={() => setClubUpgradeOpen(false)}
+        currentCount={clubs.length}
+        limit={capabilities.clubLimit}
       />
     </div>
   );
