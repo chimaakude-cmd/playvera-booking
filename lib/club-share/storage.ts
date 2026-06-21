@@ -1,5 +1,7 @@
+import { shouldShowClubDemoData } from "@/lib/club-demo-mode";
 import type {
   ShareEvent,
+  ShareEventSource,
   ShareEventType,
   ShareMetrics,
   SharePlatform,
@@ -8,6 +10,11 @@ import {
   SHARE_EVENTS_STORAGE_KEY,
   SHARE_METRICS_STORAGE_KEY,
 } from "./types";
+import {
+  isInternalShareTraffic,
+  logShareAnalyticsDebug,
+  shouldTrackPublicShareAnalytics,
+} from "./tracking";
 
 function createId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
@@ -70,6 +77,27 @@ function defaultMetrics(): ShareMetrics {
   };
 }
 
+function isPublicEvent(event: ShareEvent): boolean {
+  if (event.isPublic === false) {
+    return false;
+  }
+
+  // Legacy: dashboard "copy link" was mislabeled as link_click.
+  if (event.type === "link_click" && event.platform === "copy_link") {
+    return false;
+  }
+
+  if (event.source === "club_dashboard") {
+    return false;
+  }
+
+  return event.isPublic === true;
+}
+
+function publicEvents(events: ShareEvent[]): ShareEvent[] {
+  return events.filter(isPublicEvent);
+}
+
 function computeTopPlatform(events: ShareEvent[]): SharePlatform | null {
   const counts = new Map<SharePlatform, number>();
 
@@ -91,74 +119,162 @@ function computeTopPlatform(events: ShareEvent[]): SharePlatform | null {
   return top;
 }
 
+function metricsFromPublicEvents(events: ShareEvent[]): ShareMetrics {
+  const publicOnly = publicEvents(events);
+
+  return {
+    profileVisits: publicOnly.filter((e) => e.type === "profile_visit").length,
+    qrScans: publicOnly.filter((e) => e.type === "qr_scan").length,
+    linkClicks: publicOnly.filter((e) => e.type === "link_click").length,
+    bookingsFromShares: publicOnly.filter((e) => e.type === "booking_from_share")
+      .length,
+    topPlatform: computeTopPlatform(publicOnly),
+  };
+}
+
 export function trackShareEvent(
   type: ShareEventType,
   platform?: SharePlatform,
-): ShareEvent {
+  options?: {
+    source?: ShareEventSource;
+    forcePublic?: boolean;
+  },
+): ShareEvent | null {
+  const source = options?.source ?? "unknown";
+  const isPublic =
+    options?.forcePublic === true ||
+    (options?.forcePublic !== false &&
+      shouldTrackPublicShareAnalytics() &&
+      source !== "club_dashboard");
+
+  if (!isPublic) {
+    logShareAnalyticsDebug("trackShareEvent skipped (internal)", {
+      eventType: type,
+      platform,
+      source,
+      internal: isInternalShareTraffic(),
+    });
+    return null;
+  }
+
   const event: ShareEvent = {
     id: createId(),
     type,
     platform,
     timestamp: new Date().toISOString(),
+    isPublic: true,
+    source,
   };
 
   const events = [...readEvents(), event];
   writeEvents(events);
 
-  const metrics = readMetricsStore();
-  if (type === "qr_scan") {
-    metrics.qrScans += 1;
-  } else if (type === "link_click") {
-    metrics.linkClicks += 1;
-  }
-  metrics.topPlatform = computeTopPlatform(events);
-  writeMetricsStore(metrics);
+  logShareAnalyticsDebug("trackShareEvent recorded", {
+    eventType: type,
+    platform,
+    source,
+    eventId: event.id,
+  });
 
   return event;
 }
 
-export function trackProfileVisit(): void {
-  const metrics = readMetricsStore();
-  metrics.profileVisits += 1;
-  writeMetricsStore(metrics);
+export function trackProfileVisit(
+  source: ShareEventSource = "public_profile",
+): void {
+  if (!shouldTrackPublicShareAnalytics()) {
+    logShareAnalyticsDebug("trackProfileVisit skipped (internal)", {
+      source,
+      internal: isInternalShareTraffic(),
+    });
+    return;
+  }
+
+  const event: ShareEvent = {
+    id: createId(),
+    type: "profile_visit",
+    timestamp: new Date().toISOString(),
+    isPublic: true,
+    source,
+  };
+
+  const events = [...readEvents(), event];
+  writeEvents(events);
+
+  logShareAnalyticsDebug("trackProfileVisit recorded", {
+    source,
+    eventId: event.id,
+  });
 }
 
 export function getShareEvents(): ShareEvent[] {
   return readEvents();
 }
 
-export function getShareMetrics(): ShareMetrics {
-  const stored = readMetricsStore();
+export function getShareMetrics(pathname?: string): ShareMetrics {
+  if (shouldShowClubDemoData(pathname)) {
+    const demo = getDemoShareMetrics();
+    logShareAnalyticsDebug("getShareMetrics (demo seed)", {
+      source: "demo-seed",
+      metrics: demo,
+    });
+    return demo;
+  }
+
   const events = readEvents();
+  const fromEvents = metricsFromPublicEvents(events);
 
-  const qrScansFromEvents = events.filter((e) => e.type === "qr_scan").length;
-  const linkClicksFromEvents = events.filter(
-    (e) => e.type === "link_click",
-  ).length;
+  logShareAnalyticsDebug("getShareMetrics", {
+    source: "localStorage-public-events",
+    profileVisits: {
+      value: fromEvents.profileVisits,
+      eventType: "profile_visit",
+    },
+    qrScans: {
+      value: fromEvents.qrScans,
+      eventType: "qr_scan",
+    },
+    linkClicks: {
+      value: fromEvents.linkClicks,
+      eventType: "link_click",
+    },
+    bookingsFromShares: {
+      value: fromEvents.bookingsFromShares,
+      eventType: "booking_from_share",
+    },
+    rawEventCount: events.length,
+    publicEventCount: publicEvents(events).length,
+  });
 
+  return fromEvents;
+}
+
+function getDemoShareMetrics(): ShareMetrics {
   return {
-    profileVisits: stored.profileVisits,
-    qrScans: Math.max(stored.qrScans, qrScansFromEvents),
-    linkClicks: Math.max(stored.linkClicks, linkClicksFromEvents),
-    bookingsFromShares: stored.bookingsFromShares || mockBookingsFromShares(),
-    topPlatform: stored.topPlatform ?? computeTopPlatform(events),
+    profileVisits: 128,
+    qrScans: 34,
+    linkClicks: 52,
+    bookingsFromShares: 7,
+    topPlatform: "whatsapp",
   };
 }
 
-function mockBookingsFromShares(): number {
-  const events = readEvents();
-  const socialShares = events.filter((e) => e.type === "social_share").length;
-  const qrScans = events.filter((e) => e.type === "qr_scan").length;
-  return Math.floor(socialShares * 0.15 + qrScans * 0.08);
-}
-
-export function getPlatformBreakdown(): Array<{
+export function getPlatformBreakdown(pathname?: string): Array<{
   platform: SharePlatform;
   count: number;
 }> {
+  if (shouldShowClubDemoData(pathname)) {
+    return [
+      { platform: "whatsapp", count: 18 },
+      { platform: "facebook", count: 11 },
+      { platform: "copy_link", count: 9 },
+      { platform: "instagram", count: 6 },
+    ];
+  }
+
   const counts = new Map<SharePlatform, number>();
 
-  for (const event of readEvents()) {
+  for (const event of publicEvents(readEvents())) {
     if (event.type === "social_share" && event.platform) {
       counts.set(event.platform, (counts.get(event.platform) ?? 0) + 1);
     }
@@ -170,8 +286,16 @@ export function getPlatformBreakdown(): Array<{
 }
 
 export function getRecentShareEvents(limit = 20): ShareEvent[] {
-  return readEvents()
+  return publicEvents(readEvents())
     .slice()
     .sort((a, b) => b.timestamp.localeCompare(a.timestamp))
     .slice(0, limit);
+}
+
+/** Clears legacy inflated counters; events are the source of truth. */
+export function resetLegacyShareMetricsStore(): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+  localStorage.removeItem(SHARE_METRICS_STORAGE_KEY);
 }

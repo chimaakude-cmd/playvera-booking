@@ -204,7 +204,7 @@ export function ShareClubModal({
 
   async function handleCopyLink() {
     await copyShareLink(publicUrl);
-    trackShareEvent("link_click", "copy_link");
+    trackShareEvent("social_share", "copy_link", { source: "club_dashboard" });
     setCopied(true);
     showToast("Link copied");
     setTimeout(() => setCopied(false), 2000);

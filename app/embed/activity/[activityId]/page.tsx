@@ -2,6 +2,7 @@
 
 import { use, useEffect, useState } from "react";
 import { EmbedActivityWidget } from "@/components/embed/EmbedActivityWidget";
+import { EmbedPageTracker } from "@/components/club/public/EmbedPageTracker";
 import {
   DEFAULT_WIDGET_SETTINGS,
   getWidgetSettingsForProvider,
@@ -43,5 +44,10 @@ export default function EmbedActivityPage({
     );
   }
 
-  return <EmbedActivityWidget activityId={activityId} settings={settings} />;
+  return (
+    <>
+      <EmbedPageTracker providerId={activityId} />
+      <EmbedActivityWidget activityId={activityId} settings={settings} />
+    </>
+  );
 }

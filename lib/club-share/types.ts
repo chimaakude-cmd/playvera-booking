@@ -8,7 +8,12 @@
 export const SHARE_EVENTS_STORAGE_KEY = "activora-club-share-events";
 export const SHARE_METRICS_STORAGE_KEY = "activora-club-share-metrics";
 
-export type ShareEventType = "qr_scan" | "link_click" | "social_share";
+export type ShareEventType =
+  | "qr_scan"
+  | "link_click"
+  | "social_share"
+  | "profile_visit"
+  | "booking_from_share";
 
 export type SharePlatform =
   | "whatsapp"
@@ -28,11 +33,21 @@ export type SharePlatform =
   | "teams"
   | "slack";
 
+export type ShareEventSource =
+  | "public_profile"
+  | "public_widget"
+  | "public_booking"
+  | "club_dashboard"
+  | "unknown";
+
 export type ShareEvent = {
   id: string;
   type: ShareEventType;
   platform?: SharePlatform;
   timestamp: string;
+  /** False for internal/preview traffic and legacy dashboard copy actions. */
+  isPublic?: boolean;
+  source?: ShareEventSource;
 };
 
 export type ShareMetrics = {

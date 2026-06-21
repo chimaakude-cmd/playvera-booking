@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { PageHeader } from "@/components/club/PageHeader";
 import { ShareClubButton } from "@/components/club/share/ShareClubButton";
 import { SharePromptBanner } from "@/components/club/share/SharePromptBanner";
@@ -9,6 +10,7 @@ import { DEMO_PROVIDER_ID } from "@/lib/club-widget";
 import {
   getPlatformBreakdown,
   getShareMetrics,
+  resetLegacyShareMetricsStore,
   type ShareMetrics,
   type SharePlatform,
 } from "@/lib/club-share";
@@ -33,6 +35,7 @@ const PLATFORM_LABELS: Record<SharePlatform, string> = {
 };
 
 export function SharesAnalyticsPage() {
+  const pathname = usePathname();
   const profile = getClubProfile();
   const [metrics, setMetrics] = useState<ShareMetrics | null>(null);
   const [platforms, setPlatforms] = useState<
@@ -40,9 +43,10 @@ export function SharesAnalyticsPage() {
   >([]);
 
   useEffect(() => {
-    setMetrics(getShareMetrics());
-    setPlatforms(getPlatformBreakdown());
-  }, []);
+    resetLegacyShareMetricsStore();
+    setMetrics(getShareMetrics(pathname));
+    setPlatforms(getPlatformBreakdown(pathname));
+  }, [pathname]);
 
   if (!profile || !metrics) {
     return null;
@@ -80,7 +84,6 @@ export function SharesAnalyticsPage() {
         <MetricCard
           label="Bookings from shares"
           value={metrics.bookingsFromShares}
-          hint="Estimated"
         />
       </div>
 

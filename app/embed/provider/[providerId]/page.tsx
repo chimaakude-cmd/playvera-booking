@@ -5,6 +5,7 @@ import {
   EmbedProviderWidget,
   filterSessionsForWidget,
 } from "@/components/embed/EmbedProviderWidget";
+import { EmbedPageTracker } from "@/components/club/public/EmbedPageTracker";
 import {
   DEFAULT_WIDGET_SETTINGS,
   getWidgetSettingsForProvider,
@@ -68,12 +69,15 @@ export default function EmbedProviderPage({
   const filtered = filterSessionsForWidget(sessions, settings);
 
   return (
-    <EmbedProviderWidget
-      providerId={providerId}
-      settings={settings}
-      sessions={filtered}
-      clubName={profile?.clubName}
-      logoUrl={profile?.logoUrl}
-    />
+    <>
+      <EmbedPageTracker providerId={providerId} />
+      <EmbedProviderWidget
+        providerId={providerId}
+        settings={settings}
+        sessions={filtered}
+        clubName={profile?.clubName}
+        logoUrl={profile?.logoUrl}
+      />
+    </>
   );
 }
