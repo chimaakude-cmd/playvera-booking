@@ -3,6 +3,7 @@
 import { login, logout, writeAuthSession, type AuthUser } from "@/lib/auth";
 import { initializeClubTeamFromOwner } from "@/lib/club-team/storage";
 import { syncClubTeamFromServer } from "@/lib/club-team/sync";
+import { fetchClubProfileFromApi } from "@/lib/club-profile/client";
 import {
   isValidLoginEmail,
   loginErrorMessage,
@@ -43,6 +44,7 @@ export async function submitPortalLogin(
 
     if (portal === "club") {
       initializeClubTeamFromOwner(user);
+      void fetchClubProfileFromApi();
     }
 
     const redirectTo =
@@ -81,6 +83,7 @@ export async function submitPortalLogin(
   if (portal === "club") {
     initializeClubTeamFromOwner(payload.user);
     void syncClubTeamFromServer();
+    void fetchClubProfileFromApi();
   }
 
   return {

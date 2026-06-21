@@ -20,6 +20,7 @@ import {
   NEW_CLUB_HIDDEN_NAV_SECTIONS,
   NEW_CLUB_HIGHLIGHTED_NAV_SECTIONS,
 } from "@/lib/club/new-club-mode";
+import { fetchClubProfileFromApi } from "@/lib/club-profile/client";
 import { translateClubNavLabel, useTranslation } from "@/lib/i18n";
 
 function SidebarHeader({
@@ -143,6 +144,7 @@ export function ClubShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     setRole(getCurrentClubRole());
+    void fetchClubProfileFromApi();
     void fetchNewClubModeState().then((state) => {
       setNewClubMode(state.isNewClubMode);
     });

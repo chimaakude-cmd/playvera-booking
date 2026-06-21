@@ -65,7 +65,7 @@ export function ClubProfileSummary({ profile }: { profile: ClubProfile }) {
               >
                 Edit profile
               </Link>
-              {profile.published ? (
+              {profile.publicSlug?.trim() ? (
                 <Link
                   href={getPublicClubPath(profile.publicSlug)}
                   className="rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-800 transition-colors hover:bg-zinc-50"
@@ -167,7 +167,20 @@ export function ClubProfileSummary({ profile }: { profile: ClubProfile }) {
               ? getPublicClubPath(profile.publicSlug)
               : "Not set"}
           </p>
-          <p>Status: {profile.published ? "Published" : "Draft"}</p>
+          <p className="inline-flex items-center gap-1.5">
+            Status:{" "}
+            {profile.publicSlug?.trim() ? (
+              <>
+                Profile live
+                <span
+                  aria-hidden
+                  className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500"
+                />
+              </>
+            ) : (
+              "Setting up profile"
+            )}
+          </p>
         </SummaryCard>
       </div>
 

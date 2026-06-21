@@ -90,6 +90,78 @@ export async function fetchClubProfileForProvider(
   return mapQueryRow(data as ProfileQueryRow);
 }
 
+const UUID_SLUG_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function isProviderIdSlug(slug: string): boolean {
+  return UUID_SLUG_PATTERN.test(slug.trim());
+}
+
+function profileLookupClients(): ActivoraSupabaseClient[] {
+  const clients: ActivoraSupabaseClient[] = [createSupabaseServerClient()];
+  if (isSupabaseServiceRoleConfigured()) {
+    clients.push(createSupabaseServiceRoleClient());
+  }
+  return clients;
+}
+
+function serviceRoleClientOrNull(): ActivoraSupabaseClient | null {
+  if (!isSupabaseServiceRoleConfigured()) {
+    return null;
+  }
+  return createSupabaseServiceRoleClient();
+}
+
+async function syncProviderPublicSlug(
+  supabase: ActivoraSupabaseClient,
+  providerId: string,
+  publicSlug: string,
+): Promise<void> {
+  const slug = publicSlug.trim();
+  if (!slug) {
+    return;
+  }
+
+  await supabase.from("providers").update({ slug }).eq("id", providerId);
+}
+
+async function findProviderForPublicSlugLookup(
+  supabase: ActivoraSupabaseClient,
+  slug: string,
+): Promise<{
+  id: string;
+  name: string;
+  slug: string | null;
+  email: string | null;
+  phone: string | null;
+} | null> {
+  const normalizedSlug = slug.trim().toLowerCase();
+
+  const { data: bySlug, error: slugError } = await supabase
+    .from("providers")
+    .select("id, name, slug, email, phone")
+    .eq("slug", normalizedSlug)
+    .maybeSingle();
+
+  if (!slugError && bySlug?.id) {
+    return bySlug;
+  }
+
+  if (isProviderIdSlug(normalizedSlug)) {
+    const { data: byId, error: idError } = await supabase
+      .from("providers")
+      .select("id, name, slug, email, phone")
+      .eq("id", normalizedSlug)
+      .maybeSingle();
+
+    if (!idError && byId?.id) {
+      return byId;
+    }
+  }
+
+  return null;
+}
+
 export async function fetchPublicClubProfileBySlug(
   slug: string,
 ): Promise<ClubProfile | null> {
@@ -98,12 +170,7 @@ export async function fetchPublicClubProfileBySlug(
     return null;
   }
 
-  const clients: ActivoraSupabaseClient[] = [createSupabaseServerClient()];
-  if (isSupabaseServiceRoleConfigured()) {
-    clients.push(createSupabaseServiceRoleClient());
-  }
-
-  for (const supabase of clients) {
+  for (const supabase of profileLookupClients()) {
     const byPublicSlug = await queryPublicClubProfile(
       supabase,
       (query) => query.eq("public_slug", normalizedSlug),
@@ -121,7 +188,28 @@ export async function fetchPublicClubProfileBySlug(
     }
   }
 
-  return null;
+  return ensurePublicClubProfileForSlugLookup(normalizedSlug);
+}
+
+/** Auto-create or repair a public profile when a real provider matches the slug. */
+async function ensurePublicClubProfileForSlugLookup(
+  slug: string,
+): Promise<ClubProfile | null> {
+  const repairClient = serviceRoleClientOrNull() ?? createSupabaseServerClient();
+  const provider = await findProviderForPublicSlugLookup(repairClient, slug);
+  if (!provider?.id) {
+    return null;
+  }
+
+  const profile = await ensureMinimalPublicClubProfileForProvider(
+    repairClient,
+    provider.id,
+  );
+  if (!profile?.publicSlug?.trim()) {
+    return null;
+  }
+
+  return profile;
 }
 
 function isPublicClubProfileRow(
@@ -158,34 +246,39 @@ function isUniqueProfileViolation(error: PostgrestError | null): boolean {
   return error?.code === "23505";
 }
 
+async function upgradeProfileToPublic(
+  supabase: ActivoraSupabaseClient,
+  providerId: string,
+  profile: ClubProfile,
+): Promise<ClubProfile> {
+  if (profile.published && profile.visibility !== "draft") {
+    return profile;
+  }
+
+  const publishedAt =
+    profile.profileDesign?.publishedAt ?? new Date().toISOString();
+  const { error } = await supabase
+    .from("club_profiles")
+    .update({
+      published: true,
+      visibility: "published",
+      published_at: publishedAt,
+    })
+    .eq("provider_id", providerId);
+
+  if (error) {
+    console.error("[club-profile] publish upgrade failed:", error);
+    return profile;
+  }
+
+  return (await fetchClubProfileForProvider(supabase, providerId)) ?? profile;
+}
+
 /** Create or upgrade a minimal public profile — no manual publish step. */
 export async function ensureMinimalPublicClubProfileForProvider(
   supabase: ActivoraSupabaseClient,
   providerId: string,
 ): Promise<ClubProfile | null> {
-  let profile = await fetchClubProfileForProvider(supabase, providerId);
-
-  if (profile?.publicSlug?.trim()) {
-    if (!profile.published || profile.visibility === "draft") {
-      const publishedAt =
-        profile.profileDesign?.publishedAt ?? new Date().toISOString();
-      const { error } = await supabase
-        .from("club_profiles")
-        .update({
-          published: true,
-          visibility: "published",
-          published_at: publishedAt,
-        })
-        .eq("provider_id", providerId);
-
-      if (!error) {
-        profile = await fetchClubProfileForProvider(supabase, providerId);
-      }
-    }
-
-    return profile;
-  }
-
   const { data: provider, error: providerError } = await supabase
     .from("providers")
     .select("name, slug, email, phone")
@@ -193,56 +286,84 @@ export async function ensureMinimalPublicClubProfileForProvider(
     .maybeSingle();
 
   if (providerError || !provider?.name?.trim()) {
-    return profile ?? null;
+    return null;
+  }
+
+  let profile = await fetchClubProfileForProvider(supabase, providerId);
+
+  if (profile?.publicSlug?.trim()) {
+    profile = await upgradeProfileToPublic(supabase, providerId, profile);
+    await syncProviderPublicSlug(supabase, providerId, profile.publicSlug);
+    return profile;
   }
 
   const row = buildMinimalClubProfilesRowFromProvider(providerId, provider);
-  const { error: insertError } = await supabase
-    .from("club_profiles")
-    .insert(row);
 
-  if (insertError) {
-    if (isUniqueProfileViolation(insertError)) {
-      const { error: updateError } = await supabase
-        .from("club_profiles")
-        .update(row)
-        .eq("provider_id", providerId);
+  if (profile) {
+    const { error: updateError } = await supabase
+      .from("club_profiles")
+      .update(row)
+      .eq("provider_id", providerId);
 
-      if (updateError) {
-        console.error("[club-profile] ensure profile update failed:", updateError);
-        return profile ?? null;
+    if (updateError) {
+      console.error("[club-profile] ensure profile upgrade failed:", updateError);
+      return profile;
+    }
+  } else {
+    const { error: insertError } = await supabase
+      .from("club_profiles")
+      .insert(row);
+
+    if (insertError) {
+      if (isUniqueProfileViolation(insertError)) {
+        const { error: updateError } = await supabase
+          .from("club_profiles")
+          .update(row)
+          .eq("provider_id", providerId);
+
+        if (updateError) {
+          console.error("[club-profile] ensure profile update failed:", updateError);
+          return null;
+        }
+      } else {
+        console.error("[club-profile] ensure profile insert failed:", insertError);
+        return null;
       }
-    } else {
-      console.error("[club-profile] ensure profile insert failed:", insertError);
-      return profile ?? null;
     }
   }
 
-  await supabase
-    .from("providers")
-    .update({ slug: row.public_slug })
-    .eq("id", providerId);
+  await syncProviderPublicSlug(supabase, providerId, row.public_slug);
 
-  return fetchClubProfileForProvider(supabase, providerId);
+  profile = await fetchClubProfileForProvider(supabase, providerId);
+  if (!profile) {
+    return null;
+  }
+
+  return upgradeProfileToPublic(supabase, providerId, profile);
 }
 
 async function fetchPublicClubProfileByProviderSlug(
   supabase: ActivoraSupabaseClient,
   slug: string,
 ): Promise<ClubProfile | null> {
-  const { data: provider, error: providerError } = await supabase
-    .from("providers")
-    .select("id")
-    .eq("slug", slug)
-    .maybeSingle();
-
-  if (providerError || !provider?.id) {
+  const provider = await findProviderForPublicSlugLookup(supabase, slug);
+  if (!provider?.id) {
     return null;
   }
 
-  return queryPublicClubProfile(supabase, (query) =>
+  const existing = await queryPublicClubProfile(supabase, (query) =>
     query.eq("provider_id", provider.id),
   );
+  if (existing) {
+    return existing;
+  }
+
+  if (!isSupabaseServiceRoleConfigured()) {
+    return null;
+  }
+
+  const serviceClient = createSupabaseServiceRoleClient();
+  return ensureMinimalPublicClubProfileForProvider(serviceClient, provider.id);
 }
 
 async function syncClubProfileLocations(

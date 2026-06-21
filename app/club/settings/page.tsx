@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { ChangePasswordSection } from "@/components/auth/ChangePasswordSection";
 import { SavedVenuesList } from "@/components/club/SavedVenuesList";
 import { LanguageSettingsSection } from "@/components/i18n/LanguageSettingsSection";
@@ -9,11 +9,21 @@ import { PageHeader } from "@/components/club/PageHeader";
 import { LoadingState } from "@/components/club/LoadingState";
 import { deleteProviderVenue, loadProviderVenues } from "@/lib/data";
 import {
+  fetchClubProfileFromApi,
   getClubProfile,
   getPublicClubPath,
   type ClubProfile,
 } from "@/lib/club-profile";
 import type { ProviderVenue } from "@/lib/provider-venues";
+
+function ProfileLiveBadge() {
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-200">
+      Profile live
+      <span aria-hidden className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+    </span>
+  );
+}
 
 function SettingsHubCard({
   title,
@@ -26,7 +36,7 @@ function SettingsHubCard({
   description: string;
   href: string;
   cta: string;
-  badge?: string;
+  badge?: ReactNode;
 }) {
   return (
     <Link
@@ -36,9 +46,7 @@ function SettingsHubCard({
       <div className="flex items-start justify-between gap-3">
         <h2 className="text-base font-semibold text-zinc-900">{title}</h2>
         {badge ? (
-          <span className="rounded-full bg-teal-50 px-2.5 py-0.5 text-xs font-semibold text-teal-700">
-            {badge}
-          </span>
+          <span className="shrink-0">{badge}</span>
         ) : null}
       </div>
       <p className="mt-2 text-sm leading-6 text-zinc-500">{description}</p>
@@ -128,8 +136,13 @@ export default function ClubSettingsPage() {
   const [profile, setProfile] = useState<ClubProfile | null>(null);
 
   useEffect(() => {
-    setProfile(getClubProfile());
-    setLoading(false);
+    async function loadProfile() {
+      const apiResult = await fetchClubProfileFromApi();
+      setProfile(apiResult.ok ? apiResult.profile : getClubProfile());
+      setLoading(false);
+    }
+
+    void loadProfile();
   }, []);
 
   if (loading || !profile) {
@@ -149,7 +162,7 @@ export default function ClubSettingsPage() {
           description="Logo, branding, locations, social links, and your public parent-facing page."
           href="/club/settings/profile"
           cta="Open club profile"
-          badge={profile.published ? "Published" : "Draft"}
+          badge={profile.publicSlug?.trim() ? <ProfileLiveBadge /> : undefined}
         />
         <SettingsHubCard
           title="Edit club profile"
@@ -157,7 +170,7 @@ export default function ClubSettingsPage() {
           href="/club/settings/profile/edit"
           cta="Edit profile"
         />
-        {profile.published ? (
+        {profile.publicSlug?.trim() ? (
           <SettingsHubCard
             title="Public club page"
             description="Preview exactly what parents see when they discover your club."
