@@ -249,6 +249,10 @@ export async function fetchGoCardlessConnection(
     // fall through to cached state
   }
 
+  if (!isDevelopmentEnvironment()) {
+    return createDefaultConnection(id);
+  }
+
   return getGoCardlessConnection(id);
 }
 

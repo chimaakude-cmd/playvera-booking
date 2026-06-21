@@ -14,6 +14,7 @@ type ConfigResponse = {
     isClubConnectAvailable: boolean;
     isBillingConfigured: boolean;
     callbackUri: string;
+    webhookUri: string;
   };
 };
 
@@ -180,6 +181,12 @@ export function AdminGoCardlessSetupSection() {
       }
 
       setMessage("GoCardless platform configuration saved.");
+      setForm((current) => ({
+        ...current,
+        accessToken: "",
+        webhookSecret: "",
+        clientSecret: "",
+      }));
       await load();
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : "Save failed.");
@@ -493,6 +500,18 @@ export function AdminGoCardlessSetupSection() {
                 }
                 className="w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm"
               />
+            </Field>
+
+            <Field label="Webhook endpoint (read-only)">
+              <input
+                type="url"
+                readOnly
+                value={resolved?.webhookUri ?? ""}
+                className="w-full rounded-xl border border-zinc-100 bg-zinc-50 px-3 py-2 text-sm text-zinc-600"
+              />
+              <p className="text-xs text-zinc-500">
+                Register this URL in the GoCardless dashboard with your webhook secret.
+              </p>
             </Field>
 
             <label className="flex items-center gap-3 lg:col-span-2">

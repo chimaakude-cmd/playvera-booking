@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { resolveServerAppBaseUrl } from "@/lib/app-url";
 import {
   requirePlatformSettingsReadActor,
   requirePlatformSettingsWriteActor,
@@ -41,6 +42,7 @@ export async function GET(request: NextRequest) {
       resolveGoCardlessPlatformConfig(request),
     ]);
     const envOverrides = getEnvOverrideFlags(getGoCardlessEnvFromProcessEnv());
+    const baseUrl = resolveServerAppBaseUrl(request);
 
     return NextResponse.json({
       config: payloadToPublic(payload, envOverrides),
@@ -48,6 +50,7 @@ export async function GET(request: NextRequest) {
         isClubConnectAvailable: resolved.isClubConnectAvailable,
         isBillingConfigured: resolved.isBillingConfigured,
         callbackUri: resolved.callbackUri,
+        webhookUri: `${baseUrl}/api/webhooks/gocardless`,
       },
     });
   } catch (error) {

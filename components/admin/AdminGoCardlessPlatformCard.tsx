@@ -182,6 +182,7 @@ export function AdminGoCardlessPlatformCard() {
                 status.credentials.webhookSecret === "set" ? "Set" : "Missing"
               }
               status={status.credentials.webhookSecret === "set" ? "ok" : "warn"}
+              detail={status.webhookUrl}
             />
             <StatusRow
               label="OAuth connect URL"

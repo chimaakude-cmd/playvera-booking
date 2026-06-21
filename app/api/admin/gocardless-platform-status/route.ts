@@ -4,6 +4,7 @@ import { getGoCardlessConnectBaseUrl } from "@/lib/gocardless/env";
 import {
   getEnvOverrideFlags,
   getServerGoCardlessPlatformConfig,
+  isPlatformConnectionVerified,
   payloadToPublic,
   resolveGoCardlessPlatformConfig,
 } from "@/lib/gocardless/platform-config";
@@ -26,6 +27,7 @@ export type AdminGoCardlessPlatformStatus = {
     webhookSecret: "set" | "missing";
   };
   callbackUrl: string;
+  webhookUrl: string;
   connectBaseUrl: string;
   connectionTest: {
     status: "ready" | "not_configured" | "partial" | "disabled";
@@ -50,10 +52,26 @@ export async function GET(request: Request) {
       status: "disabled",
       message: "Platform is disabled — enable in GoCardless setup to allow club connections.",
     };
-  } else if (resolved.isClubConnectAvailable && resolved.isBillingConfigured) {
+  } else if (
+    resolved.isClubConnectAvailable &&
+    resolved.isBillingConfigured &&
+    isPlatformConnectionVerified(resolved.connectionStatus, resolved.environment)
+  ) {
     connectionTest = {
       status: "ready",
       message: "Platform ready — clubs can connect and payments can be processed.",
+    };
+  } else if (
+    resolved.platformEnabled &&
+    resolved.clientId &&
+    resolved.clientSecret &&
+    resolved.redirectUri &&
+    resolved.accessToken &&
+    !isPlatformConnectionVerified(resolved.connectionStatus, resolved.environment)
+  ) {
+    connectionTest = {
+      status: "partial",
+      message: "Credentials saved — run Test connection before clubs can connect.",
     };
   } else if (resolved.clientId || resolved.accessToken) {
     connectionTest = {
@@ -84,6 +102,7 @@ export async function GET(request: Request) {
       webhookSecret: resolved.webhookSecret ? "set" : "missing",
     },
     callbackUrl: resolved.callbackUri ?? defaultCallback,
+    webhookUrl: `${baseUrl}/api/webhooks/gocardless`,
     connectBaseUrl: getGoCardlessConnectBaseUrl(resolved.environment),
     connectionTest,
   };

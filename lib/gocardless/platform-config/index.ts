@@ -1,3 +1,4 @@
+export * from "./connection-status";
 export * from "./types";
 export * from "./defaults";
 export * from "./mappers";

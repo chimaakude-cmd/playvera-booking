@@ -47,6 +47,9 @@ export type GoCardlessPlatformConfigPublic = {
   hasAccessToken: boolean;
   hasWebhookSecret: boolean;
   hasClientSecret: boolean;
+  accessTokenMasked: string | null;
+  webhookSecretMasked: string | null;
+  clientSecretMasked: string | null;
   clientId: string | null;
   redirectUri: string | null;
   callbackUri: string | null;

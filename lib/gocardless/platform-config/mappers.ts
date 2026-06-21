@@ -11,6 +11,18 @@ import type {
   GoCardlessPlatformEnvironment,
 } from "./types";
 
+/** Mask a secret for safe API responses — never returns the raw value. */
+export function maskSecret(value: string | null | undefined): string | null {
+  const trimmed = value?.trim();
+  if (!trimmed) {
+    return null;
+  }
+  if (trimmed.length <= 4) {
+    return "••••";
+  }
+  return `••••${trimmed.slice(-4)}`;
+}
+
 function normalizeEnvironment(value: string | null | undefined): GoCardlessPlatformEnvironment {
   return value === "live" ? "live" : "sandbox";
 }
@@ -57,6 +69,9 @@ export function payloadToPublic(
     hasAccessToken: Boolean(payload.accessToken?.trim()),
     hasWebhookSecret: Boolean(payload.webhookSecret?.trim()),
     hasClientSecret: Boolean(payload.clientSecret?.trim()),
+    accessTokenMasked: maskSecret(payload.accessToken),
+    webhookSecretMasked: maskSecret(payload.webhookSecret),
+    clientSecretMasked: maskSecret(payload.clientSecret),
     clientId: payload.clientId,
     redirectUri: payload.redirectUri,
     callbackUri: payload.callbackUri,
@@ -104,6 +119,17 @@ export function updateToRowPatch(
   }
   if (update.platformFeePercent !== undefined) {
     patch.platform_fee_percent = update.platformFeePercent;
+  }
+
+  if (
+    update.accessToken !== undefined ||
+    update.environment !== undefined ||
+    update.clientId !== undefined ||
+    update.clientSecret !== undefined
+  ) {
+    patch.connection_status = "not_configured";
+    patch.last_error = null;
+    patch.last_tested_at = null;
   }
 
   return patch;

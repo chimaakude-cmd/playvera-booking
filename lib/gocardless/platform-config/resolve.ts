@@ -1,6 +1,7 @@
 import { resolveServerAppBaseUrl } from "@/lib/app-url";
 import type { GoCardlessEnvConfig, GoCardlessEnvironment } from "../env";
 import { getGoCardlessEnvFromProcessEnv } from "../env";
+import { isPlatformConnectionVerified } from "./connection-status";
 import { getServerGoCardlessPlatformConfig } from "./server-store";
 import type { ResolvedGoCardlessPlatformConfig } from "./types";
 
@@ -62,6 +63,10 @@ export async function resolveGoCardlessPlatformConfig(
   const oauthReady = Boolean(clientId && clientSecret && redirectUri);
   const billingReady = Boolean(accessToken);
   const platformEnabled = db.platformEnabled;
+  const connectionVerified = isPlatformConnectionVerified(
+    db.connectionStatus,
+    environment,
+  );
 
   return {
     environment,
@@ -74,9 +79,9 @@ export async function resolveGoCardlessPlatformConfig(
     platformEnabled,
     platformFeePercent: db.platformFeePercent,
     connectionStatus: db.connectionStatus,
-    isPlatformConfigured: oauthReady && billingReady,
+    isPlatformConfigured: oauthReady && billingReady && connectionVerified,
     isBillingConfigured: billingReady,
-    isClubConnectAvailable: platformEnabled && oauthReady,
+    isClubConnectAvailable: platformEnabled && oauthReady && connectionVerified,
   };
 }
 
