@@ -1,5 +1,5 @@
 import { adminListDataSource } from "@/lib/admin/data-source";
-import { createSupabaseServerClient } from "@/lib/supabase";
+import { getAdminSupabaseClient } from "@/lib/admin/supabase-client";
 
 export type AdminSupportThreadRow = {
   id: string;
@@ -46,7 +46,7 @@ function mapSupportThreadRow(row: SupportThreadRow): AdminSupportThreadRow {
 }
 
 async function fetchSupportThreadRows(): Promise<SupportThreadRow[] | null> {
-  const supabase = createSupabaseServerClient();
+  const supabase = getAdminSupabaseClient();
 
   const { data, error } = await supabase
     .from("support_threads")

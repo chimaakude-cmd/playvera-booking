@@ -1,6 +1,6 @@
 import type { AdminBooking, BookingPaymentStatus } from "@/lib/admin/types";
 import { adminListDataSource } from "@/lib/admin/data-source";
-import { createSupabaseServerClient } from "@/lib/supabase";
+import { getAdminSupabaseClient } from "@/lib/admin/supabase-client";
 
 export type AdminBookingsListResult = {
   bookings: AdminBooking[];
@@ -81,7 +81,7 @@ function mapBookingRow(row: BookingRow): AdminBooking {
 }
 
 async function fetchBookingRows(): Promise<BookingRow[] | null> {
-  const supabase = createSupabaseServerClient();
+  const supabase = getAdminSupabaseClient();
 
   const { data, error } = await supabase
     .from("bookings")

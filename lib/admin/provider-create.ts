@@ -9,7 +9,8 @@ import {
   storedPlanValue,
   type AdminPaymentSetupOption,
 } from "@/lib/admin/provider-onboarding";
-import { createSupabaseServerClient, isSupabaseConfigured } from "@/lib/supabase";
+import { getAdminSupabaseClient } from "@/lib/admin/supabase-client";
+import { isSupabaseConfigured } from "@/lib/supabase";
 
 export type CreateAdminProviderInput = {
   clubName: string;
@@ -59,7 +60,7 @@ export async function createAdminProvider(
   const paymentFields = mapPaymentSetupToProviderFields(input.paymentSetup);
   const baseSlug = slugifyProviderName(clubName);
 
-  const supabase = createSupabaseServerClient();
+  const supabase = getAdminSupabaseClient();
 
   let slug = baseSlug;
   for (let attempt = 0; attempt < 5; attempt += 1) {

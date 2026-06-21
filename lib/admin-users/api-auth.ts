@@ -1,6 +1,9 @@
 import type { NextRequest } from "next/server";
 import type { AdminRole } from "@/lib/admin/types";
-import { canManageActivitiesAdmin } from "@/lib/admin/permissions";
+import {
+  canManageActivitiesAdmin,
+  roleHasPermission,
+} from "@/lib/admin/permissions";
 import { adminActorHeaders } from "./actor-headers";
 import { canManageAdminUsers } from "./permissions";
 import { resolveVerifiedAdminActor } from "./server-auth";
@@ -45,6 +48,25 @@ export async function requireManageActivitiesActor(
   if (!canManageActivitiesAdmin(actor.role)) {
     return {
       error: "Only Owner or Super Admin can manage activities.",
+      status: 403,
+    };
+  }
+
+  return { actor };
+}
+
+export async function requireManageProvidersActor(
+  request: NextRequest,
+): Promise<{ actor: AdminUserActor } | { error: string; status: number }> {
+  const actor = await getAdminActorFromRequest(request);
+
+  if (!actor) {
+    return { error: "Admin authentication required.", status: 401 };
+  }
+
+  if (!roleHasPermission(actor.role, "manage_providers")) {
+    return {
+      error: "You do not have permission to manage providers.",
       status: 403,
     };
   }

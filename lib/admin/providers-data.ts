@@ -12,6 +12,7 @@ import type {
   AdminPaymentProviderMode,
   AdminProvider,
   AdminProviderDetail,
+  AdminProvidersDiagnostics,
   AdminProvidersListResult,
   ProviderAccountStatus,
   ProviderStripeStatus,
@@ -20,8 +21,15 @@ import { GOCARDLESS_STATUS_LABELS } from "@/lib/gocardless/types";
 import { STRIPE_CONNECT_STATUS_LABELS } from "@/lib/stripe-connect/types";
 import { adminListDataSource } from "@/lib/admin/data-source";
 import {
-  createSupabaseServerClient,
+  findOrphanedClubAuthUsers,
+} from "@/lib/admin/provider-repair";
+import {
+  getAdminSupabaseClient,
+  getAdminSupabaseClientMode,
+} from "@/lib/admin/supabase-client";
+import {
   isSupabaseConfigured,
+  createSupabaseServerClient,
 } from "@/lib/supabase";
 
 type ProviderRow = {
@@ -243,7 +251,7 @@ function mapProviderDetail(
 }
 
 async function fetchProviderRows(): Promise<ProviderRow[] | null> {
-  const supabase = createSupabaseServerClient();
+  const supabase = getAdminSupabaseClient();
 
   const { data, error } = await supabase
     .from("providers")
@@ -294,7 +302,7 @@ async function fetchProviderRows(): Promise<ProviderRow[] | null> {
 }
 
 async function fetchRevenueByProvider(): Promise<Map<string, RevenueStats> | null> {
-  const supabase = createSupabaseServerClient();
+  const supabase = getAdminSupabaseClient();
 
   const { data: sessions, error: sessionsError } = await supabase
     .from("sessions")
@@ -357,7 +365,7 @@ async function fetchRevenueByProvider(): Promise<Map<string, RevenueStats> | nul
 }
 
 async function fetchChildClubCounts(): Promise<Map<string, number> | null> {
-  const supabase = createSupabaseServerClient();
+  const supabase = getAdminSupabaseClient();
 
   const { data, error } = await supabase
     .from("providers")
@@ -390,9 +398,110 @@ function emptyRevenueStats(): RevenueStats {
   };
 }
 
+async function fetchTotalProviderRowCount(): Promise<number | null> {
+  const supabase = getAdminSupabaseClient();
+  const { count, error } = await supabase
+    .from("providers")
+    .select("id", { count: "exact", head: true });
+
+  if (error) {
+    console.error(
+      "[Admin providers] Failed to count provider rows:",
+      error.message,
+    );
+    return null;
+  }
+
+  return count ?? 0;
+}
+
+async function fetchAnonVisibleProviderCount(): Promise<number | null> {
+  if (!isSupabaseConfigured()) {
+    return null;
+  }
+
+  const supabase = createSupabaseServerClient();
+  const { count, error } = await supabase
+    .from("providers")
+    .select("id", { count: "exact", head: true });
+
+  if (error) {
+    console.error(
+      "[Admin providers] Failed to count anon-visible providers:",
+      error.message,
+    );
+    return null;
+  }
+
+  return count ?? 0;
+}
+
+function resolveHiddenReason(options: {
+  queryClient: "service_role" | "anon";
+  totalProviderRows: number;
+  totalVisibleRows: number;
+  anonVisibleCount: number | null;
+}): string | null {
+  const hiddenCount = Math.max(
+    0,
+    options.totalProviderRows - options.totalVisibleRows,
+  );
+
+  if (hiddenCount > 0) {
+    return `${hiddenCount} provider row(s) could not be loaded (query error or partial data).`;
+  }
+
+  if (
+    options.queryClient === "service_role" &&
+    options.anonVisibleCount !== null &&
+    options.anonVisibleCount < options.totalProviderRows
+  ) {
+    return `RLS blocked anon reads: ${options.totalProviderRows - options.anonVisibleCount} provider row(s) hidden from the anon key (admin now uses service role).`;
+  }
+
+  if (options.queryClient === "anon" && options.totalProviderRows === 0) {
+    return "Admin queries are using the anon key without service role — club-scoped RLS may hide all providers. Set SUPABASE_SERVICE_ROLE_KEY on the server.";
+  }
+
+  return null;
+}
+
+async function fetchAdminProvidersDiagnostics(
+  totalVisibleRows: number,
+): Promise<AdminProvidersDiagnostics | null> {
+  if (adminListDataSource() === "env_missing") {
+    return null;
+  }
+
+  const queryClient = getAdminSupabaseClientMode();
+  const [totalProviderRows, anonVisibleCount, orphanedClubAuthUsers] =
+    await Promise.all([
+      fetchTotalProviderRowCount(),
+      fetchAnonVisibleProviderCount(),
+      findOrphanedClubAuthUsers(),
+    ]);
+
+  const resolvedTotal = totalProviderRows ?? totalVisibleRows;
+  const hiddenCount = Math.max(0, resolvedTotal - totalVisibleRows);
+
+  return {
+    totalProviderRows: resolvedTotal,
+    totalVisibleRows,
+    hiddenCount,
+    hiddenReason: resolveHiddenReason({
+      queryClient,
+      totalProviderRows: resolvedTotal,
+      totalVisibleRows,
+      anonVisibleCount,
+    }),
+    queryClient,
+    orphanedClubAuthUsers,
+  };
+}
+
 export async function fetchAdminProvidersList(): Promise<AdminProvidersListResult> {
   if (adminListDataSource() === "env_missing") {
-    return { providers: [], dataSource: "env_missing" };
+    return { providers: [], dataSource: "env_missing", diagnostics: null };
   }
 
   const [rows, revenueMap, childClubCounts] = await Promise.all([
@@ -401,13 +510,18 @@ export async function fetchAdminProvidersList(): Promise<AdminProvidersListResul
     fetchChildClubCounts(),
   ]);
 
+  const providers = (rows ?? []).map((row) => {
+    const revenue = revenueMap?.get(row.id) ?? emptyRevenueStats();
+    const clubsCount = childClubCounts?.get(row.id) ?? 0;
+    return mapProviderRow(row, revenue, clubsCount);
+  });
+
+  const diagnostics = await fetchAdminProvidersDiagnostics(providers.length);
+
   return {
-    providers: (rows ?? []).map((row) => {
-      const revenue = revenueMap?.get(row.id) ?? emptyRevenueStats();
-      const clubsCount = childClubCounts?.get(row.id) ?? 0;
-      return mapProviderRow(row, revenue, clubsCount);
-    }),
+    providers,
     dataSource: "supabase",
+    diagnostics,
   };
 }
 
@@ -418,7 +532,7 @@ export async function fetchAdminProviderById(
     return null;
   }
 
-  const supabase = createSupabaseServerClient();
+  const supabase = getAdminSupabaseClient();
   const { data, error } = await supabase
     .from("providers")
     .select(
@@ -525,7 +639,7 @@ export async function updateAdminProvider(
     return { ok: false, error: "Supabase is not configured." };
   }
 
-  const supabase = createSupabaseServerClient();
+  const supabase = getAdminSupabaseClient();
 
   const providerUpdate: import("@/lib/database.types").Database["public"]["Tables"]["providers"]["Update"] =
     {};

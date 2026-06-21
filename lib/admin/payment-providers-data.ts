@@ -6,8 +6,8 @@ import {
   type StripeConnectStatus,
 } from "@/lib/stripe-connect/types";
 import { adminListDataSource } from "@/lib/admin/data-source";
+import { getAdminSupabaseClient } from "@/lib/admin/supabase-client";
 import {
-  createSupabaseServerClient,
   isSupabaseConfigured,
 } from "@/lib/supabase";
 
@@ -108,7 +108,7 @@ function resolveNeedsSetup(
 }
 
 async function fetchProviderRows(): Promise<ProviderRow[] | null> {
-  const supabase = createSupabaseServerClient();
+  const supabase = getAdminSupabaseClient();
 
   const { data, error } = await supabase
     .from("providers")
@@ -138,7 +138,7 @@ async function fetchProviderRows(): Promise<ProviderRow[] | null> {
 }
 
 async function fetchFailedPaymentProviderIds(): Promise<Set<string>> {
-  const supabase = createSupabaseServerClient();
+  const supabase = getAdminSupabaseClient();
 
   // Table exists in Supabase but is not yet in generated Database types.
   const { data, error } = await (

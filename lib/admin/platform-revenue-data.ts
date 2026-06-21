@@ -4,10 +4,8 @@ import {
   calculatePlatformFeeAmount,
   getPlatformFeeForPlan,
 } from "@/lib/fee-settings";
-import {
-  createSupabaseServerClient,
-  isSupabaseConfigured,
-} from "@/lib/supabase";
+import { getAdminSupabaseClient } from "@/lib/admin/supabase-client";
+import { isSupabaseConfigured } from "@/lib/supabase";
 import { normalizePlanId, type PlanId } from "@/src/config/pricing";
 
 export type PlatformRevenueTierId =
@@ -131,7 +129,7 @@ export async function fetchPlatformRevenueSummary(): Promise<PlatformRevenueSumm
     return emptyPlatformRevenueSummary();
   }
 
-  const supabase = createSupabaseServerClient();
+  const supabase = getAdminSupabaseClient();
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 

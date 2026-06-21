@@ -13,6 +13,6 @@ export * from "./activities-data";
 export * from "./payment-providers-data";
 export * from "./finance-data";
 export * from "./reviews-data";
-export * from "./support-data";
-export * from "./provider-plans";
+export * from "./provider-repair";
+export * from "./supabase-client";
 export * from "./organisation-types";

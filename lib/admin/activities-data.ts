@@ -7,7 +7,7 @@ import { adminListDataSource } from "@/lib/admin/data-source";
 import { isDemoProviderRecord } from "@/lib/data/providers/supabase/default-provider";
 import { formatDay } from "@/lib/sessions";
 import { DEMO_PROVIDER_ID } from "@/lib/stripe-connect/types";
-import { createSupabaseServerClient } from "@/lib/supabase";
+import { getAdminSupabaseClient } from "@/lib/admin/supabase-client";
 
 export const ACTIVITY_REMOVAL_REASONS = [
   { value: "false_listing", label: "False listing" },
@@ -205,7 +205,7 @@ const SESSION_SELECT = `
 `;
 
 async function fetchSessionRows(): Promise<SessionRow[] | null> {
-  const supabase = createSupabaseServerClient();
+  const supabase = getAdminSupabaseClient();
 
   const { data, error } = await supabase
     .from("sessions")
@@ -246,7 +246,7 @@ export async function fetchAdminActivityById(
     return null;
   }
 
-  const supabase = createSupabaseServerClient();
+  const supabase = getAdminSupabaseClient();
 
   const { data, error } = await supabase
     .from("sessions")
@@ -281,7 +281,7 @@ export async function fetchProviderRemovalContact(
     return null;
   }
 
-  const supabase = createSupabaseServerClient();
+  const supabase = getAdminSupabaseClient();
   const { data, error } = await supabase
     .from("providers")
     .select(
@@ -365,7 +365,7 @@ export async function removeAdminActivity(
     return { ok: false, error: "Supabase is not configured." };
   }
 
-  const supabase = createSupabaseServerClient();
+  const supabase = getAdminSupabaseClient();
   const removedAt = new Date().toISOString();
   const notes = input.removalNotes?.trim() || null;
 

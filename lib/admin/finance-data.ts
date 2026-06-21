@@ -6,7 +6,7 @@ import {
 } from "@/lib/admin/platform-revenue-data";
 import type { PlatformFeeByProvider } from "@/lib/admin/types";
 import { calculatePlatformFeeAmount, getPlatformFeeForPlan } from "@/lib/fee-settings";
-import { createSupabaseServerClient } from "@/lib/supabase";
+import { getAdminSupabaseClient } from "@/lib/admin/supabase-client";
 
 export type AdminFinanceData = {
   platformRevenue: PlatformRevenueSummary;
@@ -23,7 +23,7 @@ function firstRelation<T>(value: T | T[] | null | undefined): T | null {
 }
 
 async function fetchFeesByProvider(): Promise<PlatformFeeByProvider[]> {
-  const supabase = createSupabaseServerClient();
+  const supabase = getAdminSupabaseClient();
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 

@@ -1,5 +1,5 @@
 import { adminListDataSource } from "@/lib/admin/data-source";
-import { createSupabaseServerClient } from "@/lib/supabase";
+import { getAdminSupabaseClient } from "@/lib/admin/supabase-client";
 
 export type AdminReviewRow = {
   id: string;
@@ -63,7 +63,7 @@ function mapReviewRow(row: ReviewRow): AdminReviewRow {
 }
 
 async function fetchReviewRows(): Promise<ReviewRow[] | null> {
-  const supabase = createSupabaseServerClient();
+  const supabase = getAdminSupabaseClient();
 
   const { data, error } = await supabase
     .from("reviews")

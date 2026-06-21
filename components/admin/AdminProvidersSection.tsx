@@ -17,12 +17,17 @@ import {
   PROVIDER_ORGANISATION_TAB_LABELS,
   type ProviderOrganisationType,
 } from "@/lib/admin";
-import type { AdminPaymentProviderMode, AdminProvider } from "@/lib/admin/types";
+import type {
+  AdminPaymentProviderMode,
+  AdminProvider,
+  AdminProvidersDiagnostics,
+} from "@/lib/admin/types";
 import { paginateItems } from "@/lib/pagination";
 
 type Props = {
   providers: AdminProvider[];
   dataSource: "supabase" | "env_missing";
+  diagnostics: AdminProvidersDiagnostics | null;
 };
 
 type StatusFilter = AdminProvider["accountStatus"] | "all";
@@ -238,7 +243,147 @@ const TABLE_HEADINGS: Record<ProviderOrganisationType, string[]> = {
   ],
 };
 
-export function AdminProvidersSection({ providers, dataSource }: Props) {
+function ProvidersDiagnosticsPanel({
+  diagnostics,
+  onRepaired,
+}: {
+  diagnostics: AdminProvidersDiagnostics;
+  onRepaired: () => void;
+}) {
+  const [repairingAuthUserId, setRepairingAuthUserId] = useState<string | null>(
+    null,
+  );
+  const [repairError, setRepairError] = useState<string | null>(null);
+  const [repairMessage, setRepairMessage] = useState<string | null>(null);
+
+  async function handleRepair(authUserId: string) {
+    setRepairingAuthUserId(authUserId);
+    setRepairError(null);
+    setRepairMessage(null);
+
+    try {
+      const response = await fetch("/api/admin/providers/repair", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ authUserId }),
+      });
+      const payload = (await response.json()) as {
+        error?: string;
+        providerId?: string;
+        created?: boolean;
+      };
+
+      if (!response.ok) {
+        setRepairError(payload.error || "Repair failed.");
+        return;
+      }
+
+      setRepairMessage(
+        payload.created
+          ? "Provider profile created."
+          : "Provider profile already exists.",
+      );
+      onRepaired();
+    } catch {
+      setRepairError("Repair request failed.");
+    } finally {
+      setRepairingAuthUserId(null);
+    }
+  }
+
+  return (
+    <div className="rounded-2xl border border-zinc-200/80 bg-zinc-50/80 p-4 text-sm text-zinc-700 shadow-sm">
+      <p className="font-semibold text-zinc-900">Provider data diagnostics</p>
+      <dl className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        <div>
+          <dt className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+            Total provider rows
+          </dt>
+          <dd className="mt-0.5 text-base font-medium text-zinc-900">
+            {diagnostics.totalProviderRows}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+            Visible in admin
+          </dt>
+          <dd className="mt-0.5 text-base font-medium text-zinc-900">
+            {diagnostics.totalVisibleRows}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+            Hidden
+          </dt>
+          <dd className="mt-0.5 text-base font-medium text-zinc-900">
+            {diagnostics.hiddenCount}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+            Query client
+          </dt>
+          <dd className="mt-0.5 text-base font-medium text-zinc-900">
+            {diagnostics.queryClient === "service_role"
+              ? "Service role"
+              : "Anon key"}
+          </dd>
+        </div>
+      </dl>
+
+      {diagnostics.hiddenReason ? (
+        <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+          {diagnostics.hiddenReason}
+        </p>
+      ) : null}
+
+      {repairMessage ? (
+        <p className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-900">
+          {repairMessage}
+        </p>
+      ) : null}
+
+      {repairError ? (
+        <p className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-900">
+          {repairError}
+        </p>
+      ) : null}
+
+      {diagnostics.orphanedClubAuthUsers.length > 0 ? (
+        <div className="mt-4 space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+            Club auth users without a provider row
+          </p>
+          <ul className="space-y-2">
+            {diagnostics.orphanedClubAuthUsers.map((orphan) => (
+              <li
+                key={orphan.authUserId}
+                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-zinc-200 bg-white px-3 py-2"
+              >
+                <div>
+                  <p className="font-medium text-zinc-900">{orphan.name}</p>
+                  <p className="text-xs text-zinc-500">{orphan.email}</p>
+                </div>
+                <button
+                  type="button"
+                  disabled={repairingAuthUserId === orphan.authUserId}
+                  onClick={() => void handleRepair(orphan.authUserId)}
+                  className="rounded-lg bg-violet-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-800 disabled:opacity-60"
+                >
+                  {repairingAuthUserId === orphan.authUserId
+                    ? "Repairing…"
+                    : "Repair provider profile"}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+export function AdminProvidersSection({ providers, dataSource, diagnostics }: Props) {
   const [activeTab, setActiveTab] = useState<ProviderOrganisationType>("club");
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
@@ -247,6 +392,7 @@ export function AdminProvidersSection({ providers, dataSource }: Props) {
     useState<VerificationFilter>("all");
   const [search, setSearch] = useState("");
   const [copiedOnboarding, setCopiedOnboarding] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const counts = useMemo(() => {
     const tally: Record<ProviderOrganisationType, number> = {
@@ -355,6 +501,17 @@ export function AdminProvidersSection({ providers, dataSource }: Props) {
           )
         }
       />
+
+      {diagnostics ? (
+        <ProvidersDiagnosticsPanel
+          key={refreshKey}
+          diagnostics={diagnostics}
+          onRepaired={() => {
+            setRefreshKey((value) => value + 1);
+            window.location.reload();
+          }}
+        />
+      ) : null}
 
       <div className="flex flex-wrap gap-2 border-b border-zinc-200">
         {ORGANISATION_TABS.map((tab) => (

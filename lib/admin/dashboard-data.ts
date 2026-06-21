@@ -8,8 +8,8 @@ import {
   isDemoProviderRecord,
 } from "@/lib/data/providers/supabase/default-provider";
 import { DEMO_PROVIDER_ID } from "@/lib/stripe-connect/types";
+import { getAdminSupabaseClient } from "@/lib/admin/supabase-client";
 import {
-  createSupabaseServerClient,
   isSupabaseConfigured,
 } from "@/lib/supabase";
 
@@ -75,7 +75,7 @@ async function countRows(
   table: "providers" | "parent_profiles" | "club_profiles" | "bookings",
   filter?: { column: string; value: string },
 ): Promise<number | null> {
-  const supabase = createSupabaseServerClient();
+  const supabase = getAdminSupabaseClient();
   let query = supabase.from(table).select("*", { count: "exact", head: true });
 
   if (filter) {
@@ -93,7 +93,7 @@ async function countRows(
 }
 
 async function fetchRecentSignups(): Promise<AdminDashboardSignup[] | null> {
-  const supabase = createSupabaseServerClient();
+  const supabase = getAdminSupabaseClient();
   const { data, error } = await supabase
     .from("providers")
     .select("id, name, slug, created_at")
@@ -118,7 +118,7 @@ async function fetchRecentSignups(): Promise<AdminDashboardSignup[] | null> {
 }
 
 async function countPublishedClubProfiles(): Promise<number | null> {
-  const supabase = createSupabaseServerClient();
+  const supabase = getAdminSupabaseClient();
   const { count, error } = await supabase
     .from("club_profiles")
     .select("*", { count: "exact", head: true })

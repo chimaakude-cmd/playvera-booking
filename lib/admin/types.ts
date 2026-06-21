@@ -184,9 +184,23 @@ export type AdminProviderDetail = AdminProvider & {
   paymentMethodManualInvoice: boolean;
 };
 
+export type AdminProvidersDiagnostics = {
+  totalProviderRows: number;
+  totalVisibleRows: number;
+  hiddenCount: number;
+  hiddenReason: string | null;
+  queryClient: "service_role" | "anon";
+  orphanedClubAuthUsers: Array<{
+    authUserId: string;
+    email: string;
+    name: string;
+  }>;
+};
+
 export type AdminProvidersListResult = {
   providers: AdminProvider[];
   dataSource: "supabase" | "env_missing";
+  diagnostics: AdminProvidersDiagnostics | null;
 };
 
 export type AdminSession = {
