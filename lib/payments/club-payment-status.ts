@@ -148,5 +148,45 @@ export function resolveEffectivePlatformFeePercent(
     return Number(override);
   }
 
-  return defaultPercent;
+  return Number.isFinite(defaultPercent) ? defaultPercent : 0;
+}
+
+export type ClubPaymentStatusApiResponse = {
+  provider: string;
+  paymentModel: string;
+  status: ClubPaymentStatusSnapshot;
+  payoutSchedule: PayoutSchedule;
+  payoutScheduleLabel: string;
+  estimatedNextPayout: string;
+  platformFeePercent: number;
+  providerRecordMissing?: boolean;
+  stripeOptional?: boolean;
+  gocardlessAvailable?: boolean;
+};
+
+export function buildMissingProviderPaymentStatusResponse(
+  platformFeePercent: number,
+): ClubPaymentStatusApiResponse {
+  const feePercent = resolveEffectivePlatformFeePercent(null, platformFeePercent);
+  const payoutSchedule: PayoutSchedule = "weekly";
+  const nextPayout = estimateNextPayoutDate(payoutSchedule);
+
+  return {
+    provider: "Activora (GoCardless)",
+    paymentModel: "platform_managed",
+    providerRecordMissing: true,
+    stripeOptional: true,
+    gocardlessAvailable: true,
+    status: {
+      status: "awaiting_first_payment",
+      tone: "yellow",
+      label: CLUB_PAYMENT_STATUS_LABELS.awaiting_first_payment,
+      reason:
+        "Payments are managed by Activora. GoCardless Direct Debit is available; Stripe card payments are optional.",
+    },
+    payoutSchedule,
+    payoutScheduleLabel: PAYOUT_SCHEDULE_LABELS[payoutSchedule],
+    estimatedNextPayout: formatPayoutDate(nextPayout.toISOString()),
+    platformFeePercent: feePercent,
+  };
 }

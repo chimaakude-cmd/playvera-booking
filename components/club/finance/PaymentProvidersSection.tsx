@@ -42,13 +42,18 @@ export function PaymentProvidersSection() {
 
   const stripe = getStripeConnectState();
   const gocardless = getGoCardlessConnection(settings.provider_id);
+  const enabledMethods = settings.enabled_methods ?? {
+    stripe_card: true,
+    gocardless_direct_debit: false,
+    manual_invoice: false,
+  };
   const stripeConnected = isStripeProviderConnected(stripe.status);
   const gocardlessConnected = isGoCardlessConnected(
     settings.gocardless_status,
     gocardless.merchant_id,
   );
-  const stripeEnabled = settings.enabled_methods.stripe_card;
-  const gocardlessEnabled = settings.enabled_methods.gocardless_direct_debit;
+  const stripeEnabled = Boolean(enabledMethods.stripe_card);
+  const gocardlessEnabled = Boolean(enabledMethods.gocardless_direct_debit);
   const anyProviderEnabled = stripeEnabled || gocardlessEnabled;
 
   function toggleMethod(methodId: PaymentMethodId, enabled: boolean) {
@@ -90,7 +95,7 @@ export function PaymentProvidersSection() {
         <ul className="divide-y divide-zinc-100">
           {(Object.keys(PAYMENT_METHOD_LABELS) as PaymentMethodId[]).map(
             (methodId) => {
-              const enabled = settings.enabled_methods[methodId];
+              const enabled = Boolean(enabledMethods[methodId]);
               const isManual = methodId === "manual_invoice";
               const isStripeMethod = methodId === "stripe_card";
               const canEnable = !isManual && (isStripeMethod ? stripeConnected : true);

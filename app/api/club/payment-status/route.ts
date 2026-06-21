@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { resolveProviderIdForAuthUser } from "@/lib/club-profile/server";
+import {
+  DEFAULT_GOCARDLESS_PLATFORM_CONFIG,
+} from "@/lib/gocardless/platform-config/defaults";
 import { getServerGoCardlessPlatformConfig } from "@/lib/gocardless/platform-config";
 import {
+  buildMissingProviderPaymentStatusResponse,
   estimateNextPayoutDate,
   formatPayoutDate,
   PAYOUT_SCHEDULE_LABELS,
@@ -15,6 +19,15 @@ import {
   createSupabaseServiceRoleClient,
   isSupabaseConfigured,
 } from "@/lib/supabase";
+
+async function loadPlatformConfig() {
+  try {
+    return await getServerGoCardlessPlatformConfig();
+  } catch (error) {
+    console.error("[club-payment-status] Platform config unavailable:", error);
+    return DEFAULT_GOCARDLESS_PLATFORM_CONFIG;
+  }
+}
 
 export async function GET() {
   if (!isSupabaseConfigured()) {
@@ -36,10 +49,13 @@ export async function GET() {
     }
 
     const providerId = await resolveProviderIdForAuthUser(supabase, user.id);
+    const platformConfig = await loadPlatformConfig();
+
     if (!providerId) {
       return NextResponse.json(
-        { error: "No club account found for this user." },
-        { status: 404 },
+        buildMissingProviderPaymentStatusResponse(
+          platformConfig.platformFeePercent,
+        ),
       );
     }
 
@@ -52,16 +68,30 @@ export async function GET() {
       .eq("id", providerId)
       .maybeSingle();
 
-    if (providerError || !provider) {
+    if (providerError) {
+      console.error(
+        "[club-payment-status] Provider lookup failed:",
+        providerError.message,
+      );
       return NextResponse.json(
-        { error: "Could not load payment settings." },
-        { status: 500 },
+        buildMissingProviderPaymentStatusResponse(
+          platformConfig.platformFeePercent,
+        ),
       );
     }
 
-    const platformConfig = await getServerGoCardlessPlatformConfig();
+    if (!provider) {
+      return NextResponse.json(
+        buildMissingProviderPaymentStatusResponse(
+          platformConfig.platformFeePercent,
+        ),
+      );
+    }
+
     const metrics = await fetchClubPaymentMetrics(providerId);
     const payoutSchedule = (provider.payout_schedule ?? "weekly") as PayoutSchedule;
+    const payoutScheduleLabel =
+      PAYOUT_SCHEDULE_LABELS[payoutSchedule] ?? PAYOUT_SCHEDULE_LABELS.weekly;
 
     const status = resolveClubPaymentStatus({
       paymentsEnabled: provider.payments_enabled !== false,
@@ -87,22 +117,20 @@ export async function GET() {
     return NextResponse.json({
       provider: "GoCardless",
       paymentModel: provider.payment_model ?? "platform_managed",
+      stripeOptional: true,
+      gocardlessAvailable: platformConfig.platformEnabled,
       status,
       payoutSchedule,
-      payoutScheduleLabel: PAYOUT_SCHEDULE_LABELS[payoutSchedule],
+      payoutScheduleLabel,
       estimatedNextPayout: formatPayoutDate(nextPayout.toISOString()),
       platformFeePercent,
     });
   } catch (error) {
     console.error("[club-payment-status] GET failed:", error);
     return NextResponse.json(
-      {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Could not load payment status.",
-      },
-      { status: 500 },
+      buildMissingProviderPaymentStatusResponse(
+        DEFAULT_GOCARDLESS_PLATFORM_CONFIG.platformFeePercent,
+      ),
     );
   }
 }

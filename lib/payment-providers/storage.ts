@@ -2,9 +2,31 @@ import { getStripeConnectState } from "@/lib/stripe-connect/storage";
 import { getGoCardlessConnection } from "@/lib/gocardless/storage";
 import type {
   ClubDefaultPaymentProvider,
+  PaymentMethodId,
   PaymentProviderSettings,
 } from "./types";
 import { PAYMENT_PROVIDERS_STORAGE_KEY } from "./types";
+
+const DEFAULT_ENABLED_METHODS: PaymentProviderSettings["enabled_methods"] = {
+  stripe_card: true,
+  gocardless_direct_debit: false,
+  manual_invoice: false,
+};
+
+function normalizeEnabledMethods(
+  value: Partial<Record<PaymentMethodId, boolean>> | null | undefined,
+): PaymentProviderSettings["enabled_methods"] {
+  return {
+    stripe_card: Boolean(value?.stripe_card ?? DEFAULT_ENABLED_METHODS.stripe_card),
+    gocardless_direct_debit: Boolean(
+      value?.gocardless_direct_debit ??
+        DEFAULT_ENABLED_METHODS.gocardless_direct_debit,
+    ),
+    manual_invoice: Boolean(
+      value?.manual_invoice ?? DEFAULT_ENABLED_METHODS.manual_invoice,
+    ),
+  };
+}
 
 function createDefaultSettings(providerId: string): PaymentProviderSettings {
   const stripe = getStripeConnectState();
@@ -16,11 +38,7 @@ function createDefaultSettings(providerId: string): PaymentProviderSettings {
     gocardless_status: gocardless.status,
     preferred_payment_provider: "stripe",
     club_default_provider: "stripe",
-    enabled_methods: {
-      stripe_card: true,
-      gocardless_direct_debit: false,
-      manual_invoice: false,
-    },
+    enabled_methods: { ...DEFAULT_ENABLED_METHODS },
     updated_at: new Date().toISOString(),
   };
 }
@@ -65,6 +83,7 @@ export function getPaymentProviderSettings(
       ...parsed,
       provider_id: id,
       club_default_provider: clubDefaultProvider,
+      enabled_methods: normalizeEnabledMethods(parsed.enabled_methods),
     };
     return syncProviderStatuses(base);
   } catch {
