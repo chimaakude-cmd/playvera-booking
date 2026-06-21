@@ -10,8 +10,12 @@ const iconsDir = path.join(publicDir, "icons");
 const sourceWordmark = path.join(brandingDir, "activora-logo.png");
 const sourceHero = path.join(brandingDir, "activora-hero.png");
 
+const BRAND_THEME_COLOR = "#FFAE00";
+
 /** Icon row share of trimmed wordmark height (star + speech bubble). */
 const MARK_HEIGHT_RATIO = 0.58;
+
+const ICON_SIZES = [16, 32, 48, 180, 192, 512];
 
 async function squareMarkFromTrimmed(trimmedBuffer, meta) {
   const iconHeight = Math.max(1, Math.round(meta.height * MARK_HEIGHT_RATIO));
@@ -46,6 +50,7 @@ async function generate() {
     .toFile(path.join(brandingDir, "activora-mark.png"));
 
   const favicon32 = sharp(markSquare).resize(32, 32);
+  await favicon32.clone().png().toFile(path.join(publicDir, "favicon-32x32.png"));
   await favicon32.clone().png().toFile(path.join(publicDir, "favicon-32.png"));
   await favicon32
     .clone()
@@ -57,15 +62,21 @@ async function generate() {
     .png()
     .toFile(path.join(publicDir, "apple-touch-icon.png"));
 
-  await sharp(markSquare)
-    .resize(192, 192)
-    .png()
-    .toFile(path.join(iconsDir, "icon-192.png"));
+  for (const size of ICON_SIZES) {
+    const target =
+      size === 180
+        ? path.join(publicDir, "apple-touch-icon.png")
+        : path.join(iconsDir, `icon-${size}.png`);
+    if (size !== 180) {
+      await sharp(markSquare).resize(size, size).png().toFile(target);
+    }
+  }
 
-  await sharp(markSquare)
-    .resize(512, 512)
-    .png()
-    .toFile(path.join(iconsDir, "icon-512.png"));
+  const faviconSvgMark = await sharp(markSquare).resize(512, 512).png().toBuffer();
+  const faviconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Activora">
+  <image width="512" height="512" href="data:image/png;base64,${faviconSvgMark.toString("base64")}"/>
+</svg>`;
+  await writeFile(path.join(publicDir, "favicon.svg"), faviconSvg);
 
   await sharp(sourceHero)
     .resize(1200, 630, {
@@ -85,19 +96,15 @@ async function generate() {
         start_url: "/",
         display: "standalone",
         background_color: "#ffffff",
-        theme_color: "#F87128",
-        icons: [
-          {
-            src: "/icons/icon-192.png",
-            sizes: "192x192",
-            type: "image/png",
-          },
-          {
-            src: "/icons/icon-512.png",
-            sizes: "512x512",
-            type: "image/png",
-          },
-        ],
+        theme_color: BRAND_THEME_COLOR,
+        icons: ICON_SIZES.map((size) => ({
+          src:
+            size === 180
+              ? "/apple-touch-icon.png"
+              : `/icons/icon-${size}.png`,
+          sizes: `${size}x${size}`,
+          type: "image/png",
+        })),
       },
       null,
       2,

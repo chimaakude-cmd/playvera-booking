@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, Geist_Mono } from "next/font/google";
 import { BRAND_NAME, BRAND_TAGLINE } from "@/lib/brand";
 import { I18nRoot } from "@/components/i18n/I18nRoot";
@@ -19,11 +19,13 @@ export const metadata: Metadata = {
     default: BRAND_NAME,
     template: `%s | ${BRAND_NAME}`,
   },
+  applicationName: BRAND_NAME,
   description: BRAND_TAGLINE,
   icons: {
     icon: [
       { url: "/favicon.ico", sizes: "any" },
-      { url: "/favicon-32.png", sizes: "32x32", type: "image/png" },
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
     ],
     apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
   },
@@ -41,6 +43,10 @@ export const metadata: Metadata = {
     description: BRAND_TAGLINE,
     images: ["/og-image.png"],
   },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#FFAE00",
 };
 
 export default function RootLayout({
