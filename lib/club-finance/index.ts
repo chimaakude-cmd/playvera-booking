@@ -1,5 +1,6 @@
 export * from "./types";
 export * from "./data";
+export * from "./use-club-finance-data";
 export * from "./vat-settings";
 export * from "./vat";
 export * from "./hmrc-links";

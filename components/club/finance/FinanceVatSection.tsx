@@ -5,12 +5,11 @@ import { canEnableVat, getVatBlockMessage } from "@/lib/club-setup";
 import {
   DEFAULT_VAT_SETTINGS,
   getVatSettings,
-  MONTHLY_REVENUE_HISTORY,
-  ROLLING_TWELVE_MONTH_REVENUE,
   saveVatSettings,
   validateVatSettings,
   type VatSettings,
 } from "@/lib/club-finance";
+import { useClubFinanceData } from "@/lib/club-finance/use-club-finance-data";
 import { FinanceButton, FinanceSection } from "./shared";
 import { HmrcVatCard } from "./HmrcVatCard";
 import { VatThresholdBanner } from "./VatThresholdBanner";
@@ -19,6 +18,8 @@ const inputClassName =
   "w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-900 focus:border-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-200";
 
 export function FinanceVatSection() {
+  const { rollingTwelveMonthRevenue, monthlyRevenueHistory } =
+    useClubFinanceData();
   const [saved, setSaved] = useState(false);
   const [settings, setSettings] = useState<VatSettings>(DEFAULT_VAT_SETTINGS);
   const [errors, setErrors] = useState<
@@ -60,7 +61,7 @@ export function FinanceVatSection() {
 
   return (
     <div className="space-y-6">
-      <VatThresholdBanner rollingRevenue={ROLLING_TWELVE_MONTH_REVENUE} />
+      <VatThresholdBanner rollingRevenue={rollingTwelveMonthRevenue} />
 
       {saved ? (
         <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
@@ -261,13 +262,13 @@ export function FinanceVatSection() {
         title="Rolling 12-month revenue"
         description="Activora tracks taxable turnover through the platform for threshold monitoring only."
       >
-        {MONTHLY_REVENUE_HISTORY.length === 0 ? (
+        {monthlyRevenueHistory.length === 0 ? (
           <p className="text-sm text-zinc-500">
             No revenue recorded yet. Completed booking payments will appear here.
           </p>
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {MONTHLY_REVENUE_HISTORY.map((point) => (
+            {monthlyRevenueHistory.map((point) => (
               <div
                 key={point.month}
                 className="rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-3"

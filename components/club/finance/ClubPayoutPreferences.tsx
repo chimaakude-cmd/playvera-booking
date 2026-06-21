@@ -17,7 +17,6 @@ import { useFranchiseePolicy } from "@/lib/organisation";
 import {
   FinanceButton,
   FinanceSection,
-  FinanceStatCard,
 } from "./shared";
 
 export function ClubPayoutPreferences() {
@@ -47,8 +46,8 @@ export function ClubPayoutPreferences() {
       clubId: prefs.clubId,
       frequency: prefs.frequency,
       monthlyDay: prefs.monthlyDay,
-      availableBalance: prefs.availableBalance,
-      pendingBalance: prefs.pendingBalance,
+      availableBalance: 0,
+      pendingBalance: 0,
     });
     setPrefs(getClubPayoutPreferences(clubId));
     setSaved(true);
@@ -76,21 +75,6 @@ export function ClubPayoutPreferences() {
           Payout preferences saved successfully.
         </div>
       ) : null}
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <FinanceStatCard
-          label="Available balance"
-          value={prefs.availableBalance}
-          hint="Ready for next payout"
-          accent="emerald"
-        />
-        <FinanceStatCard
-          label="Pending balance"
-          value={prefs.pendingBalance}
-          hint="Clearing period"
-          accent="amber"
-        />
-      </div>
 
       <form onSubmit={handleSubmit} className="space-y-5">
         <FinanceSection

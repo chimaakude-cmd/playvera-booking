@@ -1,4 +1,7 @@
-import { FAILED_PAYMENTS, formatFinanceDate } from "@/lib/club-finance";
+"use client";
+
+import { formatFinanceDate } from "@/lib/club-finance";
+import { useClubFinanceData } from "@/lib/club-finance/use-club-finance-data";
 import { formatMoney } from "@/lib/payments";
 import {
   FinanceButton,
@@ -10,12 +13,14 @@ import {
 } from "./shared";
 
 export function FinanceFailedPaymentsSection() {
+  const { failedPayments } = useClubFinanceData();
+
   return (
     <FinanceSection
       title="Failed payments"
       description="Payments that did not complete. Retry, message the parent, or cancel the booking."
     >
-      {FAILED_PAYMENTS.length === 0 ? (
+      {failedPayments.length === 0 ? (
         <FinanceEmptyState
           title="No failed payments"
           description="All recent booking payments completed successfully."
@@ -35,7 +40,7 @@ export function FinanceFailedPaymentsSection() {
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-50">
-            {FAILED_PAYMENTS.map((fp) => (
+            {failedPayments.map((fp) => (
               <tr key={fp.id} className="text-zinc-700">
                 <td className="py-3.5 pr-4">
                   <p className="font-medium text-zinc-900">{fp.parentName}</p>

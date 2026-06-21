@@ -34,8 +34,8 @@ export const DEFAULT_CLUB_PAYOUT_PREFERENCES: ClubPayoutPreferences = {
   frequency: "every_7_days",
   monthlyDay: 1,
   nextEstimatedPayout: null,
-  availableBalance: 2847.5,
-  pendingBalance: 412.0,
+  availableBalance: 0,
+  pendingBalance: 0,
   updatedAt: "2026-06-01T10:00:00.000Z",
 };
 

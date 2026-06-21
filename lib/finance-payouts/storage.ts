@@ -1,4 +1,4 @@
-import { isDevelopmentEnvironment } from "@/lib/admin-users/production-gates";
+import { shouldShowClubDemoData } from "@/lib/club-demo-mode";
 import { getOrganisation } from "@/lib/organisation/storage";
 import {
   estimateNextPayoutDate,
@@ -24,6 +24,9 @@ export const CLUB_PAYOUT_PREFERENCES_KEY = "activora-club-payout-preferences";
 export const FINANCE_REPORTS_KEY = "activora-finance-reports";
 export const PAYOUT_OVERRIDES_KEY = "activora-org-payout-overrides";
 export const FEE_OVERRIDES_KEY = "activora-org-fee-overrides";
+
+/** Legacy seeded demo balances — must never display for real clubs. */
+const LEGACY_SEED_BALANCES = new Set([2847.5, 412.0, 2847.6, 1842.35]);
 
 function isBrowser(): boolean {
   return typeof window !== "undefined";
@@ -81,6 +84,87 @@ function withComputedClubPayout(
   };
 }
 
+function createEmptyClubPayoutPreferences(
+  clubId: string,
+): ClubPayoutPreferences {
+  return {
+    ...DEFAULT_CLUB_PAYOUT_PREFERENCES,
+    clubId,
+    availableBalance: 0,
+    pendingBalance: 0,
+  };
+}
+
+/** Balances come from Stripe Connect — never from localStorage for real clubs. */
+function stripStoredBalances(
+  prefs: ClubPayoutPreferences,
+): ClubPayoutPreferences {
+  const hasLegacySeed =
+    LEGACY_SEED_BALANCES.has(prefs.availableBalance) ||
+    LEGACY_SEED_BALANCES.has(prefs.pendingBalance);
+
+  if (
+    !hasLegacySeed &&
+    prefs.availableBalance === 0 &&
+    prefs.pendingBalance === 0
+  ) {
+    return prefs;
+  }
+
+  return {
+    ...prefs,
+    availableBalance: 0,
+    pendingBalance: 0,
+  };
+}
+
+function migrateClubPayoutPreferencesCache(
+  all: Record<string, ClubPayoutPreferences>,
+): Record<string, ClubPayoutPreferences> {
+  let changed = false;
+  const next: Record<string, ClubPayoutPreferences> = {};
+
+  for (const [clubId, prefs] of Object.entries(all)) {
+    const stripped = stripStoredBalances(prefs);
+    next[clubId] = stripped;
+    if (
+      stripped.availableBalance !== prefs.availableBalance ||
+      stripped.pendingBalance !== prefs.pendingBalance
+    ) {
+      changed = true;
+    }
+  }
+
+  if (changed) {
+    save(CLUB_PAYOUT_PREFERENCES_KEY, next);
+  }
+
+  return next;
+}
+
+function buildInitialClubPayoutPreferencesMap(): Record<
+  string,
+  ClubPayoutPreferences
+> {
+  const emptyPrefs = createEmptyClubPayoutPreferences(
+    DEFAULT_CLUB_PAYOUT_PREFERENCES.clubId,
+  );
+
+  if (shouldShowClubDemoData()) {
+    return {
+      [DEFAULT_CLUB_PAYOUT_PREFERENCES.clubId]: {
+        ...DEFAULT_CLUB_PAYOUT_PREFERENCES,
+        availableBalance: 0,
+        pendingBalance: 0,
+      },
+    };
+  }
+
+  return {
+    [DEFAULT_CLUB_PAYOUT_PREFERENCES.clubId]: emptyPrefs,
+  };
+}
+
 export function getPayoutSchedule(): FranchiseePayoutSchedule {
   const organisation = getOrganisation();
   const defaults: FranchiseePayoutSchedule = {
@@ -124,45 +208,35 @@ export function saveFranchisorFeeSettings(
 export function getClubPayoutPreferences(
   clubId: string = DEFAULT_CLUB_PAYOUT_PREFERENCES.clubId,
 ): ClubPayoutPreferences {
-  const emptyPrefs: ClubPayoutPreferences = {
-    ...DEFAULT_CLUB_PAYOUT_PREFERENCES,
-    clubId,
-    availableBalance: 0,
-    pendingBalance: 0,
-  };
-  const seedDefaults = isDevelopmentEnvironment()
-    ? {
-        [DEFAULT_CLUB_PAYOUT_PREFERENCES.clubId]:
-          DEFAULT_CLUB_PAYOUT_PREFERENCES,
-      }
-    : {
-        [DEFAULT_CLUB_PAYOUT_PREFERENCES.clubId]: emptyPrefs,
-      };
-
-  const all = seedIfEmpty<Record<string, ClubPayoutPreferences>>(
-    CLUB_PAYOUT_PREFERENCES_KEY,
-    seedDefaults,
+  const emptyPrefs = createEmptyClubPayoutPreferences(clubId);
+  const all = migrateClubPayoutPreferencesCache(
+    seedIfEmpty<Record<string, ClubPayoutPreferences>>(
+      CLUB_PAYOUT_PREFERENCES_KEY,
+      buildInitialClubPayoutPreferencesMap(),
+    ),
   );
-  const prefs = all[clubId] ?? {
-    ...(isDevelopmentEnvironment()
-      ? DEFAULT_CLUB_PAYOUT_PREFERENCES
-      : emptyPrefs),
-    clubId,
-  };
-  return withComputedClubPayout(prefs);
+  const prefs =
+    all[clubId] ??
+    (shouldShowClubDemoData()
+      ? { ...DEFAULT_CLUB_PAYOUT_PREFERENCES, clubId, availableBalance: 0, pendingBalance: 0 }
+      : emptyPrefs);
+
+  return withComputedClubPayout(stripStoredBalances(prefs));
 }
 
 export function saveClubPayoutPreferences(
   prefs: Omit<ClubPayoutPreferences, "nextEstimatedPayout" | "updatedAt">,
 ): ClubPayoutPreferences {
-  const all = seedIfEmpty<Record<string, ClubPayoutPreferences>>(
-    CLUB_PAYOUT_PREFERENCES_KEY,
-    {
-      [DEFAULT_CLUB_PAYOUT_PREFERENCES.clubId]: DEFAULT_CLUB_PAYOUT_PREFERENCES,
-    },
+  const all = migrateClubPayoutPreferencesCache(
+    seedIfEmpty<Record<string, ClubPayoutPreferences>>(
+      CLUB_PAYOUT_PREFERENCES_KEY,
+      buildInitialClubPayoutPreferencesMap(),
+    ),
   );
   const updated = withComputedClubPayout({
     ...prefs,
+    availableBalance: 0,
+    pendingBalance: 0,
     nextEstimatedPayout: null,
     updatedAt: new Date().toISOString(),
   });
@@ -172,7 +246,7 @@ export function saveClubPayoutPreferences(
 }
 
 export function getFinanceReports(): FinanceReportRow[] {
-  if (!isDevelopmentEnvironment()) {
+  if (!shouldShowClubDemoData()) {
     return seedIfEmpty(FINANCE_REPORTS_KEY, []);
   }
   return seedIfEmpty(FINANCE_REPORTS_KEY, DEFAULT_FINANCE_REPORTS);

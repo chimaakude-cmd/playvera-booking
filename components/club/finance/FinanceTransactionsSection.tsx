@@ -3,10 +3,9 @@
 import { useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import {
-  FINANCE_TRANSACTIONS,
-  getFinanceFilterOptions,
   formatFinanceDate,
 } from "@/lib/club-finance";
+import { useClubFinanceData } from "@/lib/club-finance/use-club-finance-data";
 import type { PaymentStatus, PayoutStatus } from "@/lib/club-finance/types";
 import { formatMoney } from "@/lib/payments";
 import { PaginationControls } from "@/components/ui/PaginationControls";
@@ -40,7 +39,8 @@ const PAYOUT_STATUSES: Array<PayoutStatus | "all"> = [
 ];
 
 export function FinanceTransactionsSection() {
-  const { activities, venues } = getFinanceFilterOptions();
+  const { transactions, filterOptions } = useClubFinanceData();
+  const { activities, venues } = filterOptions;
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [activity, setActivity] = useState("all");
@@ -52,7 +52,7 @@ export function FinanceTransactionsSection() {
   const [page, setPage] = useState(1);
 
   const filtered = useMemo(() => {
-    return FINANCE_TRANSACTIONS.filter((txn) => {
+    return transactions.filter((txn) => {
       if (activity !== "all" && txn.activityName !== activity) return false;
       if (venue !== "all" && txn.venue !== venue) return false;
       if (paymentStatus !== "all" && txn.paymentStatus !== paymentStatus) {
@@ -67,14 +67,14 @@ export function FinanceTransactionsSection() {
       }
       return true;
     });
-  }, [activity, venue, paymentStatus, payoutStatus, dateFrom, dateTo]);
+  }, [activity, venue, paymentStatus, payoutStatus, dateFrom, dateTo, transactions]);
 
   const pagination = useMemo(
     () => paginateItems(filtered, page, 10),
     [filtered, page],
   );
 
-  const hasAnyTransactions = FINANCE_TRANSACTIONS.length > 0;
+  const hasAnyTransactions = transactions.length > 0;
 
   return (
     <FinanceSection

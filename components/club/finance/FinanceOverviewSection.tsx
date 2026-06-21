@@ -1,23 +1,19 @@
-import {
-  FINANCE_OVERVIEW,
-  FINANCE_REFUNDS,
-  FINANCE_TRANSACTIONS,
-  FAILED_PAYMENTS,
-  formatFinanceShortDate,
-} from "@/lib/club-finance";
+"use client";
+
+import { formatFinanceShortDate } from "@/lib/club-finance";
+import { useClubFinanceData } from "@/lib/club-finance/use-club-finance-data";
 import { formatMoney } from "@/lib/payments";
 import { FinanceSection, FinanceStatCard } from "./shared";
 
 export function FinanceOverviewSection() {
-  const metrics = FINANCE_OVERVIEW;
-  const recentPaid = FINANCE_TRANSACTIONS.filter(
-    (transaction) => transaction.paymentStatus === "paid",
-  ).slice(0, 4);
-  const pendingRefunds = FINANCE_REFUNDS.filter(
-    (refund) => refund.status === "pending",
-  );
+  const { overview: metrics, transactions, failedPayments, refunds } =
+    useClubFinanceData();
+  const recentPaid = transactions
+    .filter((transaction) => transaction.paymentStatus === "paid")
+    .slice(0, 4);
+  const pendingRefunds = refunds.filter((refund) => refund.status === "pending");
   const needsAttention =
-    FAILED_PAYMENTS.length > 0 || pendingRefunds.length > 0;
+    failedPayments.length > 0 || pendingRefunds.length > 0;
 
   return (
     <div className="space-y-6">
@@ -129,13 +125,13 @@ export function FinanceOverviewSection() {
             <p className="text-sm text-zinc-500">No payment actions needed</p>
           ) : (
             <div className="space-y-4">
-              {FAILED_PAYMENTS.length > 0 ? (
+              {failedPayments.length > 0 ? (
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">
                     Failed payments
                   </p>
                   <ul className="mt-2 space-y-2">
-                    {FAILED_PAYMENTS.slice(0, 2).map((failedPayment) => (
+                    {failedPayments.slice(0, 2).map((failedPayment) => (
                       <li
                         key={failedPayment.id}
                         className="rounded-xl border border-rose-100 bg-rose-50/50 px-4 py-3"

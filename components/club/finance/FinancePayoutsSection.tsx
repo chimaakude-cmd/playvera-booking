@@ -1,20 +1,10 @@
 "use client";
 
-import {
-  canWithdrawPayouts,
-  getPayoutBlockMessage,
-} from "@/lib/club-setup";
-import {
-  FINANCE_PAYOUTS,
-  FINANCE_TRANSACTIONS,
-  PAYOUT_SUMMARY,
-  formatFinanceShortDate,
-} from "@/lib/club-finance";
+import { canWithdrawPayouts, getPayoutBlockMessage } from "@/lib/club-setup";
+import { formatFinanceShortDate } from "@/lib/club-finance";
+import { useClubFinanceData } from "@/lib/club-finance/use-club-finance-data";
 import { formatMoney } from "@/lib/payments";
-import {
-  getStripeConnectState,
-  isStripeConnected,
-} from "@/lib/stripe-connect";
+import { useStripeConnectBalances } from "@/lib/stripe-connect/use-stripe-connect-balances";
 import { ClubPayoutPreferences } from "./ClubPayoutPreferences";
 import {
   FinanceEmptyState,
@@ -25,9 +15,28 @@ import {
 } from "./shared";
 
 export function FinancePayoutsSection() {
-  const summary = PAYOUT_SUMMARY;
+  const { payoutSummary, payouts, transactions, isDemo } = useClubFinanceData();
+  const balances = useStripeConnectBalances();
   const payoutsReady = canWithdrawPayouts();
-  const stripeConnected = isStripeConnected(getStripeConnectState().status);
+
+  const stripeConnected = balances.stripeConnected;
+  const useLiveBalances = stripeConnected && !isDemo;
+  const availableBalance = useLiveBalances
+    ? balances.availableBalance
+    : isDemo
+      ? payoutSummary.availableBalance
+      : 0;
+  const pendingBalance = useLiveBalances
+    ? balances.pendingBalance
+    : isDemo
+      ? payoutSummary.pendingBalance
+      : 0;
+  const lastPayoutAmount = useLiveBalances
+    ? balances.lastPayoutAmount
+    : payoutSummary.lastPayoutAmount;
+  const lastPayoutDate = useLiveBalances
+    ? balances.lastPayoutDate
+    : payoutSummary.lastPayoutDate;
 
   return (
     <div className="space-y-6">
@@ -35,11 +44,30 @@ export function FinancePayoutsSection() {
         <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
           Connect Stripe to receive payouts
         </div>
+      ) : balances.balanceUnavailable ? (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          Balance unavailable. Please reconnect Stripe or contact support.
+        </div>
       ) : !payoutsReady ? (
         <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
           {getPayoutBlockMessage()}
         </div>
       ) : null}
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <FinanceStatCard
+          label="Available balance"
+          value={availableBalance}
+          hint="Ready for next payout"
+          accent="emerald"
+        />
+        <FinanceStatCard
+          label="Pending balance"
+          value={pendingBalance}
+          hint="Clearing period"
+          accent="amber"
+        />
+      </div>
 
       <ClubPayoutPreferences />
 
@@ -47,13 +75,11 @@ export function FinancePayoutsSection() {
         <FinanceStatCard
           label="Last payout"
           value={
-            summary.lastPayoutAmount
-              ? formatMoney(summary.lastPayoutAmount)
-              : "—"
+            lastPayoutAmount ? formatMoney(lastPayoutAmount) : "—"
           }
           hint={
-            summary.lastPayoutDate
-              ? formatFinanceShortDate(summary.lastPayoutDate)
+            lastPayoutDate
+              ? formatFinanceShortDate(lastPayoutDate)
               : "No payouts yet"
           }
           accent="teal"
@@ -62,8 +88,8 @@ export function FinancePayoutsSection() {
         <FinanceStatCard
           label="Next payout"
           value={
-            summary.nextEstimatedPayoutDate
-              ? formatFinanceShortDate(summary.nextEstimatedPayoutDate)
+            payoutSummary.nextEstimatedPayoutDate
+              ? formatFinanceShortDate(payoutSummary.nextEstimatedPayoutDate)
               : "—"
           }
           hint="Estimated arrival date"
@@ -76,7 +102,7 @@ export function FinancePayoutsSection() {
         title="Payout history"
         description="Stripe Connect payouts with linked transaction references."
       >
-        {FINANCE_PAYOUTS.length === 0 ? (
+        {payouts.length === 0 ? (
           <FinanceEmptyState
             title="No payouts yet"
             description={
@@ -97,9 +123,11 @@ export function FinancePayoutsSection() {
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-50">
-              {FINANCE_PAYOUTS.map((payout) => {
+              {payouts.map((payout) => {
                 const linked = payout.linkedTransactionIds
-                  .map((id) => FINANCE_TRANSACTIONS.find((transaction) => transaction.id === id))
+                  .map((id) =>
+                    transactions.find((transaction) => transaction.id === id),
+                  )
                   .filter(Boolean);
 
                 return (
@@ -122,8 +150,8 @@ export function FinancePayoutsSection() {
                           {linked.map((transaction) =>
                             transaction ? (
                               <li key={transaction.id} className="text-zinc-600">
-                                {transaction.parentName} — {transaction.activityName} (
-                                {formatMoney(transaction.netAmount)})
+                                {transaction.parentName} — {transaction.activityName}{" "}
+                                ({formatMoney(transaction.netAmount)})
                               </li>
                             ) : null,
                           )}

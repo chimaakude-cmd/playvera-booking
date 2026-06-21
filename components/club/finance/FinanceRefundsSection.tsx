@@ -1,4 +1,7 @@
-import { FINANCE_REFUNDS, formatFinanceDate } from "@/lib/club-finance";
+"use client";
+
+import { formatFinanceDate } from "@/lib/club-finance";
+import { useClubFinanceData } from "@/lib/club-finance/use-club-finance-data";
 import { formatMoney } from "@/lib/payments";
 import {
   FinanceEmptyState,
@@ -8,12 +11,14 @@ import {
 } from "./shared";
 
 export function FinanceRefundsSection() {
+  const { refunds } = useClubFinanceData();
+
   return (
     <FinanceSection
       title="Refunds"
       description="All refunds issued with reason and processing status."
     >
-      {FINANCE_REFUNDS.length === 0 ? (
+      {refunds.length === 0 ? (
         <FinanceEmptyState
           title="No refunds"
           description="Refunds will appear here when issued from transactions or bookings."
@@ -31,7 +36,7 @@ export function FinanceRefundsSection() {
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-50">
-            {FINANCE_REFUNDS.map((refund) => (
+            {refunds.map((refund) => (
               <tr key={refund.id} className="text-zinc-700">
                 <td className="py-3.5 pr-4 whitespace-nowrap text-zinc-500">
                   {formatFinanceDate(refund.date)}

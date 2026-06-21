@@ -1,4 +1,7 @@
-import { FINANCE_REPORTS, formatFinanceShortDate } from "@/lib/club-finance";
+"use client";
+
+import { formatFinanceShortDate } from "@/lib/club-finance";
+import { useClubFinanceData } from "@/lib/club-finance/use-club-finance-data";
 import {
   FinanceButton,
   FinanceSection,
@@ -6,13 +9,15 @@ import {
 } from "./shared";
 
 export function FinanceReportsSection() {
+  const { reports } = useClubFinanceData();
+
   return (
     <FinanceSection
       title="Reports"
       description="Downloadable finance reports for reconciliation and accounting."
     >
       <div className="grid gap-4 sm:grid-cols-2">
-        {FINANCE_REPORTS.map((report) => (
+        {reports.map((report) => (
           <article
             key={report.id}
             className="flex flex-col rounded-xl border border-zinc-200/80 bg-zinc-50/30 p-5"

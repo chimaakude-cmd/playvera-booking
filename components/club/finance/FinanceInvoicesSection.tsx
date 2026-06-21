@@ -3,9 +3,9 @@
 import { useState } from "react";
 import {
   formatFinanceShortDate,
-  MONTHLY_INVOICES,
   type MonthlyInvoice,
 } from "@/lib/club-finance";
+import { useClubFinanceData } from "@/lib/club-finance/use-club-finance-data";
 import { formatMoney } from "@/lib/payments";
 import {
   FinanceButton,
@@ -17,11 +17,12 @@ import {
 import { VatBreakdownPanel } from "./VatBreakdownPanel";
 
 export function FinanceInvoicesSection() {
-  const [selectedId, setSelectedId] = useState(MONTHLY_INVOICES[0]?.id ?? "");
+  const { monthlyInvoices } = useClubFinanceData();
+  const [selectedId, setSelectedId] = useState(monthlyInvoices[0]?.id ?? "");
 
   const selected =
-    MONTHLY_INVOICES.find((inv) => inv.id === selectedId) ??
-    MONTHLY_INVOICES[0] ??
+    monthlyInvoices.find((inv) => inv.id === selectedId) ??
+    monthlyInvoices[0] ??
     null;
 
   return (
@@ -42,7 +43,7 @@ export function FinanceInvoicesSection() {
           ) : null
         }
       >
-        {MONTHLY_INVOICES.length === 0 ? (
+        {monthlyInvoices.length === 0 ? (
           <FinanceEmptyState
             title="No invoices yet"
             description="Monthly invoices are generated at the end of each billing period once bookings are processed."
@@ -58,7 +59,7 @@ export function FinanceInvoicesSection() {
                 onChange={(e) => setSelectedId(e.target.value)}
                 className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
               >
-                {MONTHLY_INVOICES.map((invoice) => (
+                {monthlyInvoices.map((invoice) => (
                   <option key={invoice.id} value={invoice.id}>
                     {invoice.periodLabel}
                   </option>
