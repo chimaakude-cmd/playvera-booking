@@ -27,6 +27,34 @@ export class SubscriptionPlansStoreError extends Error {
   }
 }
 
+type SupabaseLikeError = {
+  message?: string;
+  code?: string;
+};
+
+function isSubscriptionPlansTableMissingError(error: SupabaseLikeError): boolean {
+  const message = error.message?.toLowerCase() ?? "";
+  const code = error.code ?? "";
+
+  if (code === "PGRST205" || code === "42P01") {
+    return message.includes("subscription_plans");
+  }
+
+  if (message.includes("schema cache") && message.includes("subscription_plans")) {
+    return true;
+  }
+
+  if (message.includes("could not find") && message.includes("subscription_plans")) {
+    return true;
+  }
+
+  return (
+    message.includes("relation") &&
+    message.includes("subscription_plans") &&
+    message.includes("does not exist")
+  );
+}
+
 export async function getServerSubscriptionPlans(options?: {
   includeDisabled?: boolean;
 }): Promise<SubscriptionPlan[]> {
@@ -47,7 +75,7 @@ export async function getServerSubscriptionPlans(options?: {
   const { data, error } = await query;
 
   if (error) {
-    if (error.code === "42P01") {
+    if (isSubscriptionPlansTableMissingError(error)) {
       return DEFAULT_SUBSCRIPTION_PLANS;
     }
     throw new SubscriptionPlansStoreError(error.message, "database");
