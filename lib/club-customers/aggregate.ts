@@ -2,6 +2,10 @@ import type { Booking, BookingStatus } from "@/lib/bookings";
 import { getBookings, updateBookingStatus } from "@/lib/bookings";
 import { parsePhotoConsent } from "@/lib/club-registers/storage";
 import type { RegisterAttendanceRecord } from "@/lib/club-registers/types";
+import {
+  filterProductionClubRecords,
+  shouldShowClubDemoData,
+} from "@/lib/club-demo-mode";
 import type {
   ClubCustomer,
   CustomerAttendanceRecord,
@@ -11,57 +15,12 @@ import type {
   CustomerPaymentStatus,
   CustomerRefundRecord,
 } from "./types";
+import { buildDemoCustomerBookings } from "./demo-seed";
 
 const REGISTER_ATTENDANCE_KEY = "activora-register-attendance";
 
 export const CUSTOMER_NOTES_KEY = "activora-customer-notes";
 export const CUSTOMER_REFUNDS_KEY = "activora-customer-refunds";
-
-const MOCK_CUSTOMERS_SEED: Array<{
-  parentName: string;
-  email: string;
-  phone: string;
-  children: Array<{
-    name: string;
-    age: number;
-    medical?: string;
-    allergies?: string;
-  }>;
-}> = [
-  {
-    parentName: "Helen Carter",
-    email: "helen.carter@example.com",
-    phone: "07700 900 101",
-    children: [{ name: "Mia Carter", age: 8, allergies: "Peanuts" }],
-  },
-  {
-    parentName: "James Okonkwo",
-    email: "james.okonkwo@example.com",
-    phone: "07700 900 202",
-    children: [{ name: "Noah Okonkwo", age: 10 }],
-  },
-  {
-    parentName: "Sarah Mitchell",
-    email: "sarah.mitchell@example.com",
-    phone: "07700 900 303",
-    children: [
-      { name: "Ella Mitchell", age: 7 },
-      { name: "Leo Mitchell", age: 9, medical: "Asthma inhaler" },
-    ],
-  },
-  {
-    parentName: "David Hughes",
-    email: "david.hughes@example.com",
-    phone: "07700 900 404",
-    children: [{ name: "Amelia Hughes", age: 6 }],
-  },
-  {
-    parentName: "Priya Sharma",
-    email: "priya.sharma@example.com",
-    phone: "07700 900 505",
-    children: [{ name: "Arjun Sharma", age: 11 }],
-  },
-];
 
 function customerIdFromEmail(email: string): string {
   return email.trim().toLowerCase();
@@ -223,15 +182,6 @@ function buildAttendanceForBookings(
     }
   }
 
-  if (records.length === 0 && bookings.length > 0) {
-    return bookings.slice(0, 2).map((booking, index) => ({
-      id: `stub-att-${booking.id}`,
-      sessionTitle: booking.sessionTitle,
-      dateLabel: formatBookingDate(booking.createdAt),
-      status: index === 0 ? "present" : "not_marked",
-    }));
-  }
-
   return records;
 }
 
@@ -328,39 +278,14 @@ export function getClubCustomers(): ClubCustomer[] {
     }
   }
 
-  if (byEmail.size === 0) {
-    for (const seed of MOCK_CUSTOMERS_SEED) {
-      byEmail.set(seed.email, {
-        parentName: seed.parentName,
-        phone: seed.phone,
-        bookings: seed.children.map((child, index) => ({
-          id: `seed-${seed.email}-${index}`,
-          sessionId: "demo-session",
-          sessionTitle:
-            index % 2 === 0 ? "Junior Football Skills" : "Holiday Multi-Sports",
-          providerName: "Riverside Sports Centre",
-          day: "saturday",
-          startTime: "10:00",
-          endTime: "11:00",
-          pricePaid: 18 + index * 2,
-          parentName: seed.parentName,
-          email: seed.email,
-          childName: child.name,
-          childAge: child.age,
-          emergencyContact: seed.phone,
-          status: index === 2 ? "refund_requested" : "confirmed",
-          createdAt: new Date(
-            Date.now() - index * 7 * 24 * 60 * 60 * 1000,
-          ).toISOString(),
-          medicalConditions: child.medical ?? "",
-          allergies: child.allergies ?? "",
-          photoConsentSession: index !== 1,
-        })),
-      });
+  if (byEmail.size === 0 && shouldShowClubDemoData()) {
+    for (const [email, data] of buildDemoCustomerBookings()) {
+      byEmail.set(email, data);
     }
   }
 
-  return Array.from(byEmail.entries())
+  return filterProductionClubRecords(
+    Array.from(byEmail.entries())
     .map(([email, data]) =>
       buildCustomerFromBookings(
         email,
@@ -371,7 +296,8 @@ export function getClubCustomers(): ClubCustomer[] {
         allRefunds,
       ),
     )
-    .sort((a, b) => b.latestBookingAt.localeCompare(a.latestBookingAt));
+    .sort((a, b) => b.latestBookingAt.localeCompare(a.latestBookingAt)),
+  );
 }
 
 export function getCustomerMetrics(customers: ClubCustomer[]): CustomerMetrics {

@@ -1,3 +1,5 @@
+import { shouldShowClubDemoData } from "@/lib/club-demo-mode";
+
 export type CampaignAudienceType =
   | "all_parents"
   | "by_activity"
@@ -278,24 +280,26 @@ export function buildAudienceLabel(draft: CampaignBuilderDraft): string {
 }
 
 export function getClubCampaigns(): ClubCampaign[] {
+  const demoDefaults = shouldShowClubDemoData() ? DEFAULT_CLUB_CAMPAIGNS : [];
+
   if (!isBrowser()) {
-    return [...DEFAULT_CLUB_CAMPAIGNS];
+    return [...demoDefaults];
   }
 
   try {
     const raw = localStorage.getItem(CLUB_CAMPAIGNS_STORAGE_KEY);
     if (!raw) {
-      return [...DEFAULT_CLUB_CAMPAIGNS];
+      return [...demoDefaults];
     }
 
     const parsed = JSON.parse(raw) as ClubCampaign[];
     if (!Array.isArray(parsed) || parsed.length === 0) {
-      return [...DEFAULT_CLUB_CAMPAIGNS];
+      return [...demoDefaults];
     }
 
     return parsed;
   } catch {
-    return [...DEFAULT_CLUB_CAMPAIGNS];
+    return [...demoDefaults];
   }
 }
 

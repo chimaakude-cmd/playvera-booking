@@ -20,6 +20,7 @@ function accountToUser(account: TestAccount): AuthUser {
     email: account.email,
     name: account.name,
     role: account.role,
+    accountType: account.accountType ?? "standard",
     clubRole: account.clubRole,
     adminRole: account.adminRole,
     organisationRole: account.organisationRole,

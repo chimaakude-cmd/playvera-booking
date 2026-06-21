@@ -1,3 +1,4 @@
+import { shouldShowClubDemoData } from "@/lib/club-demo-mode";
 import type { CommunicationsMetrics, MessageLogEntry } from "./types";
 import { countBirthdayMessagesDue } from "./birthday";
 import { countRepliesNeedingAttention, getParentReplies } from "./replies";
@@ -63,19 +64,23 @@ export const DEFAULT_MESSAGE_LOG: MessageLogEntry[] = [
 
 export function getMessageLog(): MessageLogEntry[] {
   if (typeof window === "undefined") {
-    return DEFAULT_MESSAGE_LOG;
+    return shouldShowClubDemoData() ? DEFAULT_MESSAGE_LOG : [];
   }
 
   try {
     const raw = localStorage.getItem(COMMUNICATIONS_LOG_KEY);
     if (!raw) {
-      return DEFAULT_MESSAGE_LOG;
+      return shouldShowClubDemoData() ? DEFAULT_MESSAGE_LOG : [];
     }
 
     const parsed = JSON.parse(raw) as MessageLogEntry[];
-    return parsed.length > 0 ? parsed : DEFAULT_MESSAGE_LOG;
+    if (parsed.length > 0) {
+      return parsed;
+    }
+
+    return shouldShowClubDemoData() ? DEFAULT_MESSAGE_LOG : [];
   } catch {
-    return DEFAULT_MESSAGE_LOG;
+    return shouldShowClubDemoData() ? DEFAULT_MESSAGE_LOG : [];
   }
 }
 

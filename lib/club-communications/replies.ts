@@ -1,3 +1,4 @@
+import { shouldShowClubDemoData } from "@/lib/club-demo-mode";
 import type { ParentReply } from "./types";
 
 export const COMMUNICATIONS_REPLIES_KEY = "activora-club-communications-replies";
@@ -58,19 +59,23 @@ export const DEFAULT_PARENT_REPLIES: ParentReply[] = [
 
 export function getParentReplies(): ParentReply[] {
   if (typeof window === "undefined") {
-    return DEFAULT_PARENT_REPLIES;
+    return shouldShowClubDemoData() ? DEFAULT_PARENT_REPLIES : [];
   }
 
   try {
     const raw = localStorage.getItem(COMMUNICATIONS_REPLIES_KEY);
     if (!raw) {
-      return DEFAULT_PARENT_REPLIES;
+      return shouldShowClubDemoData() ? DEFAULT_PARENT_REPLIES : [];
     }
 
     const parsed = JSON.parse(raw) as ParentReply[];
-    return parsed.length > 0 ? parsed : DEFAULT_PARENT_REPLIES;
+    if (parsed.length > 0) {
+      return parsed;
+    }
+
+    return shouldShowClubDemoData() ? DEFAULT_PARENT_REPLIES : [];
   } catch {
-    return DEFAULT_PARENT_REPLIES;
+    return shouldShowClubDemoData() ? DEFAULT_PARENT_REPLIES : [];
   }
 }
 

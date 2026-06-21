@@ -1,11 +1,11 @@
 /**
  * Club finance data access.
  *
- * Production: empty metrics and no seeded transactions (real Stripe/booking data only).
- * Development: demo dataset from mock-data.ts for local UI preview.
+ * Production / real clubs: empty metrics unless on explicit demo routes.
+ * Demo routes (/club/demo*): seeded dataset from mock-data.ts for UI preview.
  */
 
-import { isDevelopmentEnvironment } from "@/lib/admin-users/production-gates";
+import { shouldShowClubDemoData } from "@/lib/club-demo-mode";
 import type {
   AccountingIntegration,
   FailedPayment,
@@ -19,8 +19,6 @@ import type {
   PayoutSummary,
 } from "./types";
 import * as demo from "./mock-data";
-
-const useDemoFinanceData = isDevelopmentEnvironment();
 
 export const EMPTY_FINANCE_OVERVIEW: FinanceOverviewMetrics = {
   totalRevenue: 0,
@@ -43,67 +41,87 @@ export const EMPTY_PAYOUT_SUMMARY: PayoutSummary = {
   nextEstimatedPayoutDate: null,
 };
 
-export const ROLLING_TWELVE_MONTH_REVENUE = useDemoFinanceData
-  ? demo.ROLLING_TWELVE_MONTH_REVENUE
-  : 0;
-
-export const MONTHLY_REVENUE_HISTORY: MonthlyRevenuePoint[] = useDemoFinanceData
-  ? demo.MONTHLY_REVENUE_HISTORY
-  : [];
-
-export const MONTHLY_INVOICES: MonthlyInvoice[] = useDemoFinanceData
-  ? demo.MONTHLY_INVOICES
-  : [];
-
-export const FINANCE_OVERVIEW: FinanceOverviewMetrics = useDemoFinanceData
-  ? demo.FINANCE_OVERVIEW
-  : EMPTY_FINANCE_OVERVIEW;
-
-export const FINANCE_TRANSACTIONS: FinanceTransaction[] = useDemoFinanceData
-  ? demo.FINANCE_TRANSACTIONS
-  : [];
-
-export const PAYOUT_SUMMARY: PayoutSummary = useDemoFinanceData
-  ? demo.PAYOUT_SUMMARY
-  : EMPTY_PAYOUT_SUMMARY;
-
-export const FINANCE_PAYOUTS: FinancePayout[] = useDemoFinanceData
-  ? demo.FINANCE_PAYOUTS
-  : [];
-
-export const FAILED_PAYMENTS: FailedPayment[] = useDemoFinanceData
-  ? demo.FAILED_PAYMENTS
-  : [];
-
-export const FINANCE_REFUNDS: FinanceRefund[] = useDemoFinanceData
-  ? demo.FINANCE_REFUNDS
-  : [];
-
-export const FINANCE_REPORTS: FinanceReport[] = useDemoFinanceData
-  ? demo.FINANCE_REPORTS
-  : demo.FINANCE_REPORTS.map((report) => ({
-      ...report,
-      lastGenerated: null,
-    }));
+/** Safe module defaults — always empty (use getters or useClubFinanceData in UI). */
+export const ROLLING_TWELVE_MONTH_REVENUE = 0;
+export const MONTHLY_REVENUE_HISTORY: MonthlyRevenuePoint[] = [];
+export const MONTHLY_INVOICES: MonthlyInvoice[] = [];
+export const FINANCE_OVERVIEW = EMPTY_FINANCE_OVERVIEW;
+export const FINANCE_TRANSACTIONS: FinanceTransaction[] = [];
+export const PAYOUT_SUMMARY = EMPTY_PAYOUT_SUMMARY;
+export const FINANCE_PAYOUTS: FinancePayout[] = [];
+export const FAILED_PAYMENTS: FailedPayment[] = [];
+export const FINANCE_REFUNDS: FinanceRefund[] = [];
+export const FINANCE_REPORTS: FinanceReport[] = [];
 
 export const ACCOUNTING_INTEGRATIONS: readonly AccountingIntegration[] =
   demo.ACCOUNTING_INTEGRATIONS;
 
 export const BOOKKEEPING_SYNC_ITEMS = demo.BOOKKEEPING_SYNC_ITEMS;
 
-export function getFinanceFilterOptions(): {
+export function isDemoFinanceDataEnabled(pathname?: string): boolean {
+  return shouldShowClubDemoData(pathname);
+}
+
+export function getRollingTwelveMonthRevenue(pathname?: string): number {
+  return isDemoFinanceDataEnabled(pathname)
+    ? demo.ROLLING_TWELVE_MONTH_REVENUE
+    : 0;
+}
+
+export function getMonthlyRevenueHistory(
+  pathname?: string,
+): MonthlyRevenuePoint[] {
+  return isDemoFinanceDataEnabled(pathname)
+    ? demo.MONTHLY_REVENUE_HISTORY
+    : [];
+}
+
+export function getMonthlyInvoices(pathname?: string): MonthlyInvoice[] {
+  return isDemoFinanceDataEnabled(pathname) ? demo.MONTHLY_INVOICES : [];
+}
+
+export function getFinanceOverview(pathname?: string): FinanceOverviewMetrics {
+  return isDemoFinanceDataEnabled(pathname)
+    ? demo.FINANCE_OVERVIEW
+    : EMPTY_FINANCE_OVERVIEW;
+}
+
+export function getFinanceTransactions(pathname?: string): FinanceTransaction[] {
+  return isDemoFinanceDataEnabled(pathname) ? demo.FINANCE_TRANSACTIONS : [];
+}
+
+export function getPayoutSummary(pathname?: string): PayoutSummary {
+  return isDemoFinanceDataEnabled(pathname)
+    ? demo.PAYOUT_SUMMARY
+    : EMPTY_PAYOUT_SUMMARY;
+}
+
+export function getFinancePayouts(pathname?: string): FinancePayout[] {
+  return isDemoFinanceDataEnabled(pathname) ? demo.FINANCE_PAYOUTS : [];
+}
+
+export function getFailedPayments(pathname?: string): FailedPayment[] {
+  return isDemoFinanceDataEnabled(pathname) ? demo.FAILED_PAYMENTS : [];
+}
+
+export function getFinanceRefunds(pathname?: string): FinanceRefund[] {
+  return isDemoFinanceDataEnabled(pathname) ? demo.FINANCE_REFUNDS : [];
+}
+
+export function getFinanceReports(pathname?: string): FinanceReport[] {
+  return isDemoFinanceDataEnabled(pathname) ? demo.FINANCE_REPORTS : [];
+}
+
+export function getFinanceFilterOptions(pathname?: string): {
   activities: string[];
   venues: string[];
 } {
+  const transactions = getFinanceTransactions(pathname);
   const activities = [
-    ...new Set(FINANCE_TRANSACTIONS.map((transaction) => transaction.activityName)),
+    ...new Set(transactions.map((transaction) => transaction.activityName)),
   ].sort();
   const venues = [
-    ...new Set(FINANCE_TRANSACTIONS.map((transaction) => transaction.venue)),
+    ...new Set(transactions.map((transaction) => transaction.venue)),
   ].sort();
   return { activities, venues };
-}
-
-export function isDemoFinanceDataEnabled(): boolean {
-  return useDemoFinanceData;
 }

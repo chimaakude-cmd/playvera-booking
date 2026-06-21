@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { DemoDataBadge } from "@/components/club/DemoDataBadge";
 import { PageHeader } from "@/components/club/PageHeader";
 import { LoadingState } from "@/components/club/LoadingState";
 import { loadSessionsWithMeta } from "@/lib/data";
@@ -11,10 +13,13 @@ import {
   type RegisterActivityCardData,
 } from "@/lib/club-registers";
 import type { ClubSession } from "@/lib/sessions";
+import { isClubDemoRoute } from "@/lib/club-demo-mode";
 import { RegisterActivityCard } from "./RegisterActivityCard";
 import { RegisterQrModal } from "./RegisterQrModal";
 
 export function RegistersLandingPage() {
+  const pathname = usePathname();
+  const isDemoExperience = isClubDemoRoute(pathname);
   const [loading, setLoading] = useState(true);
   const [sessions, setSessions] = useState<ClubSession[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -71,6 +76,7 @@ export function RegistersLandingPage() {
       <PageHeader
         title="Registers"
         description="Choose an activity to view its register, contact parents, or create a booking QR code."
+        action={isDemoExperience ? <DemoDataBadge /> : undefined}
       />
 
       {error ? (

@@ -8,6 +8,14 @@ export const TEST_ACCOUNTS = {
     role: "club",
     clubRole: "owner",
   },
+  demo_club: {
+    email: "demo@activora.co.uk",
+    password: "Test123!",
+    name: "Demo Club",
+    role: "club",
+    clubRole: "owner",
+    accountType: "demo",
+  },
   parent: {
     email: "parent@test.activeora.co.uk",
     password: "Test123!",
