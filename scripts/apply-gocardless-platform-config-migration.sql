@@ -1,7 +1,8 @@
--- Apply GoCardless platform config migration (00050)
+-- Apply GoCardless platform config migrations (00050 + 00051)
 -- Run in Supabase SQL editor when deploying admin-first GoCardless setup.
 
 \i supabase/migrations/00050_gocardless_platform_config.sql
+\i supabase/migrations/00051_gocardless_platform_config_rls.sql
 
 select
   id,

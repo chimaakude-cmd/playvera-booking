@@ -235,7 +235,7 @@ export function AdminGoCardlessSetupSection({ embedded = false }: Props) {
 
       const saved = (await response.json()) as ConfigResponse;
       applyConfigResponse(saved, setConfig, setResolved, setForm);
-      setMessage(saved.message ?? "GoCardless platform configuration saved.");
+      setMessage(saved.message ?? "Configuration saved");
       void loadLogs();
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : "Save failed.");
@@ -260,12 +260,18 @@ export function AdminGoCardlessSetupSection({ embedded = false }: Props) {
       };
 
       if (!response.ok || !payload.ok) {
+        const reason =
+          payload.error ??
+          payload.message ??
+          "Connection test failed.";
         throw new Error(
-          payload.error ?? payload.message ?? "Connection test failed.",
+          reason.startsWith("Connection failed:")
+            ? reason
+            : `Connection failed: ${reason}`,
         );
       }
 
-      setMessage(payload.message ?? "Connection test passed.");
+      setMessage(payload.message ?? "Connection successful");
       await loadConfig({ refresh: true });
     } catch (testError) {
       setError(

@@ -105,7 +105,7 @@ export async function PUT(request: NextRequest) {
 
     return NextResponse.json({
       ...(await buildFullConfigResponse(request, payload)),
-      message: "GoCardless platform configuration saved.",
+      message: "Configuration saved",
     });
   } catch (error) {
     return storeErrorResponse(error, "Unable to save GoCardless configuration.");

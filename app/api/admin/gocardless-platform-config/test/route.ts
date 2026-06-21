@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       ok: result.ok,
-      message: result.message,
+      message: result.ok ? "Connection successful" : `Connection failed: ${result.message}`,
       connectionStatus,
       creditorId: result.creditorId ?? null,
     });
