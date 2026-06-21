@@ -3,20 +3,19 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
-  buildNewClubChecklist,
   isSetupChecklistCollapsed,
   setSetupChecklistCollapsed,
   type NewClubChecklistItem,
 } from "@/lib/club/new-club-mode";
 
-export function SetupChecklist() {
-  const [checklist, setChecklist] = useState<NewClubChecklistItem[]>(() =>
-    buildNewClubChecklist(),
-  );
+type SetupChecklistProps = {
+  checklist: NewClubChecklistItem[];
+};
+
+export function SetupChecklist({ checklist }: SetupChecklistProps) {
   const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
-    setChecklist(buildNewClubChecklist());
     setCollapsed(isSetupChecklistCollapsed());
   }, []);
 

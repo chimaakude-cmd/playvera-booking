@@ -9,20 +9,23 @@ import {
   getPublicClubPath,
   type ClubProfile,
 } from "@/lib/club-profile/types";
+import type { ClubSession } from "@/lib/sessions";
 
 type PublicProfilePreviewProps = {
   profile: ClubProfile;
+  sessions?: ClubSession[];
   visibleToParents: boolean;
 };
 
 export function PublicProfilePreview({
   profile,
+  sessions = [],
   visibleToParents,
 }: PublicProfilePreviewProps) {
   const logoUrl =
     profile.logoUrl?.trim() || profile.profileDesign?.logoUrl?.trim() || null;
   const description = getProfileDescription(profile);
-  const locationLabel = getProfileLocationLabel(profile);
+  const locationLabel = getProfileLocationLabel(profile, sessions);
   const previewPath = getPublicClubPath(profile.publicSlug);
 
   return (

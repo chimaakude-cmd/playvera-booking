@@ -16,7 +16,7 @@ import {
   type ClubRole,
 } from "@/lib/club-team";
 import {
-  isNewClubMode,
+  fetchNewClubModeState,
   NEW_CLUB_HIDDEN_NAV_SECTIONS,
   NEW_CLUB_HIGHLIGHTED_NAV_SECTIONS,
 } from "@/lib/club/new-club-mode";
@@ -143,7 +143,9 @@ export function ClubShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     setRole(getCurrentClubRole());
-    setNewClubMode(isNewClubMode());
+    void fetchNewClubModeState().then((state) => {
+      setNewClubMode(state.isNewClubMode);
+    });
   }, [pathname]);
 
   useEffect(() => {

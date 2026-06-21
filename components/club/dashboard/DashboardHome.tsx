@@ -27,12 +27,11 @@ import { NewClubShareSection } from "./NewClubShareSection";
 import { PublicProfilePreview } from "./PublicProfilePreview";
 import { SetupChecklist } from "./SetupChecklist";
 import { getBookings, getRecentBookings } from "@/lib/bookings";
-import { fetchClubProfileFromApi } from "@/lib/club-profile/client";
 import { getClubProfile } from "@/lib/club-profile";
 import type { ClubProfileVisibility } from "@/lib/club-profile/types";
 import { DEMO_PROVIDER_ID } from "@/lib/club-widget";
 import {
-  getNewClubModeState,
+  fetchNewClubModeState,
   markFirstActivityCelebrated,
   storePublishedActivityCount,
   type NewClubModeState,
@@ -47,7 +46,7 @@ import {
 } from "@/lib/dashboard-metrics";
 import { getTotalUnreadCount } from "@/lib/inbox";
 import { getUnreadNotificationCount } from "@/lib/notifications";
-import { ClubSession, formatCurrency, getSessions } from "@/lib/sessions";
+import { ClubSession, formatCurrency } from "@/lib/sessions";
 
 function DashboardHomeContent() {
   const searchParams = useSearchParams();
@@ -70,17 +69,15 @@ function DashboardHomeContent() {
     let cancelled = false;
 
     async function loadDashboardProfile() {
-      const loadedSessions = getSessions();
-      if (!cancelled) {
-        setSessions(loadedSessions);
-      }
-
-      const apiResult = await fetchClubProfileFromApi();
-      const profile = apiResult.ok ? apiResult.profile : getClubProfile();
+      const state = await fetchNewClubModeState();
 
       if (cancelled) {
         return;
       }
+
+      const profile = state.profile;
+      setSessions(state.sessions);
+      setNewClubState(state);
 
       if (profile?.clubName) {
         setClubName(profile.clubName);
@@ -91,9 +88,6 @@ function DashboardHomeContent() {
         setProfilePublished(profile.published);
         setLiveProfile(profile);
       }
-
-      const state = getNewClubModeState(loadedSessions);
-      setNewClubState(state);
 
       if (
         state.showFirstActivityCelebration ||
@@ -168,10 +162,11 @@ function DashboardHomeContent() {
 
         <LaunchReadinessCard items={newClubState.launchReadiness} />
 
-        <SetupChecklist />
+        <SetupChecklist checklist={newClubState.checklist} />
 
         <PublicProfilePreview
           profile={newClubState.profile}
+          sessions={newClubState.sessions}
           visibleToParents={newClubState.profileVisibleToParents}
         />
 
