@@ -98,7 +98,7 @@ const TASK_DEFINITIONS: Omit<SetupTask, "completed">[] = [
     label: "Connect Stripe",
     description: "Accept card payments for paid sessions.",
     required: true,
-    href: "/club/finance?tab=stripe",
+    href: "/club/finance?tab=payment-providers",
   },
   {
     id: "add_social",

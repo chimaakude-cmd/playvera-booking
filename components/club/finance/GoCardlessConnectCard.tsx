@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   calculateGoCardlessPayoutBreakdown,
-  GOCARDLESS_STATUS_LABELS,
   completeMockGoCardlessOnboarding,
   disconnectGoCardless,
   getGoCardlessConnection,
@@ -13,34 +12,27 @@ import {
   type GoCardlessConnection,
   type GoCardlessConnectionStatus,
 } from "@/lib/gocardless";
+import {
+  PAYMENT_PROVIDER_DEFINITIONS,
+  getGoCardlessConnectionLabel,
+} from "@/lib/payment-providers/config";
 import { PLATFORM_FEE_PERCENT, formatMoney } from "@/lib/payments";
 import { FinanceButton } from "./shared";
 
 const SAMPLE_PAYMENT = 50;
+const GOCARDLESS = PAYMENT_PROVIDER_DEFINITIONS.gocardless;
 
-function StatusBadge({
-  status,
-  variant,
-}: {
-  status: GoCardlessConnectionStatus;
-  variant?: "backup" | "default";
-}) {
-  const styles: Record<GoCardlessConnectionStatus, string> = {
-    not_connected: "bg-zinc-100 text-zinc-600 ring-zinc-200",
-    pending_setup: "bg-amber-50 text-amber-800 ring-amber-200",
-    connected: "bg-emerald-50 text-emerald-700 ring-emerald-200",
-    action_required: "bg-rose-50 text-rose-700 ring-rose-200",
-    disconnected: "bg-zinc-100 text-zinc-500 ring-zinc-200",
+function StatusBadge({ status }: { status: GoCardlessConnectionStatus }) {
+  const label = getGoCardlessConnectionLabel(status);
+  const styles: Record<string, string> = {
+    "Not connected": "bg-zinc-100 text-zinc-600 ring-zinc-200",
+    "Action required": "bg-amber-50 text-amber-800 ring-amber-200",
+    Connected: "bg-emerald-50 text-emerald-700 ring-emerald-200",
   };
-
-  const label =
-    variant === "backup" && status === "not_connected"
-      ? "Available backup"
-      : GOCARDLESS_STATUS_LABELS[status];
 
   return (
     <span
-      className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ring-1 ring-inset ${styles[status]}`}
+      className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ring-1 ring-inset ${styles[label] ?? styles["Not connected"]}`}
     >
       {label}
     </span>
@@ -72,7 +64,7 @@ export function GoCardlessConnectCard() {
     if (connected === "connected") {
       const next = completeMockGoCardlessOnboarding();
       setConnection(next);
-      setMessage("GoCardless connected successfully (mock OAuth flow).");
+      setMessage("GoCardless connected successfully (placeholder flow).");
     }
   }, [searchParams]);
 
@@ -82,12 +74,8 @@ export function GoCardlessConnectCard() {
     setMessage(null);
 
     try {
-      const { url, mock } = await startGoCardlessOnboarding();
-      if (mock) {
-        window.location.assign(url);
-      } else {
-        window.location.assign(url);
-      }
+      const { url } = await startGoCardlessOnboarding();
+      window.location.assign(url);
     } catch (connectError) {
       setError(
         connectError instanceof Error
@@ -98,7 +86,7 @@ export function GoCardlessConnectCard() {
     }
   }
 
-  async function handleTest() {
+  async function handleManage() {
     setActionLoading(true);
     setError(null);
     setMessage(null);
@@ -115,26 +103,35 @@ export function GoCardlessConnectCard() {
       setError(
         testError instanceof Error
           ? testError.message
-          : "Connection test failed.",
+          : "Connection check failed.",
       );
     } finally {
       setActionLoading(false);
     }
   }
 
-  function handleViewStatus() {
-    const current = getGoCardlessConnection();
-    const lines = [
-      `Status: ${GOCARDLESS_STATUS_LABELS[current.status]}`,
-      current.organisation_id
-        ? `Organisation: ${current.organisation_id}`
-        : "Organisation: not set",
-      current.merchant_id
-        ? `Merchant: ${current.merchant_id}`
-        : "Merchant: not set",
-      `Updated: ${new Date(current.updated_at).toLocaleString("en-GB")}`,
-    ];
-    window.alert(lines.join("\n"));
+  async function handleRefreshStatus() {
+    setActionLoading(true);
+    setError(null);
+    setMessage(null);
+
+    try {
+      const result = await testGoCardlessConnection();
+      if (result.ok) {
+        setMessage(result.message);
+        refresh();
+      } else {
+        setError(result.message);
+      }
+    } catch (testError) {
+      setError(
+        testError instanceof Error
+          ? testError.message
+          : "Could not refresh GoCardless status.",
+      );
+    } finally {
+      setActionLoading(false);
+    }
   }
 
   async function handleDisconnect() {
@@ -157,51 +154,44 @@ export function GoCardlessConnectCard() {
 
   const status = connection?.status ?? "not_connected";
   const breakdown = calculateGoCardlessPayoutBreakdown(SAMPLE_PAYMENT);
+  const isConnected = status === "connected";
+  const needsSetup =
+    status === "pending_setup" || status === "action_required";
 
   return (
-    <div className="space-y-4">
+    <div className="rounded-xl border border-zinc-200 bg-zinc-50/60 p-5">
       {message ? (
-        <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+        <div className="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
           {message}
         </div>
       ) : null}
 
       {error ? (
-        <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
+        <div className="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
           {error}
         </div>
       ) : null}
 
-      <div className="flex flex-wrap items-start justify-between gap-4 rounded-xl border border-zinc-200 bg-zinc-50/60 p-5">
-        <div>
-          <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#1B2A4E] text-lg font-bold text-white">
-              GC
-            </div>
-            <div>
-              <h3 className="font-semibold text-zinc-900">GoCardless</h3>
-              <p className="text-xs text-zinc-500">
-                Direct Debit · United Kingdom · Backup provider
-              </p>
-              {loading ? (
-                <p className="mt-1 text-sm text-zinc-500">Loading status…</p>
-              ) : (
-                <div className="mt-1">
-                  <StatusBadge status={status} variant="backup" />
-                </div>
-              )}
-            </div>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <div
+            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-sm font-bold text-white"
+            style={{ backgroundColor: GOCARDLESS.brandColor }}
+          >
+            {GOCARDLESS.brandInitial}
           </div>
-
-          <p className="mt-3 text-sm text-zinc-600">
-            Use GoCardless if your club prefers Direct Debit or cannot use Stripe.
-          </p>
-
-          {connection?.merchant_id ? (
-            <p className="mt-2 font-mono text-xs text-zinc-500">
-              Merchant ID: {connection.merchant_id}
-            </p>
-          ) : null}
+          <div>
+            <h3 className="font-semibold text-zinc-900">{GOCARDLESS.name}</h3>
+            <p className="text-xs text-zinc-500">{GOCARDLESS.paymentType}</p>
+            <p className="mt-0.5 text-xs text-zinc-600">{GOCARDLESS.tagline}</p>
+            {loading ? (
+              <p className="mt-1 text-sm text-zinc-500">Loading status…</p>
+            ) : (
+              <div className="mt-1">
+                <StatusBadge status={status} />
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="flex flex-wrap gap-2">
@@ -214,38 +204,73 @@ export function GoCardlessConnectCard() {
             </FinanceButton>
           ) : null}
 
-          {status !== "not_connected" ? (
-            <>
-              <FinanceButton
-                variant="secondary"
-                onClick={handleViewStatus}
-                disabled={actionLoading}
-              >
-                View setup status
-              </FinanceButton>
-              <FinanceButton
-                variant="secondary"
-                onClick={() => void handleTest()}
-                disabled={actionLoading}
-              >
-                Test connection
-              </FinanceButton>
-              <FinanceButton
-                variant="danger"
-                onClick={() => void handleDisconnect()}
-                disabled={actionLoading}
-              >
-                Disconnect
-              </FinanceButton>
-            </>
+          {isConnected || needsSetup ? (
+            <FinanceButton
+              variant="secondary"
+              onClick={() => void handleManage()}
+              disabled={actionLoading}
+            >
+              Manage GoCardless
+            </FinanceButton>
+          ) : null}
+
+          {status !== "not_connected" && status !== "disconnected" ? (
+            <FinanceButton
+              variant="secondary"
+              onClick={() => void handleRefreshStatus()}
+              disabled={actionLoading}
+            >
+              Refresh status
+            </FinanceButton>
+          ) : null}
+
+          {status !== "not_connected" && status !== "disconnected" ? (
+            <FinanceButton
+              variant="danger"
+              onClick={() => void handleDisconnect()}
+              disabled={actionLoading}
+            >
+              Disconnect
+            </FinanceButton>
           ) : null}
         </div>
       </div>
 
-      <div className="max-w-lg rounded-xl border border-zinc-100 bg-zinc-50 p-4 text-sm">
-        <p className="font-medium text-zinc-900">Direct Debit payment breakdown</p>
-        <p className="mt-1 text-xs text-zinc-500">
-          Example for a £{SAMPLE_PAYMENT} customer payment.
+      <p className="mt-3 text-sm text-zinc-600">{GOCARDLESS.description}</p>
+
+      {connection?.merchant_id ? (
+        <p className="mt-2 font-mono text-xs text-zinc-500">
+          Merchant ID: {connection.merchant_id}
+        </p>
+      ) : null}
+
+      <div className="mt-4">
+        <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">
+          Best for
+        </p>
+        <ul className="mt-2 list-inside list-disc text-sm text-zinc-600">
+          {GOCARDLESS.bestFor.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
+        </ul>
+      </div>
+
+      {GOCARDLESS.supportedUseCases?.length ? (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {GOCARDLESS.supportedUseCases.map((useCase) => (
+            <span
+              key={useCase}
+              className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-600"
+            >
+              {useCase}
+            </span>
+          ))}
+        </div>
+      ) : null}
+
+      <div className="mt-4 max-w-lg rounded-xl border border-zinc-100 bg-white p-4 text-sm">
+        <p className="font-medium text-zinc-900">
+          Fee breakdown (example £{SAMPLE_PAYMENT} payment)
         </p>
         <dl className="mt-3 space-y-2">
           <BreakdownRow label="Customer payment" value={breakdown.customerPayment} />
@@ -267,8 +292,7 @@ export function GoCardlessConnectCard() {
           emphasis
         />
         <p className="mt-3 text-xs text-zinc-500">
-          Stripe remains the primary provider. Activora platform fee is{" "}
-          {PLATFORM_FEE_PERCENT}% on all payment methods.
+          Activora platform fee is {PLATFORM_FEE_PERCENT}% on all payment methods.
         </p>
       </div>
     </div>

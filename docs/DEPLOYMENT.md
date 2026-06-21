@@ -261,7 +261,7 @@ Validate on staging before changing production DNS or switching to live payment 
 - [ ] Login flows (`/parent/login`, `/club/login`, `/admin/login`)
 - [ ] Supabase sessions load (no amber “Supabase not configured” banner)
 - [ ] Map renders (`NEXT_PUBLIC_MAPBOX_TOKEN`)
-- [ ] Stripe Connect onboarding redirect works (`/club/finance?tab=stripe`)
+- [ ] Stripe Connect onboarding redirect works (`/club/finance?tab=payment-providers`)
 - [ ] Stripe webhook test event succeeds
 - [ ] Server logs show `[stripe]` warnings if keys are mismatched
 - [ ] Server logs show `[stripe-connect]` during Connect onboarding (temporary debug logging)

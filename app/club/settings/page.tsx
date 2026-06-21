@@ -198,7 +198,7 @@ export default function ClubSettingsPage() {
         <SettingsHubCard
           title="Stripe Connect"
           description="Connect Stripe to receive payouts. Platform fee depends on your subscription plan."
-          href="/club/finance?tab=stripe"
+          href="/club/finance?tab=payment-providers"
           cta="Open in Finance"
         />
         <SettingsHubCard

@@ -1,17 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { isGoCardlessConnected } from "@/lib/gocardless";
 import {
-  PLATFORM_FEE_PERCENT,
-  calculateStripeConnectPayoutBreakdown,
-  formatMoney,
-} from "@/lib/payments";
-import {
-  STRIPE_CONNECT_STATUS_LABELS,
-  getStripeConnectState,
-  isStripeConnected,
-  type StripeConnectStatus,
-} from "@/lib/stripe-connect";
+  isStripeProviderConnected,
+  PAYMENT_PROVIDER_ORDER,
+} from "@/lib/payment-providers/config";
 import {
   PAYMENT_METHOD_DESCRIPTIONS,
   PAYMENT_METHOD_LABELS,
@@ -22,38 +16,10 @@ import {
   getPaymentProviderSettings,
   updateEnabledMethod,
 } from "@/lib/payment-providers/storage";
-import { isGoCardlessConnected } from "@/lib/gocardless";
-import {
-  FinanceButton,
-  FinanceSection,
-  FinanceStatCard,
-} from "./shared";
+import { getStripeConnectState } from "@/lib/stripe-connect";
+import { FinanceSection } from "./shared";
 import { GoCardlessConnectCard } from "./GoCardlessConnectCard";
-
-const SAMPLE_PAYMENT = 50;
-
-function StripeStatusBadge({ status }: { status: StripeConnectStatus }) {
-  const styles: Record<StripeConnectStatus, string> = {
-    not_connected: "bg-teal-50 text-teal-700 ring-teal-200",
-    action_required: "bg-amber-50 text-amber-800 ring-amber-200",
-    connected: "bg-sky-50 text-sky-700 ring-sky-200",
-    restricted: "bg-rose-50 text-rose-700 ring-rose-200",
-    payouts_enabled: "bg-emerald-50 text-emerald-700 ring-emerald-200",
-  };
-
-  const label =
-    status === "not_connected"
-      ? "Recommended"
-      : STRIPE_CONNECT_STATUS_LABELS[status];
-
-  return (
-    <span
-      className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ring-1 ring-inset ${styles[status]}`}
-    >
-      {label}
-    </span>
-  );
-}
+import { StripeConnectCard } from "./StripeConnectCard";
 
 export function PaymentProvidersSection() {
   const [settings, setSettings] = useState<PaymentProviderSettings | null>(
@@ -73,9 +39,9 @@ export function PaymentProvidersSection() {
   }
 
   const stripe = getStripeConnectState();
-  const stripeBreakdown = calculateStripeConnectPayoutBreakdown(SAMPLE_PAYMENT);
-  const stripeConnected = isStripeConnected(stripe.status);
+  const stripeConnected = isStripeProviderConnected(stripe.status);
   const gocardlessConnected = isGoCardlessConnected(settings.gocardless_status);
+  const anyProviderConnected = stripeConnected || gocardlessConnected;
 
   function toggleMethod(methodId: PaymentMethodId, enabled: boolean) {
     if (methodId === "manual_invoice") {
@@ -89,65 +55,31 @@ export function PaymentProvidersSection() {
     <div className="space-y-6">
       <FinanceSection
         title="Payment providers"
-        description="Stripe is the primary payment provider. GoCardless is available as a backup for Direct Debit."
-        action={
-          <FinanceButton variant="secondary" onClick={refresh}>
-            Refresh
-          </FinanceButton>
-        }
+        description="Choose how your club accepts payments. You can connect Stripe, GoCardless, or both."
       >
         <div className="space-y-6">
-          {/* Stripe Connect card */}
-          <div className="rounded-xl border border-zinc-200 bg-zinc-50/60 p-5">
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#635BFF] text-lg font-bold text-white">
-                  S
-                </div>
-                <div>
-                  <h3 className="font-semibold text-zinc-900">
-                    Stripe Connect
-                  </h3>
-                  <p className="text-xs text-zinc-500">
-                    Primary · Card payments · United Kingdom
-                  </p>
-                  <div className="mt-1">
-                    <StripeStatusBadge status={stripe.status} />
-                  </div>
-                </div>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <FinanceButton
-                  variant="secondary"
-                  onClick={() => {
-                    window.location.href = "/club/finance?tab=stripe";
-                  }}
-                >
-                  Manage Stripe
-                </FinanceButton>
-              </div>
-            </div>
-            <p className="mt-3 text-sm text-zinc-600">
-              {stripeConnected
-                ? "Stripe is connected and ready for card payments."
-                : "Connect Stripe for instant card payments — recommended for most clubs."}
-            </p>
-            {stripe.stripeAccountId ? (
-              <p className="mt-2 font-mono text-xs text-zinc-500">
-                Account: {stripe.stripeAccountId}
-              </p>
-            ) : null}
-          </div>
-
-          {/* GoCardless card */}
-          <GoCardlessConnectCard />
+          {PAYMENT_PROVIDER_ORDER.map((providerId) =>
+            providerId === "stripe" ? (
+              <StripeConnectCard key={providerId} />
+            ) : (
+              <GoCardlessConnectCard key={providerId} />
+            ),
+          )}
         </div>
       </FinanceSection>
 
       <FinanceSection
-        title="Payment method options"
-        description="Choose which payment methods parents can use at checkout."
+        title="Accepted payment methods"
+        description="Enable checkout options for parents once the matching provider is connected."
       >
+        {!anyProviderConnected ? (
+          <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            No payment provider connected yet. Paid activities cannot take
+            payments until you connect Stripe or GoCardless. Free activities
+            remain available.
+          </div>
+        ) : null}
+
         <ul className="divide-y divide-zinc-100">
           {(Object.keys(PAYMENT_METHOD_LABELS) as PaymentMethodId[]).map(
             (methodId) => {
@@ -176,9 +108,14 @@ export function PaymentProvidersSection() {
                     <p className="mt-0.5 text-xs text-zinc-500">
                       {PAYMENT_METHOD_DESCRIPTIONS[methodId]}
                     </p>
+                    {!isManual && !canEnable ? (
+                      <p className="mt-1 text-xs text-zinc-500">
+                        Connect the provider above to enable this method.
+                      </p>
+                    ) : null}
                     {!isManual && !canEnable && enabled ? (
                       <p className="mt-1 text-xs text-amber-700">
-                        Provider not connected — connect above to accept this
+                        Provider not connected — reconnect above to accept this
                         method.
                       </p>
                     ) : null}
@@ -202,46 +139,13 @@ export function PaymentProvidersSection() {
             },
           )}
         </ul>
-      </FinanceSection>
 
-      <FinanceSection
-        title="Fee rules"
-        description="How customer payments are split before provider payout."
-      >
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <FinanceStatCard
-            label="Customer payment"
-            value={stripeBreakdown.customerPayment}
-            hint="Parent pays"
-            accent="teal"
-          />
-          <FinanceStatCard
-            label="Processing fee"
-            value={stripeBreakdown.stripeProcessingFee}
-            hint="Stripe or GoCardless"
-            accent="slate"
-          />
-          <FinanceStatCard
-            label="Activora fee"
-            value={stripeBreakdown.activoraPlatformFee}
-            hint={`${PLATFORM_FEE_PERCENT}% platform fee`}
-            accent="violet"
-          />
-          <FinanceStatCard
-            label="Provider payout"
-            value={stripeBreakdown.providerPayout}
-            hint="Paid to your account"
-            accent="emerald"
-          />
-        </div>
-
-        <div className="mt-5 rounded-xl border border-zinc-100 bg-zinc-50 p-4 text-sm text-zinc-600">
-          <p className="font-medium text-zinc-900">Payment flow</p>
-          <p className="mt-2">
-            Customer payment → minus processing fee (Stripe or GoCardless) →
-            minus Activora {PLATFORM_FEE_PERCENT}% → provider payout
+        {stripeConnected && gocardlessConnected ? (
+          <p className="mt-4 text-sm text-zinc-600">
+            Both providers are connected — you can enable card and Direct Debit
+            checkout together.
           </p>
-        </div>
+        ) : null}
       </FinanceSection>
     </div>
   );

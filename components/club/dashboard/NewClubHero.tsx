@@ -36,7 +36,7 @@ function buildPrimaryActions(
     {
       title: "Connect payments",
       description: "Connect Stripe to accept paid bookings",
-      href: payments?.href ?? "/club/finance?tab=stripe",
+      href: payments?.href ?? "/club/finance?tab=payment-providers",
       completed: payments?.completed ?? false,
     },
     {

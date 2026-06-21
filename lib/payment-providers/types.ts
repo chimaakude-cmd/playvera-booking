@@ -26,7 +26,8 @@ export const PAYMENT_METHOD_LABELS: Record<PaymentMethodId, string> = {
 };
 
 export const PAYMENT_METHOD_DESCRIPTIONS: Record<PaymentMethodId, string> = {
-  stripe_card: "Primary option — instant card payments with Stripe Connect.",
-  gocardless_direct_debit: "Backup option — UK Direct Debit when Stripe isn't suitable.",
+  stripe_card: "Instant card payments when Stripe Connect is connected.",
+  gocardless_direct_debit:
+    "UK Direct Debit for subscriptions and recurring plans when GoCardless is connected.",
   manual_invoice: "Send invoices and collect BACS payments outside Activora.",
 };

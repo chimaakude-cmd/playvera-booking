@@ -5,7 +5,6 @@ export const FINANCE_TABS = [
   { id: "failed-payments", label: "Failed payments" },
   { id: "refunds", label: "Refunds" },
   { id: "fees", label: "Fee handling" },
-  { id: "stripe", label: "Stripe" },
   { id: "payment-providers", label: "Payment providers" },
   { id: "invoices", label: "Invoices" },
   { id: "vat", label: "VAT" },

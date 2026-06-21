@@ -46,7 +46,7 @@ export function FinanceIntegrationsSection() {
           Bookkeeping integrations are locked until Stripe is connected. Current
           status:{" "}
           <strong>{STRIPE_CONNECT_STATUS_LABELS[stripeStatus]}</strong>. Complete
-          Stripe Connect under the <strong>Stripe</strong> tab first.
+          Stripe Connect under <strong>Payment providers</strong> first.
         </div>
       ) : (
         <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">

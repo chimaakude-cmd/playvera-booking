@@ -64,8 +64,8 @@ export async function POST(request: Request) {
     const stripe = getStripe();
     const providerId = body.providerId?.trim() || "demo-provider-1";
     const baseUrl = getAppBaseUrl(request);
-    const returnUrl = `${baseUrl}/club/finance?tab=stripe&stripe=complete`;
-    const refreshUrl = `${baseUrl}/club/finance?tab=stripe&retry=1`;
+    const returnUrl = `${baseUrl}/club/finance?tab=payment-providers&stripe=complete`;
+    const refreshUrl = `${baseUrl}/club/finance?tab=payment-providers&retry=1`;
 
     const environment = resolveStripeMode();
     const providerEmail =

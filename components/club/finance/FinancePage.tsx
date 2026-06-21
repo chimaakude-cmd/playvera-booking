@@ -40,13 +40,6 @@ const FinanceFeeHandlingSection = dynamic(
     import("./FinanceFeeHandlingSection").then((m) => m.FinanceFeeHandlingSection),
   { loading: () => <SectionSkeleton rows={3} /> },
 );
-const FinanceStripeConnectSection = dynamic(
-  () =>
-    import("./FinanceStripeConnectSection").then(
-      (m) => m.FinanceStripeConnectSection,
-    ),
-  { loading: () => <SectionSkeleton rows={5} />, ssr: false },
-);
 const PaymentProvidersSection = dynamic(
   () =>
     import("./PaymentProvidersSection").then((m) => m.PaymentProvidersSection),
@@ -80,20 +73,28 @@ const FinanceReportsSection = dynamic(
 const VALID_TABS = new Set<string>(FINANCE_TABS.map((t) => t.id));
 
 function isFinanceTab(value: string | null): value is FinanceTab {
+  if (value === "stripe") {
+    return true;
+  }
   return value !== null && VALID_TABS.has(value);
+}
+
+function resolveFinanceTab(value: string | null): FinanceTab {
+  if (value === "stripe") {
+    return "payment-providers";
+  }
+  return isFinanceTab(value) ? value : "overview";
 }
 
 export function FinancePage() {
   const searchParams = useSearchParams();
   const tabParam = searchParams.get("tab");
   const [activeTab, setActiveTab] = useState<FinanceTab>(
-    isFinanceTab(tabParam) ? tabParam : "overview",
+    resolveFinanceTab(tabParam),
   );
 
   useEffect(() => {
-    if (isFinanceTab(tabParam)) {
-      setActiveTab(tabParam);
-    }
+    setActiveTab(resolveFinanceTab(tabParam));
   }, [tabParam]);
 
   const setTab = useCallback((tab: FinanceTab) => {
@@ -147,7 +148,6 @@ export function FinancePage() {
       ) : null}
       {activeTab === "refunds" ? <FinanceRefundsSection /> : null}
       {activeTab === "fees" ? <FinanceFeeHandlingSection /> : null}
-      {activeTab === "stripe" ? <FinanceStripeConnectSection /> : null}
       {activeTab === "payment-providers" ? <PaymentProvidersSection /> : null}
       {activeTab === "invoices" ? <FinanceInvoicesSection /> : null}
       {activeTab === "vat" ? <FinanceVatSection /> : null}

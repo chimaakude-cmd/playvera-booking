@@ -154,7 +154,7 @@ const newClubQuickActions: QuickAction[] = [
   {
     label: "Connect payments",
     description: "Set up Stripe for paid bookings",
-    href: "/club/finance?tab=stripe",
+    href: "/club/finance?tab=payment-providers",
     tone: "neutral",
   },
 ];

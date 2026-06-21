@@ -301,7 +301,7 @@ export function buildNewClubChecklist(
       title: "Connect payments",
       description: "Connect Stripe to accept paid bookings. Free sessions still work without this.",
       actionLabel: stripeConnected ? "Connected" : "Connect",
-      href: "/club/finance?tab=stripe",
+      href: "/club/finance?tab=payment-providers",
       completed: stripeConnected,
       primary: true,
     },

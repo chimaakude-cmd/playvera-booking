@@ -44,7 +44,6 @@ export type FinanceTab =
   | "failed-payments"
   | "refunds"
   | "fees"
-  | "stripe"
   | "payment-providers"
   | "invoices"
   | "vat"
