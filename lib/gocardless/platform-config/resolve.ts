@@ -3,7 +3,10 @@ import type { GoCardlessEnvConfig, GoCardlessEnvironment } from "../env";
 import { getGoCardlessEnvFromProcessEnv } from "../env";
 import { isPlatformConnectionVerified } from "./connection-status";
 import { getServerGoCardlessPlatformConfig } from "./server-store";
-import type { ResolvedGoCardlessPlatformConfig } from "./types";
+import type {
+  GoCardlessPlatformConfigPayload,
+  ResolvedGoCardlessPlatformConfig,
+} from "./types";
 
 function pickString(
   envValue: string | null,
@@ -39,9 +42,10 @@ export function getEnvOverrideFlags(processEnv: GoCardlessEnvConfig) {
 
 export async function resolveGoCardlessPlatformConfig(
   request?: Request,
+  cachedPayload?: GoCardlessPlatformConfigPayload,
 ): Promise<ResolvedGoCardlessPlatformConfig> {
   const processEnv = getGoCardlessEnvFromProcessEnv();
-  const db = await getServerGoCardlessPlatformConfig();
+  const db = cachedPayload ?? (await getServerGoCardlessPlatformConfig());
   const envOverrides = getEnvOverrideFlags(processEnv);
   const baseUrl = resolveServerAppBaseUrl(request);
   const defaultCallback = `${baseUrl}/api/gocardless/connect/callback`;

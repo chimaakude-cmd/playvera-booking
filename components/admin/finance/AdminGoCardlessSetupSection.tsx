@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type Dispatch, type SetStateAction } from "react";
 import { PageHeader } from "@/components/club/PageHeader";
 import type {
   GoCardlessPlatformConfigPublic,
@@ -16,7 +16,42 @@ type ConfigResponse = {
     callbackUri: string;
     webhookUri: string;
   };
+  message?: string;
 };
+
+async function parseApiError(
+  response: Response,
+  fallback: string,
+): Promise<string> {
+  try {
+    const payload = (await response.json()) as { error?: string; message?: string };
+    return payload.error ?? payload.message ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function applyConfigResponse(
+  configData: ConfigResponse,
+  setConfig: (config: GoCardlessPlatformConfigPublic) => void,
+  setResolved: (resolved: ConfigResponse["resolved"]) => void,
+  setForm: Dispatch<SetStateAction<FormState>>,
+) {
+  setConfig(configData.config);
+  setResolved(configData.resolved);
+  setForm({
+    environment: configData.config.environment,
+    accessToken: "",
+    webhookSecret: "",
+    clientId: configData.config.clientId ?? "",
+    clientSecret: "",
+    redirectUri: configData.config.redirectUri ?? "",
+    callbackUri:
+      configData.config.callbackUri ?? configData.resolved.callbackUri,
+    platformEnabled: configData.config.platformEnabled,
+    platformFeePercent: String(configData.config.platformFeePercent),
+  });
+}
 
 type FormState = {
   environment: "sandbox" | "live";
@@ -89,7 +124,8 @@ export function AdminGoCardlessSetupSection({ embedded = false }: Props) {
     platformFeePercent: "2.5",
   });
   const [logs, setLogs] = useState<GoCardlessPlatformLogRow[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -98,56 +134,67 @@ export function AdminGoCardlessSetupSection({ embedded = false }: Props) {
     null,
   );
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-
+  const loadLogs = useCallback(async () => {
     try {
-      const [configRes, logsRes] = await Promise.all([
-        fetch("/api/admin/gocardless-platform-config"),
-        fetch("/api/admin/gocardless-platform-config/logs?limit=20"),
-      ]);
-
-      if (!configRes.ok) {
-        throw new Error("Unable to load GoCardless platform configuration.");
-      }
-
-      const configData = (await configRes.json()) as ConfigResponse;
-      setConfig(configData.config);
-      setResolved(configData.resolved);
-      setForm({
-        environment: configData.config.environment,
-        accessToken: "",
-        webhookSecret: "",
-        clientId: configData.config.clientId ?? "",
-        clientSecret: "",
-        redirectUri: configData.config.redirectUri ?? "",
-        callbackUri:
-          configData.config.callbackUri ?? configData.resolved.callbackUri,
-        platformEnabled: configData.config.platformEnabled,
-        platformFeePercent: String(configData.config.platformFeePercent),
-      });
-
+      const logsRes = await fetch(
+        "/api/admin/gocardless-platform-config/logs?limit=20",
+      );
       if (logsRes.ok) {
         const logsData = (await logsRes.json()) as {
           logs: GoCardlessPlatformLogRow[];
         };
         setLogs(logsData.logs);
       }
-    } catch (loadError) {
-      setError(
-        loadError instanceof Error
-          ? loadError.message
-          : "Failed to load configuration.",
-      );
-    } finally {
-      setLoading(false);
+    } catch {
+      // Logs are non-blocking; keep existing entries on failure.
     }
   }, []);
 
+  const loadConfig = useCallback(
+    async (options?: { refresh?: boolean }) => {
+      const isRefresh = options?.refresh ?? false;
+      if (isRefresh) {
+        setRefreshing(true);
+      } else {
+        setInitialLoading(true);
+      }
+      setError(null);
+
+      try {
+        const configRes = await fetch("/api/admin/gocardless-platform-config");
+
+        if (!configRes.ok) {
+          throw new Error(
+            await parseApiError(
+              configRes,
+              "Unable to load GoCardless platform configuration.",
+            ),
+          );
+        }
+
+        const configData = (await configRes.json()) as ConfigResponse;
+        applyConfigResponse(configData, setConfig, setResolved, setForm);
+        void loadLogs();
+      } catch (loadError) {
+        setError(
+          loadError instanceof Error
+            ? loadError.message
+            : "Failed to load configuration.",
+        );
+      } finally {
+        if (isRefresh) {
+          setRefreshing(false);
+        } else {
+          setInitialLoading(false);
+        }
+      }
+    },
+    [loadLogs],
+  );
+
   useEffect(() => {
-    void load();
-  }, [load]);
+    void loadConfig();
+  }, [loadConfig]);
 
   async function handleSave() {
     setSaving(true);
@@ -181,18 +228,15 @@ export function AdminGoCardlessSetupSection({ embedded = false }: Props) {
       });
 
       if (!response.ok) {
-        const payload = (await response.json()) as { error?: string };
-        throw new Error(payload.error ?? "Save failed.");
+        throw new Error(
+          await parseApiError(response, "Save failed."),
+        );
       }
 
-      setMessage("GoCardless platform configuration saved.");
-      setForm((current) => ({
-        ...current,
-        accessToken: "",
-        webhookSecret: "",
-        clientSecret: "",
-      }));
-      await load();
+      const saved = (await response.json()) as ConfigResponse;
+      applyConfigResponse(saved, setConfig, setResolved, setForm);
+      setMessage(saved.message ?? "GoCardless platform configuration saved.");
+      void loadLogs();
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : "Save failed.");
     } finally {
@@ -216,11 +260,13 @@ export function AdminGoCardlessSetupSection({ embedded = false }: Props) {
       };
 
       if (!response.ok || !payload.ok) {
-        throw new Error(payload.error ?? payload.message ?? "Connection test failed.");
+        throw new Error(
+          payload.error ?? payload.message ?? "Connection test failed.",
+        );
       }
 
       setMessage(payload.message ?? "Connection test passed.");
-      await load();
+      await loadConfig({ refresh: true });
     } catch (testError) {
       setError(
         testError instanceof Error
@@ -248,7 +294,7 @@ export function AdminGoCardlessSetupSection({ embedded = false }: Props) {
         throw new Error("Unable to disable GoCardless platform.");
       }
       setMessage("GoCardless platform disabled.");
-      await load();
+      await loadConfig({ refresh: true });
     } catch (disableError) {
       setError(
         disableError instanceof Error
@@ -284,7 +330,7 @@ export function AdminGoCardlessSetupSection({ embedded = false }: Props) {
 
       setTestSplit(payload.split ?? null);
       setMessage(payload.message ?? "Test payment recorded.");
-      await load();
+      await loadConfig({ refresh: true });
     } catch (paymentError) {
       setError(
         paymentError instanceof Error
@@ -320,7 +366,7 @@ export function AdminGoCardlessSetupSection({ embedded = false }: Props) {
       }
 
       setMessage(payload.message ?? "Webhook simulated.");
-      await load();
+      await loadConfig({ refresh: true });
     } catch (webhookError) {
       setError(
         webhookError instanceof Error
@@ -335,6 +381,12 @@ export function AdminGoCardlessSetupSection({ embedded = false }: Props) {
   const lastCheckedLabel = config?.lastTestedAt
     ? new Date(config.lastTestedAt).toLocaleString("en-GB")
     : "Never";
+
+  const canTestConnection = Boolean(
+    config?.hasAccessToken ||
+      form.accessToken.trim() ||
+      resolved?.isBillingConfigured,
+  );
 
   return (
     <div className="space-y-6" id={embedded ? "gocardless-platform-setup" : undefined}>
@@ -427,7 +479,7 @@ export function AdminGoCardlessSetupSection({ embedded = false }: Props) {
           </p>
         </div>
 
-        {loading ? (
+        {initialLoading ? (
           <p className="px-6 py-8 text-sm text-zinc-500">Loading configuration…</p>
         ) : (
           <div className="grid gap-5 p-6 lg:grid-cols-2">
@@ -566,27 +618,33 @@ export function AdminGoCardlessSetupSection({ embedded = false }: Props) {
         )}
 
         <div className="flex flex-wrap gap-2 border-t border-zinc-100 px-6 py-4">
-          <ActionButton onClick={() => void handleSave()} disabled={saving || loading}>
+          {refreshing ? (
+            <p className="self-center text-xs text-zinc-500">Refreshing status…</p>
+          ) : null}
+          <ActionButton
+            onClick={() => void handleSave()}
+            disabled={saving || initialLoading}
+          >
             {saving ? "Saving…" : "Save securely"}
           </ActionButton>
           <ActionButton
             variant="secondary"
             onClick={() => void handleTestConnection()}
-            disabled={testing || loading}
+            disabled={testing || initialLoading || !canTestConnection}
           >
             Test connection
           </ActionButton>
           <ActionButton
             variant="secondary"
-            onClick={() => void load()}
-            disabled={loading}
+            onClick={() => void loadLogs()}
+            disabled={initialLoading}
           >
             View logs
           </ActionButton>
           <ActionButton
             variant="danger"
             onClick={() => void handleDisable()}
-            disabled={saving || loading}
+            disabled={saving || initialLoading}
           >
             Disable
           </ActionButton>

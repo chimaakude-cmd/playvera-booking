@@ -18,16 +18,38 @@ import {
   updateServerGoCardlessPlatformConfig,
 } from "@/lib/gocardless/platform-config";
 import { getGoCardlessEnvFromProcessEnv } from "@/lib/gocardless/env";
-import type { GoCardlessPlatformConfigUpdate } from "@/lib/gocardless/platform-config/types";
+import type { GoCardlessPlatformConfigPayload, GoCardlessPlatformConfigUpdate } from "@/lib/gocardless/platform-config/types";
 
 function storeErrorResponse(error: unknown, fallback: string) {
   if (error instanceof GoCardlessPlatformConfigStoreError) {
-    const status = error.code === "not_configured" ? 503 : 500;
+    const status =
+      error.code === "not_configured" || error.code === "migration_required"
+        ? 503
+        : 500;
     return NextResponse.json({ error: error.message }, { status });
   }
 
   console.error("[GoCardless platform config] API error:", error);
   return NextResponse.json({ error: fallback }, { status: 500 });
+}
+
+async function buildFullConfigResponse(
+  request: NextRequest,
+  payload: GoCardlessPlatformConfigPayload,
+) {
+  const envOverrides = getEnvOverrideFlags(getGoCardlessEnvFromProcessEnv());
+  const resolved = await resolveGoCardlessPlatformConfig(request, payload);
+  const baseUrl = resolveServerAppBaseUrl(request);
+
+  return {
+    config: payloadToPublic(payload, envOverrides),
+    resolved: {
+      isClubConnectAvailable: resolved.isClubConnectAvailable,
+      isBillingConfigured: resolved.isBillingConfigured,
+      callbackUri: resolved.callbackUri,
+      webhookUri: `${baseUrl}/api/webhooks/gocardless`,
+    },
+  };
 }
 
 export async function GET(request: NextRequest) {
@@ -37,22 +59,8 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const [payload, resolved] = await Promise.all([
-      getServerGoCardlessPlatformConfig(),
-      resolveGoCardlessPlatformConfig(request),
-    ]);
-    const envOverrides = getEnvOverrideFlags(getGoCardlessEnvFromProcessEnv());
-    const baseUrl = resolveServerAppBaseUrl(request);
-
-    return NextResponse.json({
-      config: payloadToPublic(payload, envOverrides),
-      resolved: {
-        isClubConnectAvailable: resolved.isClubConnectAvailable,
-        isBillingConfigured: resolved.isBillingConfigured,
-        callbackUri: resolved.callbackUri,
-        webhookUri: `${baseUrl}/api/webhooks/gocardless`,
-      },
-    });
+    const payload = await getServerGoCardlessPlatformConfig();
+    return NextResponse.json(await buildFullConfigResponse(request, payload));
   } catch (error) {
     return storeErrorResponse(error, "Failed to load GoCardless platform config.");
   }
@@ -95,10 +103,9 @@ export async function PUT(request: NextRequest) {
       },
     });
 
-    const envOverrides = getEnvOverrideFlags(getGoCardlessEnvFromProcessEnv());
-
     return NextResponse.json({
-      config: payloadToPublic(payload, envOverrides),
+      ...(await buildFullConfigResponse(request, payload)),
+      message: "GoCardless platform configuration saved.",
     });
   } catch (error) {
     return storeErrorResponse(error, "Unable to save GoCardless configuration.");
