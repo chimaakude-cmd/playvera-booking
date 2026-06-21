@@ -11,7 +11,10 @@ import { LoadingState } from "@/components/club/LoadingState";
 import {
   buildShareContent,
   downloadDataUrl,
+  downloadSvg,
+  getClubPublicUrl,
   getQrDataUrl,
+  getQrSvg,
   nativeShare,
 } from "@/lib/club-share";
 import {
@@ -206,15 +209,39 @@ export function WebsiteWidgetPage() {
     updateSettings({ selectedActivityIds: ids });
   }
 
+  const clubQrUrl = useMemo(
+    () =>
+      profile?.publicSlug
+        ? getClubPublicUrl(profile.publicSlug, { forQr: true })
+        : null,
+    [profile?.publicSlug],
+  );
+
   async function handleGenerateQr() {
+    if (!clubQrUrl) {
+      return;
+    }
     setQrLoading(true);
     try {
-      const url = await getQrDataUrl(embedUrl, profile?.logoUrl);
+      const url = await getQrDataUrl(clubQrUrl);
       setQrDataUrl(url);
     } catch {
       setQrDataUrl(null);
     } finally {
       setQrLoading(false);
+    }
+  }
+
+  async function handleDownloadSvg() {
+    if (!clubQrUrl) {
+      return;
+    }
+    try {
+      const svg = await getQrSvg(clubQrUrl);
+      const slug = profile?.publicSlug ?? "club";
+      downloadSvg(svg, `${slug}-qr.svg`);
+    } catch {
+      // ignore
     }
   }
 
@@ -491,7 +518,7 @@ export function WebsiteWidgetPage() {
                     QR code
                   </h3>
                   <p className="mt-1 text-sm text-zinc-500">
-                    Print or display a scannable link to your widget.
+                    Print or display a scannable link to your public club profile.
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -504,13 +531,22 @@ export function WebsiteWidgetPage() {
                     {qrLoading ? "Generating…" : "Generate QR code"}
                   </button>
                   {qrDataUrl ? (
-                    <button
-                      type="button"
-                      onClick={handleDownloadQr}
-                      className="inline-flex h-10 items-center rounded-xl border border-zinc-200 bg-white px-4 text-sm font-semibold text-zinc-700 transition-colors hover:bg-zinc-50"
-                    >
-                      Download QR
-                    </button>
+                    <>
+                      <button
+                        type="button"
+                        onClick={handleDownloadQr}
+                        className="inline-flex h-10 items-center rounded-xl border border-zinc-200 bg-white px-4 text-sm font-semibold text-zinc-700 transition-colors hover:bg-zinc-50"
+                      >
+                        Download PNG
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void handleDownloadSvg()}
+                        className="inline-flex h-10 items-center rounded-xl border border-zinc-200 bg-white px-4 text-sm font-semibold text-zinc-700 transition-colors hover:bg-zinc-50"
+                      >
+                        Download SVG
+                      </button>
+                    </>
                   ) : null}
                   <button
                     type="button"

@@ -7,6 +7,7 @@ import { getShortDisplayUrl } from "@/lib/club-share/url";
 type ShareInstagramImageProps = {
   clubName: string;
   link: string;
+  qrTargetUrl?: string;
   logoUrl?: string | null;
   primaryColor?: string;
   secondaryColor?: string;
@@ -16,6 +17,7 @@ type ShareInstagramImageProps = {
 export async function generateInstagramShareImage(options: {
   clubName: string;
   link: string;
+  qrTargetUrl?: string;
   logoUrl?: string | null;
   primaryColor?: string;
   secondaryColor?: string;
@@ -23,6 +25,7 @@ export async function generateInstagramShareImage(options: {
   const {
     clubName,
     link,
+    qrTargetUrl,
     logoUrl,
     primaryColor = "#0d9488",
     secondaryColor = "#14b8a6",
@@ -72,8 +75,9 @@ export async function generateInstagramShareImage(options: {
     }
   }
 
-  const qrUrl = await getQrDataUrl(link, null);
-  const qr = await loadImage(qrUrl);
+  const qrLink = qrTargetUrl ?? link;
+  const qrImageUrl = await getQrDataUrl(qrLink);
+  const qr = await loadImage(qrImageUrl);
   const qrSize = 320;
   ctx.drawImage(qr, size / 2 - qrSize / 2, 520, qrSize, qrSize);
 
@@ -97,6 +101,7 @@ function loadImage(src: string): Promise<HTMLImageElement> {
 export function ShareInstagramImage({
   clubName,
   link,
+  qrTargetUrl,
   logoUrl,
   primaryColor,
   secondaryColor,
@@ -114,6 +119,7 @@ export function ShareInstagramImage({
       const url = await generateInstagramShareImage({
         clubName,
         link,
+        qrTargetUrl,
         logoUrl,
         primaryColor,
         secondaryColor,
@@ -139,7 +145,7 @@ export function ShareInstagramImage({
     return () => {
       cancelled = true;
     };
-  }, [clubName, link, logoUrl, primaryColor, secondaryColor, onGenerated]);
+  }, [clubName, link, qrTargetUrl, logoUrl, primaryColor, secondaryColor, onGenerated]);
 
   function handleDownload() {
     if (!dataUrl) {

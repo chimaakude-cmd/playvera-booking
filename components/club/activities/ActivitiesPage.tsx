@@ -507,6 +507,7 @@ function ActivitiesPageContent({
           published={shareRow.session.published}
           status={shareRow.status}
           clubName={profile.clubName}
+          slug={profile.publicSlug}
           logoUrl={profile.logoUrl}
           primaryColor={profile.branding?.primaryColor}
           secondaryColor={profile.branding?.secondaryColor}

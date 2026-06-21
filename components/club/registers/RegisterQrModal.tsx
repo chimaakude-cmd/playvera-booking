@@ -1,11 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useModalDismiss } from "@/lib/hooks/use-modal-dismiss";
 import { getClubProfile } from "@/lib/club-profile";
 import {
   downloadDataUrl,
+  downloadSvg,
+  getClubPublicUrl,
   getQrDataUrl,
+  getQrSvg,
+  getShortDisplayUrl,
   openPrintView,
 } from "@/lib/club-share";
 import { getActivityBookingUrl } from "@/lib/club-registers";
@@ -27,11 +31,20 @@ export function RegisterQrModal({
   const [loading, setLoading] = useState(false);
   const profile = getClubProfile();
   const bookingUrl = getActivityBookingUrl(activityId);
+  const clubSlug = profile?.publicSlug?.trim() ?? "";
+  const clubProfileUrl = useMemo(
+    () => getClubPublicUrl(clubSlug),
+    [clubSlug],
+  );
+  const qrUrl = useMemo(
+    () => getClubPublicUrl(clubSlug, { forQr: true }),
+    [clubSlug],
+  );
 
   useModalDismiss(open, onClose);
 
   useEffect(() => {
-    if (!open) {
+    if (!open || !clubSlug) {
       setQrDataUrl(null);
       return;
     }
@@ -39,7 +52,7 @@ export function RegisterQrModal({
     let cancelled = false;
     setLoading(true);
 
-    void getQrDataUrl(bookingUrl, profile?.logoUrl)
+    void getQrDataUrl(qrUrl)
       .then((url) => {
         if (!cancelled) {
           setQrDataUrl(url);
@@ -59,7 +72,7 @@ export function RegisterQrModal({
     return () => {
       cancelled = true;
     };
-  }, [open, bookingUrl, profile?.logoUrl]);
+  }, [open, qrUrl, clubSlug]);
 
   if (!open) {
     return null;
@@ -69,7 +82,19 @@ export function RegisterQrModal({
     if (!qrDataUrl) {
       return;
     }
-    downloadDataUrl(qrDataUrl, `${activityId}-booking-qr.png`);
+    downloadDataUrl(qrDataUrl, `${clubSlug || activityId}-qr.png`);
+  }
+
+  async function handleDownloadSvg() {
+    if (!clubSlug) {
+      return;
+    }
+    try {
+      const svg = await getQrSvg(qrUrl);
+      downloadSvg(svg, `${clubSlug}-qr.svg`);
+    } catch {
+      // ignore
+    }
   }
 
   function handlePrint() {
@@ -79,7 +104,7 @@ export function RegisterQrModal({
     openPrintView(
       qrDataUrl,
       profile?.clubName ?? activityTitle,
-      bookingUrl,
+      clubProfileUrl,
     );
   }
 
@@ -106,7 +131,7 @@ export function RegisterQrModal({
               id="register-qr-title"
               className="text-lg font-semibold text-zinc-900"
             >
-              Booking QR code
+              Club QR code
             </h2>
             <p className="mt-1 text-sm text-zinc-500">{activityTitle}</p>
           </div>
@@ -120,8 +145,8 @@ export function RegisterQrModal({
         </div>
 
         <p className="mt-4 text-sm text-zinc-600">
-          Parents can scan this code to open the public booking page for this
-          activity.
+          Parents can scan this code to open your public club profile and book
+          activities.
         </p>
 
         <div className="mt-5 flex justify-center rounded-2xl border border-zinc-100 bg-zinc-50 p-6">
@@ -132,7 +157,7 @@ export function RegisterQrModal({
           ) : qrDataUrl ? (
             <img
               src={qrDataUrl}
-              alt={`QR code for ${activityTitle}`}
+              alt={`QR code for ${profile?.clubName ?? activityTitle}`}
               className="h-48 w-48"
             />
           ) : (
@@ -141,7 +166,7 @@ export function RegisterQrModal({
         </div>
 
         <p className="mt-4 break-all rounded-xl bg-zinc-50 px-3 py-2 text-xs text-zinc-600">
-          {bookingUrl}
+          {clubSlug ? getShortDisplayUrl(clubProfileUrl) : bookingUrl}
         </p>
 
         <div className="mt-5 flex flex-wrap gap-2">
@@ -151,7 +176,15 @@ export function RegisterQrModal({
             disabled={!qrDataUrl}
             className="rounded-xl bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-50"
           >
-            Download
+            Download PNG
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleDownloadSvg()}
+            disabled={!qrDataUrl}
+            className="rounded-xl border border-zinc-200 px-4 py-2.5 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 disabled:opacity-50"
+          >
+            Download SVG
           </button>
           <button
             type="button"
@@ -166,7 +199,7 @@ export function RegisterQrModal({
             onClick={() => void handleCopyLink()}
             className="rounded-xl border border-zinc-200 px-4 py-2.5 text-sm font-semibold text-zinc-700 hover:bg-zinc-50"
           >
-            Copy link
+            Copy booking link
           </button>
         </div>
       </div>

@@ -12,7 +12,9 @@ import {
   getClubPublicUrl,
   getMoreSocialShareActions,
   getPrimarySocialShareActions,
+  downloadSvg,
   getQrDataUrl,
+  getQrSvg,
   getShortDisplayUrl,
   nativeShare,
   openPrintView,
@@ -67,6 +69,7 @@ export function ShareClubModal({
   const [mounted, setMounted] = useState(false);
   const [resolvedSlug, setResolvedSlug] = useState(slug);
   const [resolvedClubName, setResolvedClubName] = useState(clubName);
+  const [profileLoading, setProfileLoading] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -79,20 +82,29 @@ export function ShareClubModal({
 
     setResolvedSlug(slug);
     setResolvedClubName(clubName);
+    setProfileLoading(true);
 
     let cancelled = false;
-    void fetchClubProfileFromApi().then((result) => {
-      if (cancelled || !result.ok) {
-        return;
-      }
+    void fetchClubProfileFromApi()
+      .then((result) => {
+        if (cancelled) {
+          return;
+        }
 
-      if (result.profile.publicSlug?.trim()) {
-        setResolvedSlug(result.profile.publicSlug);
-      }
-      if (result.profile.clubName?.trim()) {
-        setResolvedClubName(result.profile.clubName);
-      }
-    });
+        if (result.ok) {
+          if (result.profile.publicSlug?.trim()) {
+            setResolvedSlug(result.profile.publicSlug);
+          }
+          if (result.profile.clubName?.trim()) {
+            setResolvedClubName(result.profile.clubName);
+          }
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setProfileLoading(false);
+        }
+      });
 
     return () => {
       cancelled = true;
@@ -143,7 +155,7 @@ export function ShareClubModal({
     }
 
     let cancelled = false;
-    void getQrDataUrl(qrUrl, logoUrl)
+    void getQrDataUrl(qrUrl)
       .then((url) => {
         if (!cancelled) {
           setQrDataUrl(url);
@@ -158,7 +170,7 @@ export function ShareClubModal({
     return () => {
       cancelled = true;
     };
-  }, [open, canShare, qrUrl, logoUrl]);
+  }, [open, canShare, qrUrl]);
 
   useEffect(() => {
     if (!open) {
@@ -208,6 +220,16 @@ export function ShareClubModal({
       return;
     }
     openPrintView(qrDataUrl, resolvedClubName, publicUrl);
+  }
+
+  async function handleDownloadSvg() {
+    try {
+      const svg = await getQrSvg(qrUrl);
+      downloadSvg(svg, `${effectiveSlug}-qr.svg`);
+      showToast("SVG downloaded");
+    } catch {
+      showToast("Could not generate SVG");
+    }
   }
 
   async function handleSocialAction(
@@ -333,9 +355,13 @@ export function ShareClubModal({
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4 sm:px-6">
           {tab === "share" ? (
             <div className="space-y-6">
-              {!canShare ? (
+              {!profileLoading && !canShare ? (
                 <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-900">
                   {shareValidation.message}
+                </div>
+              ) : profileLoading ? (
+                <div className="rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-8 text-center text-sm text-zinc-500">
+                  Preparing your share link…
                 </div>
               ) : (
                 <>
@@ -360,7 +386,13 @@ export function ShareClubModal({
                 </p>
                 <div className="mt-3 flex flex-wrap justify-center gap-2">
                   <ActionButton onClick={handleDownloadQr} disabled={!qrDataUrl}>
-                    Download QR
+                    Download PNG
+                  </ActionButton>
+                  <ActionButton
+                    onClick={() => void handleDownloadSvg()}
+                    disabled={!qrDataUrl}
+                  >
+                    Download SVG
                   </ActionButton>
                   <ActionButton onClick={() => void handleCopyLink()}>
                     {copied ? "Copied!" : "Copy link"}

@@ -7,10 +7,13 @@ import {
   copyShareLink,
   copySlackShareMessage,
   downloadDataUrl,
+  downloadSvg,
   getActivityPublicUrl,
+  getClubPublicUrl,
   getMoreSocialShareActions,
   getPrimarySocialShareActions,
   getQrDataUrl,
+  getQrSvg,
   getShortDisplayUrl,
   openPrintView,
   trackShareEvent,
@@ -31,6 +34,7 @@ type ShareActivityModalProps = {
   published?: boolean;
   status?: string;
   clubName: string;
+  slug: string;
   logoUrl?: string | null;
   primaryColor?: string;
   secondaryColor?: string;
@@ -44,6 +48,7 @@ export function ShareActivityModal({
   published,
   status,
   clubName,
+  slug,
   logoUrl,
   primaryColor = "#0d9488",
   secondaryColor = "#14b8a6",
@@ -70,8 +75,8 @@ export function ShareActivityModal({
     [activityId],
   );
   const qrUrl = useMemo(
-    () => getActivityPublicUrl(activityId, { forQr: true }),
-    [activityId],
+    () => getClubPublicUrl(slug, { forQr: true }),
+    [slug],
   );
   const shareContent = useMemo(
     () =>
@@ -97,7 +102,7 @@ export function ShareActivityModal({
     }
 
     let cancelled = false;
-    void getQrDataUrl(qrUrl, logoUrl)
+    void getQrDataUrl(qrUrl)
       .then((url) => {
         if (!cancelled) {
           setQrDataUrl(url);
@@ -112,7 +117,7 @@ export function ShareActivityModal({
     return () => {
       cancelled = true;
     };
-  }, [open, canShare, qrUrl, logoUrl]);
+  }, [open, canShare, qrUrl]);
 
   useEffect(() => {
     if (!open) {
@@ -158,7 +163,17 @@ export function ShareActivityModal({
     if (!qrDataUrl) {
       return;
     }
-    openPrintView(qrDataUrl, activityTitle, publicUrl);
+    openPrintView(qrDataUrl, clubName, getClubPublicUrl(slug));
+  }
+
+  async function handleDownloadSvg() {
+    try {
+      const svg = await getQrSvg(qrUrl);
+      downloadSvg(svg, `${slug}-qr.svg`);
+      showToast("SVG downloaded");
+    } catch {
+      showToast("Could not generate SVG");
+    }
   }
 
   async function handleSocialAction(
@@ -264,11 +279,17 @@ export function ShareActivityModal({
                   )}
                 </div>
                 <p className="mt-3 break-all text-xs text-zinc-500">
-                  {getShortDisplayUrl(publicUrl)}
+                  {getShortDisplayUrl(getClubPublicUrl(slug))}
                 </p>
                 <div className="mt-3 flex flex-wrap justify-center gap-2">
                   <ActionButton onClick={handleDownloadQr} disabled={!qrDataUrl}>
-                    Download QR
+                    Download PNG
+                  </ActionButton>
+                  <ActionButton
+                    onClick={() => void handleDownloadSvg()}
+                    disabled={!qrDataUrl}
+                  >
+                    Download SVG
                   </ActionButton>
                   <ActionButton onClick={() => void handleCopyLink()}>
                     {copied ? "Copied!" : "Copy link"}
@@ -339,6 +360,7 @@ export function ShareActivityModal({
                   <ShareInstagramImage
                     clubName={clubName}
                     link={publicUrl}
+                    qrTargetUrl={getClubPublicUrl(slug, { forQr: true })}
                     logoUrl={logoUrl}
                     primaryColor={primaryColor}
                     secondaryColor={secondaryColor}
