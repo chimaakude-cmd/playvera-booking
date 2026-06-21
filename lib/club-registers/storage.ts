@@ -11,7 +11,7 @@ import type {
 import type { Booking, BookingStatus } from "@/lib/bookings";
 import type { BookingQuestionAnswer } from "@/lib/booking-questions";
 import type { CustomerPaymentStatus } from "@/lib/club-customers";
-import { isDevelopmentEnvironment } from "@/lib/admin-users/production-gates";
+import { shouldShowClubDemoData } from "@/lib/club-demo-mode";
 import { getBookings } from "@/lib/bookings";
 import {
   getSessionById,
@@ -21,10 +21,10 @@ import {
 } from "@/lib/sessions";
 import {
   buildDemoBlockSessionDates,
-  buildDemoRegisterEntries,
   buildDemoRegisterGridChildren,
-  getDemoBlockSessionOption,
+  getDemoBlockSessionOptions,
   isDemoBlockSession,
+  isDemoRegisterSessionId,
 } from "./seed";
 import {
   filterRegisterBookings,
@@ -119,11 +119,7 @@ function buildSessionDatesForRegister(
   }
 
   const slots = session ? getActiveSessionDates(session) : [];
-  if (
-    isDevelopmentEnvironment() &&
-    slots.length === 0 &&
-    isDemoBlockSession(primaryOption.sessionId)
-  ) {
+  if (slots.length === 0 && isDemoBlockSession(primaryOption.sessionId)) {
     return buildDemoBlockSessionDates(
       buildRegisterSessionId,
       formatShortDateLabel,
@@ -309,8 +305,8 @@ export function getRegisterSessionOptions(): RegisterSessionOption[] {
     });
   }
 
-  if (isDevelopmentEnvironment()) {
-    options.push(getDemoBlockSessionOption());
+  if (shouldShowClubDemoData()) {
+    options.push(...getDemoBlockSessionOptions());
   }
 
   return options.sort((a, b) => {
@@ -338,10 +334,7 @@ export function buildRegisterGrid(
   let children: RegisterGridChild[];
   let usingDemoData = false;
 
-  if (
-    isDevelopmentEnvironment() &&
-    (bookings.length === 0 || isDemoBlockSession(registerSession.sessionId))
-  ) {
+  if (isDemoBlockSession(registerSession.sessionId)) {
     const attendanceBySessionAndBooking: Record<
       string,
       Record<string, { attendance: AttendanceStatus; notes: string }>
@@ -358,35 +351,12 @@ export function buildRegisterGrid(
         );
     }
 
-    if (isDemoBlockSession(registerSession.sessionId)) {
-      children = buildDemoRegisterGridChildren(
-        sessionDates,
-        attendanceBySessionAndBooking,
-        registerSession,
-      );
-      usingDemoData = true;
-    } else {
-      const primaryRecord = getRegisterAttendance(registerSession.id);
-      const demoEntries = buildDemoRegisterEntries(
-        registerSession,
-        primaryRecord.entries,
-      );
-      children = demoEntries.map((entry) => ({
-        ...entry,
-        sessionDates,
-        attendanceByDate: {
-          [registerSession.id]: entry.attendance,
-        },
-        activeByDate: { [registerSession.id]: true },
-        statusByDate: {
-          [registerSession.id]: {
-            bookingStatus: "confirmed" as BookingStatus,
-            paymentStatus: entry.paymentStatus,
-          },
-        },
-      }));
-      usingDemoData = demoEntries.some((e) => e.isDemo);
-    }
+    children = buildDemoRegisterGridChildren(
+      sessionDates,
+      attendanceBySessionAndBooking,
+      registerSession,
+    );
+    usingDemoData = true;
   } else {
     children = bookings
       .map((booking) =>
@@ -552,6 +522,7 @@ export function saveRegisterDateAttendance(
 
 function persistAttendanceRecord(record: RegisterAttendanceRecord): void {
   if (typeof window === "undefined") return;
+  if (isDemoRegisterSessionId(record.registerSessionId)) return;
 
   try {
     const raw = localStorage.getItem(REGISTER_ATTENDANCE_KEY);

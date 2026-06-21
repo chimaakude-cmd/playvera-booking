@@ -39,6 +39,11 @@ export function RegisterHeader({
               Block booking
             </span>
           ) : null}
+          {meta.usingDemoData ? (
+            <span className="rounded-full bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-800 ring-1 ring-sky-200">
+              Example register
+            </span>
+          ) : null}
         </div>
 
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -72,8 +77,8 @@ export function RegisterHeader({
               </div>
             </dl>
             {meta.usingDemoData ? (
-              <p className="mt-2 text-xs font-medium text-amber-700">
-                Example register — includes block booking and example booking scenarios.
+              <p className="mt-2 text-xs font-medium text-sky-700">
+                Example register — sample data for demonstration. Attendance is not saved.
               </p>
             ) : null}
           </div>

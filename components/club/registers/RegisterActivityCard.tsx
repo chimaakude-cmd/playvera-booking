@@ -65,9 +65,11 @@ export function RegisterActivityCard({
 }: RegisterActivityCardProps) {
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
-  const imageUrl = card.imageId
-    ? imageStorage.getPreviewUrl(card.imageId)
-    : null;
+  const imageUrl = card.imageSrc
+    ? card.imageSrc
+    : card.imageId
+      ? imageStorage.getPreviewUrl(card.imageId)
+      : null;
 
   const statusLabel = card.isExample
     ? "Example activity"
@@ -77,7 +79,8 @@ export function RegisterActivityCard({
     : STATUS_STYLES[card.status];
 
   function handleViewRegister() {
-    router.push(`/club/registers?session=${card.id}`);
+    const registerPath = card.isExample ? "/club/demo-register" : "/club/registers";
+    router.push(`${registerPath}?session=${card.id}`);
   }
 
   function handleContactParents() {

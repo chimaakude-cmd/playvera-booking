@@ -5,9 +5,10 @@ import {
   type ActivityStatus,
 } from "@/lib/club-activities";
 import { getActivityPublicUrl } from "@/lib/club-share/url";
-import { getActiveSessionDates } from "@/lib/sessions";
-import type { ClubSession } from "@/lib/sessions";
+import { shouldShowClubDemoData } from "@/lib/club-demo-mode";
+import { getActiveSessionDates, type ClubSession } from "@/lib/sessions";
 import {
+  DEMO_BLOCK_IMAGE_SRC,
   DEMO_BLOCK_SESSION_ID,
   DEMO_BLOCK_SESSION_OPTION,
   DEMO_REGISTER_CHILD_COUNT,
@@ -17,6 +18,7 @@ export type RegisterActivityCardData = {
   id: string;
   title: string;
   imageId: string | null;
+  imageSrc?: string | null;
   ageRange: string;
   startDate: string | null;
   endDate: string | null;
@@ -79,7 +81,10 @@ export function buildRegisterActivityCards(
     mapActivityRowToRegisterCard(mapSessionToActivityRow(session)),
   );
 
-  cards.push(buildExampleRegisterActivityCard());
+  if (shouldShowClubDemoData()) {
+    cards.push(buildExampleRegisterActivityCard());
+  }
+
   return cards;
 }
 
@@ -92,6 +97,7 @@ export function buildExampleRegisterActivityCard(): RegisterActivityCardData {
     id: DEMO_BLOCK_SESSION_ID,
     title: "Summer Skills Block",
     imageId: null,
+    imageSrc: DEMO_BLOCK_IMAGE_SRC,
     ageRange: "8–12 years",
     startDate: "2026-06-18",
     endDate: "2026-07-09",
@@ -113,5 +119,8 @@ export function getActivityBookingUrl(
   activityId: string,
   baseUrl?: string,
 ): string {
+  if (activityId === DEMO_BLOCK_SESSION_ID) {
+    return "";
+  }
   return getActivityPublicUrl(activityId, { baseUrl });
 }

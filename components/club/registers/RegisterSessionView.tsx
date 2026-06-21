@@ -9,6 +9,7 @@ import {
   buildRegisterGrid,
   countPresentForDate,
   getRegisterSessionOptions,
+  isDemoBlockSession,
   PAYMENT_STATUS_LABELS,
   PHOTO_CONSENT_LABELS,
   saveRegisterDateAttendance,
@@ -57,11 +58,11 @@ export function RegisterSessionView({ sessionParam }: RegisterSessionViewProps) 
 
   const sessionOptions = useMemo(() => {
     const all = getRegisterSessionOptions();
-    if (role === "coach") {
-      return all.slice(0, Math.min(3, all.length));
+    if (isDemoBlockSession(sessionParam)) {
+      return all.filter((option) => isDemoBlockSession(option.sessionId));
     }
-    return all;
-  }, [role]);
+    return all.filter((option) => !isDemoBlockSession(option.sessionId));
+  }, [sessionParam]);
 
   const resolvedSessionId = useMemo(
     () => resolveRegisterSessionId(sessionParam, sessionOptions),
@@ -159,6 +160,9 @@ export function RegisterSessionView({ sessionParam }: RegisterSessionViewProps) 
   }, [grid, searchQuery]);
 
   const selectedDateId = selectedSession?.id ?? grid?.meta.selectedDateId ?? "";
+  const isDemoRegister = grid?.meta.usingDemoData ?? false;
+  const canMarkAttendance = canMark && !isDemoRegister;
+  const canExportRegister = canExport && !isDemoRegister;
   const attendanceCount = grid
     ? countPresentForDate(grid.children, selectedDateId)
     : { present: 0, total: 0 };
@@ -168,7 +172,7 @@ export function RegisterSessionView({ sessionParam }: RegisterSessionViewProps) 
     registerSessionId: string,
     attendance: AttendanceStatus,
   ) {
-    if (!canMark) return;
+    if (!canMarkAttendance) return;
 
     setGrid((current) => {
       if (!current) return current;
@@ -206,7 +210,7 @@ export function RegisterSessionView({ sessionParam }: RegisterSessionViewProps) 
   }
 
   function handleMarkAllPresent() {
-    if (!canMark || !grid) return;
+    if (!canMarkAttendance || !grid) return;
 
     setGrid((current) => {
       if (!current) return current;
@@ -233,14 +237,14 @@ export function RegisterSessionView({ sessionParam }: RegisterSessionViewProps) 
   }
 
   function handleSave() {
-    if (!canMark || !grid) return;
+    if (!canMarkAttendance || !grid) return;
     saveRegisterGridAttendance(grid);
     setSavedMessage("Register saved.");
     window.setTimeout(() => setSavedMessage(null), 2500);
   }
 
   function handleExport() {
-    if (!canExport || !grid || !selectedSession) return;
+    if (!canExportRegister || !grid || !selectedSession) return;
 
     const header = [
       "Child",
@@ -294,7 +298,7 @@ export function RegisterSessionView({ sessionParam }: RegisterSessionViewProps) 
   }
 
   function handlePrint() {
-    if (!canExport) return;
+    if (!canExportRegister) return;
     window.print();
   }
 
@@ -431,7 +435,7 @@ export function RegisterSessionView({ sessionParam }: RegisterSessionViewProps) 
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
             onExport={handleExport}
-            canExport={canExport}
+            canExport={canExportRegister}
           />
 
           <div className="flex flex-col gap-3 rounded-2xl border border-zinc-200/80 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between print:hidden">
@@ -452,42 +456,63 @@ export function RegisterSessionView({ sessionParam }: RegisterSessionViewProps) 
             </p>
 
             <div className="flex flex-wrap gap-2">
-              {canMark ? (
-                <button
-                  type="button"
-                  onClick={handleMarkAllPresent}
-                  className="min-h-11 rounded-xl bg-teal-600 px-4 py-3 text-sm font-semibold text-white hover:bg-teal-700"
-                >
-                  Mark all present
-                </button>
-              ) : null}
-              {canMark ? (
-                <button
-                  type="button"
-                  onClick={handleSave}
-                  className="min-h-11 rounded-xl bg-zinc-900 px-4 py-3 text-sm font-semibold text-white hover:bg-zinc-800"
-                >
-                  Save register
-                </button>
-              ) : null}
-              {canExport ? (
-                <button
-                  type="button"
-                  onClick={handleExport}
-                  className="min-h-11 rounded-xl border border-zinc-200 px-4 py-3 text-sm font-semibold text-zinc-700 hover:bg-zinc-50"
-                >
-                  Export CSV
-                </button>
-              ) : null}
-              {canExport ? (
-                <button
-                  type="button"
-                  onClick={handlePrint}
-                  className="min-h-11 rounded-xl border border-zinc-200 px-4 py-3 text-sm font-semibold text-zinc-700 hover:bg-zinc-50"
-                >
-                  Print
-                </button>
-              ) : null}
+              {isDemoRegister ? (
+                <>
+                  <button
+                    type="button"
+                    disabled
+                    className="min-h-11 cursor-not-allowed rounded-xl bg-zinc-100 px-4 py-3 text-sm font-semibold text-zinc-500"
+                  >
+                    Mark all present (demo only)
+                  </button>
+                  <button
+                    type="button"
+                    disabled
+                    className="min-h-11 cursor-not-allowed rounded-xl bg-zinc-100 px-4 py-3 text-sm font-semibold text-zinc-500"
+                  >
+                    Save register (demo only)
+                  </button>
+                </>
+              ) : (
+                <>
+                  {canMark ? (
+                    <button
+                      type="button"
+                      onClick={handleMarkAllPresent}
+                      className="min-h-11 rounded-xl bg-teal-600 px-4 py-3 text-sm font-semibold text-white hover:bg-teal-700"
+                    >
+                      Mark all present
+                    </button>
+                  ) : null}
+                  {canMark ? (
+                    <button
+                      type="button"
+                      onClick={handleSave}
+                      className="min-h-11 rounded-xl bg-zinc-900 px-4 py-3 text-sm font-semibold text-white hover:bg-zinc-800"
+                    >
+                      Save register
+                    </button>
+                  ) : null}
+                  {canExport ? (
+                    <button
+                      type="button"
+                      onClick={handleExport}
+                      className="min-h-11 rounded-xl border border-zinc-200 px-4 py-3 text-sm font-semibold text-zinc-700 hover:bg-zinc-50"
+                    >
+                      Export CSV
+                    </button>
+                  ) : null}
+                  {canExport ? (
+                    <button
+                      type="button"
+                      onClick={handlePrint}
+                      className="min-h-11 rounded-xl border border-zinc-200 px-4 py-3 text-sm font-semibold text-zinc-700 hover:bg-zinc-50"
+                    >
+                      Print
+                    </button>
+                  ) : null}
+                </>
+              )}
             </div>
           </div>
 
@@ -506,7 +531,7 @@ export function RegisterSessionView({ sessionParam }: RegisterSessionViewProps) 
               meta={grid.meta}
               children={filteredChildren}
               selectedDateId={selectedDateId}
-              canMark={canMark}
+              canMark={canMarkAttendance}
               onOpenChild={handleOpenChild}
               onAttendanceChange={updateChildAttendance}
             />

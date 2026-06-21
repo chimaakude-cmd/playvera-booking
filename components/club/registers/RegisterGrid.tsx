@@ -5,7 +5,10 @@ import type {
   RegisterGridChild,
   RegisterGridMeta,
 } from "@/lib/club-registers";
-import { isBirthdayInSessionWeek } from "@/lib/club-registers";
+import {
+  ATTENDANCE_LABELS,
+  isBirthdayInSessionWeek,
+} from "@/lib/club-registers";
 
 type AttendanceButtonProps = {
   label: string;
@@ -73,6 +76,154 @@ function AttendanceCell({
         onClick={() => onChange("absent")}
       />
     </div>
+  );
+}
+
+function formatMedicalNotes(child: RegisterGridChild): string {
+  const parts = [
+    child.medicalConditions.trim(),
+    child.allergies.trim() ? `Allergy: ${child.allergies.trim()}` : "",
+    child.medicationNotes.trim(),
+  ].filter(Boolean);
+  return parts.length > 0 ? parts.join(" · ") : "None";
+}
+
+function formatPhotoConsentShort(
+  value: RegisterGridChild["photoConsent"],
+): string {
+  if (value === "allowed") return "Allowed";
+  if (value === "not_allowed") return "Not allowed";
+  return "Unknown";
+}
+
+function DemoRegisterTable({
+  children,
+  selectedDateId,
+  onOpenChild,
+}: {
+  children: RegisterGridChild[];
+  selectedDateId: string;
+  onOpenChild: (child: RegisterGridChild) => void;
+}) {
+  return (
+    <>
+      <div className="hidden overflow-hidden rounded-2xl border border-zinc-200/80 bg-white shadow-sm md:block">
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-sm">
+            <thead className="bg-zinc-50/90 text-left text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+              <tr>
+                <th className="sticky left-0 z-20 min-w-[160px] bg-zinc-50/95 px-4 py-3 backdrop-blur-sm">
+                  Child name
+                </th>
+                <th className="px-3 py-3 text-center">Age</th>
+                <th className="min-w-[140px] px-3 py-3">Parent/guardian</th>
+                <th className="min-w-[140px] px-3 py-3">Emergency contact</th>
+                <th className="min-w-[180px] px-3 py-3">Medical notes</th>
+                <th className="min-w-[120px] px-3 py-3">Photo consent</th>
+                <th className="min-w-[120px] px-3 py-3 text-center">
+                  Attendance status
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-zinc-100">
+              {children.map((child) => {
+                const attendance =
+                  child.attendanceByDate[selectedDateId] ?? child.attendance;
+                return (
+                  <tr
+                    key={child.bookingId}
+                    className="align-middle hover:bg-zinc-50/40"
+                  >
+                    <td className="sticky left-0 z-10 bg-white px-4 py-3 shadow-[4px_0_8px_-4px_rgba(0,0,0,0.08)]">
+                      <button
+                        type="button"
+                        onClick={() => onOpenChild(child)}
+                        className="text-left font-semibold text-zinc-900 hover:text-teal-700"
+                      >
+                        {child.childName}
+                      </button>
+                    </td>
+                    <td className="px-3 py-3 text-center text-zinc-700">
+                      {child.childAge}
+                    </td>
+                    <td className="px-3 py-3 text-zinc-600">
+                      <p className="font-medium text-zinc-800">{child.parentName}</p>
+                      <p className="text-xs text-zinc-500">{child.parentPhone}</p>
+                    </td>
+                    <td className="px-3 py-3 text-zinc-600">
+                      <p className="font-medium text-zinc-800">
+                        {child.emergencyContactName}
+                      </p>
+                      <p className="text-xs text-zinc-500">
+                        {child.emergencyContactPhone}
+                      </p>
+                    </td>
+                    <td className="px-3 py-3 text-zinc-600">
+                      {formatMedicalNotes(child)}
+                    </td>
+                    <td className="px-3 py-3 text-zinc-600">
+                      {formatPhotoConsentShort(child.photoConsent)}
+                    </td>
+                    <td className="px-3 py-3 text-center font-medium text-zinc-800">
+                      {ATTENDANCE_LABELS[attendance]}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="space-y-3 md:hidden">
+        {children.map((child) => {
+          const attendance =
+            child.attendanceByDate[selectedDateId] ?? child.attendance;
+          return (
+            <article
+              key={child.bookingId}
+              className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm"
+            >
+              <button
+                type="button"
+                onClick={() => onOpenChild(child)}
+                className="text-left text-base font-semibold text-zinc-900 hover:text-teal-700"
+              >
+                {child.childName}
+              </button>
+              <dl className="mt-3 grid gap-2 text-sm text-zinc-600">
+                <div className="flex justify-between gap-3">
+                  <dt className="text-zinc-500">Age</dt>
+                  <dd>{child.childAge}</dd>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <dt className="text-zinc-500">Parent/guardian</dt>
+                  <dd className="text-right">{child.parentName}</dd>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <dt className="text-zinc-500">Emergency contact</dt>
+                  <dd className="text-right">{child.emergencyContactPhone}</dd>
+                </div>
+                <div>
+                  <dt className="text-zinc-500">Medical notes</dt>
+                  <dd className="mt-1">{formatMedicalNotes(child)}</dd>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <dt className="text-zinc-500">Photo consent</dt>
+                  <dd>{formatPhotoConsentShort(child.photoConsent)}</dd>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <dt className="text-zinc-500">Attendance status</dt>
+                  <dd className="font-semibold text-zinc-800">
+                    {ATTENDANCE_LABELS[attendance]}
+                  </dd>
+                </div>
+              </dl>
+            </article>
+          );
+        })}
+      </div>
+    </>
   );
 }
 
@@ -237,6 +388,16 @@ export function RegisterGrid({
   const referenceDate =
     meta.sessionDates.find((d) => d.registerSessionId === selectedDateId) ??
     meta.sessionDates[0];
+
+  if (meta.usingDemoData) {
+    return (
+      <DemoRegisterTable
+        children={children}
+        selectedDateId={selectedDateId}
+        onOpenChild={onOpenChild}
+      />
+    );
+  }
 
   return (
     <>
