@@ -65,7 +65,12 @@ function connectionTone(
   return "warn";
 }
 
-export function AdminGoCardlessSetupSection() {
+type Props = {
+  /** When true, renders inline on /admin/finance without page chrome. */
+  embedded?: boolean;
+};
+
+export function AdminGoCardlessSetupSection({ embedded = false }: Props) {
   const [config, setConfig] = useState<GoCardlessPlatformConfigPublic | null>(
     null,
   );
@@ -327,20 +332,33 @@ export function AdminGoCardlessSetupSection() {
     }
   }
 
+  const lastCheckedLabel = config?.lastTestedAt
+    ? new Date(config.lastTestedAt).toLocaleString("en-GB")
+    : "Never";
+
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="GoCardless platform setup"
-        description="Configure Direct Debit at the platform level before clubs can connect. Activora retains the platform fee before club payout."
-        action={
-          <Link
-            href="/admin/finance"
-            className="rounded-xl border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
-          >
-            Back to Finance
-          </Link>
-        }
-      />
+    <div className="space-y-6" id={embedded ? "gocardless-platform-setup" : undefined}>
+      {embedded ? (
+        <div className="rounded-2xl border border-zinc-200/80 bg-white px-6 py-5 shadow-sm">
+          <h2 className="text-lg font-semibold text-zinc-900">GoCardless Platform Setup</h2>
+          <p className="mt-1 text-sm text-zinc-500">
+            Configure Direct Debit at the platform level before clubs can connect. Activora retains the platform fee before club payout.
+          </p>
+        </div>
+      ) : (
+        <PageHeader
+          title="GoCardless platform setup"
+          description="Configure Direct Debit at the platform level before clubs can connect. Activora retains the platform fee before club payout."
+          action={
+            <Link
+              href="/admin/finance"
+              className="rounded-xl border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+            >
+              Back to Finance
+            </Link>
+          }
+        />
+      )}
 
       {message ? (
         <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
@@ -397,6 +415,7 @@ export function AdminGoCardlessSetupSection() {
             label="Platform fee"
             value={`${config?.platformFeePercent ?? 2.5}%`}
           />
+          <Metric label="Last checked" value={lastCheckedLabel} />
         </div>
       </article>
 

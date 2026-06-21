@@ -269,12 +269,6 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
     group: "Business",
   },
   {
-    section: "finance",
-    href: "/admin/finance/payment-providers/gocardless",
-    label: "Payment providers",
-    group: "Business",
-  },
-  {
     section: "settings",
     href: "/admin/settings",
     label: "Settings",

@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
 import type { AdminPaymentProviderRow } from "@/lib/admin/payment-providers-data";
 import {
   isProviderGoCardlessConnected,
@@ -103,12 +102,6 @@ export function AdminPaymentProvidersSection() {
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Link
-              href="/admin/finance/payment-providers/gocardless"
-              className="rounded-xl border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
-            >
-              GoCardless setup
-            </Link>
             {dataSource === "supabase" ? (
               <span className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-800">
                 Live data

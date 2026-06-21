@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
-/** Payment providers hub — GoCardless platform setup (Stripe remains on Finance overview). */
+/** Legacy route — GoCardless setup is embedded on /admin/finance. */
 export default function AdminPaymentProvidersPage() {
-  redirect("/admin/finance/payment-providers/gocardless");
+  redirect("/admin/finance#gocardless-platform-setup");
 }
