@@ -787,6 +787,27 @@ export async function submitClubOnboardingToSupabase(
     authUserId,
   });
 
+  const { error: lifecycleError } = await supabase
+    .from("providers")
+    .update({
+      onboarding_completed: true,
+      lifecycle_status: "active",
+    })
+    .eq("id", providerId);
+
+  if (lifecycleError && !lifecycleError.message.includes("lifecycle_status")) {
+    logSupabaseError("provider lifecycle update failed", lifecycleError);
+    return {
+      ok: false,
+      step: "Save owner account",
+      error: formatStepError(
+        "Save owner account",
+        lifecycleError.message ||
+          "Could not mark onboarding complete. Please try again.",
+      ),
+    };
+  }
+
   return {
     ok: true,
     providerId,

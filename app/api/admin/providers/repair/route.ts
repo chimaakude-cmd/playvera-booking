@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireManageProvidersActor } from "@/lib/admin-users/api-auth";
 import {
   findOrphanedClubAuthUsers,
+  repairProviderById,
   repairProviderProfileForAuthUser,
 } from "@/lib/admin/provider-repair";
 
@@ -21,11 +22,24 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
 
-  let body: { authUserId?: string };
+  let body: { authUserId?: string; providerId?: string };
   try {
-    body = (await request.json()) as { authUserId?: string };
+    body = (await request.json()) as { authUserId?: string; providerId?: string };
   } catch {
     return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
+  }
+
+  const providerId = body.providerId?.trim();
+  if (providerId) {
+    const result = await repairProviderById(providerId);
+    if (!result.ok) {
+      return NextResponse.json({ error: result.error }, { status: 500 });
+    }
+
+    return NextResponse.json({
+      providerId: result.providerId,
+      repaired: result.repaired,
+    });
   }
 
   const authUserId = body.authUserId?.trim();

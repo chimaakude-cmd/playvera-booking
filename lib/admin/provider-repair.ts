@@ -252,3 +252,243 @@ export async function repairProviderProfileForAuthUser(
 
   return { ok: true, providerId, created: true };
 }
+
+export type RepairProviderByIdResult =
+  | { ok: true; providerId: string; repaired: string[] }
+  | { ok: false; error: string };
+
+export type ProviderLifecycleActionResult =
+  | { ok: true; providerId: string }
+  | { ok: false; error: string };
+
+async function ensureProviderSubscriptionForRepair(
+  supabase: ReturnType<typeof getAdminSupabaseClient>,
+  providerId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const { data: existing, error: lookupError } = await supabase
+    .from("provider_subscriptions")
+    .select("id")
+    .eq("provider_id", providerId)
+    .maybeSingle();
+
+  if (lookupError) {
+    return { ok: false, error: lookupError.message };
+  }
+
+  if (existing?.id) {
+    return { ok: true };
+  }
+
+  const { error } = await supabase.from("provider_subscriptions").insert({
+    provider_id: providerId,
+    plan: DEFAULT_PLAN_SLUG,
+    status: "active",
+  });
+
+  if (error) {
+    return { ok: false, error: error.message };
+  }
+
+  return { ok: true };
+}
+
+export async function repairProviderById(
+  providerId: string,
+): Promise<RepairProviderByIdResult> {
+  if (!isSupabaseConfigured()) {
+    return { ok: false, error: "Supabase is not configured." };
+  }
+
+  const providerIdTrimmed = providerId.trim();
+  if (!providerIdTrimmed) {
+    return { ok: false, error: "Provider id is required." };
+  }
+
+  const supabase = getAdminSupabaseClient();
+  const { data: provider, error: providerError } = await supabase
+    .from("providers")
+    .select("id, name, slug, email, auth_user_id")
+    .eq("id", providerIdTrimmed)
+    .maybeSingle();
+
+  if (providerError) {
+    return { ok: false, error: providerError.message };
+  }
+
+  if (!provider?.id) {
+    return { ok: false, error: "Provider not found." };
+  }
+
+  const repaired: string[] = [];
+  const displayName = provider.name?.trim() || "Unnamed club";
+  const email = provider.email?.trim() || "";
+  const slug =
+    provider.slug?.trim() || (await resolveUniqueProviderSlug(displayName));
+
+  const { data: existingProfile, error: profileLookupError } = await supabase
+    .from("club_profiles")
+    .select("id")
+    .eq("provider_id", providerIdTrimmed)
+    .maybeSingle();
+
+  if (profileLookupError) {
+    return { ok: false, error: profileLookupError.message };
+  }
+
+  if (!existingProfile?.id) {
+    const profileRow = buildMinimalClubProfilesRowFromProvider(providerIdTrimmed, {
+      name: displayName,
+      slug,
+      email,
+    });
+
+    const { error: profileError } = await supabase
+      .from("club_profiles")
+      .insert(profileRow);
+
+    if (profileError) {
+      return { ok: false, error: profileError.message };
+    }
+
+    repaired.push("club profile");
+  }
+
+  const { data: existingSubscription, error: subscriptionLookupError } =
+    await supabase
+      .from("provider_subscriptions")
+      .select("id")
+      .eq("provider_id", providerIdTrimmed)
+      .maybeSingle();
+
+  if (subscriptionLookupError) {
+    return { ok: false, error: subscriptionLookupError.message };
+  }
+
+  if (!existingSubscription?.id) {
+    const subscriptionResult = await ensureProviderSubscriptionForRepair(
+      supabase,
+      providerIdTrimmed,
+    );
+
+    if (!subscriptionResult.ok) {
+      return subscriptionResult;
+    }
+
+    repaired.push("subscription");
+  }
+
+  const { data: ownerMember, error: ownerLookupError } = await supabase
+    .from("club_team_members")
+    .select("id")
+    .eq("provider_id", providerIdTrimmed)
+    .eq("is_owner", true)
+    .maybeSingle();
+
+  if (ownerLookupError) {
+    return { ok: false, error: ownerLookupError.message };
+  }
+
+  if (!ownerMember?.id && provider.auth_user_id) {
+    const [firstName, ...rest] = displayName.split(/\s+/);
+    const lastName = rest.join(" ");
+
+    const { error: ownerError } = await supabase.from("club_team_members").insert({
+      provider_id: providerIdTrimmed,
+      auth_user_id: provider.auth_user_id,
+      first_name: firstName || "Club",
+      last_name: lastName || "Owner",
+      email: email || "owner@example.com",
+      is_owner: true,
+      status: "active",
+      role: "owner",
+    });
+
+    if (ownerError) {
+      return { ok: false, error: ownerError.message };
+    }
+
+    repaired.push("owner");
+  } else if (!ownerMember?.id) {
+    return {
+      ok: false,
+      error: "Cannot repair owner without a linked auth user.",
+    };
+  }
+
+  if (provider.auth_user_id) {
+    const { error: activateError } = await supabase
+      .from("providers")
+      .update({
+        onboarding_completed: true,
+        lifecycle_status: "active",
+      })
+      .eq("id", providerIdTrimmed);
+
+    if (activateError && !activateError.message.includes("lifecycle_status")) {
+      return { ok: false, error: activateError.message };
+    }
+  }
+
+  return {
+    ok: true,
+    providerId: providerIdTrimmed,
+    repaired: repaired.length > 0 ? repaired : ["verified existing records"],
+  };
+}
+
+export async function markProviderAbandoned(
+  providerId: string,
+): Promise<ProviderLifecycleActionResult> {
+  if (!isSupabaseConfigured()) {
+    return { ok: false, error: "Supabase is not configured." };
+  }
+
+  const providerIdTrimmed = providerId.trim();
+  if (!providerIdTrimmed) {
+    return { ok: false, error: "Provider id is required." };
+  }
+
+  const supabase = getAdminSupabaseClient();
+  const { error } = await supabase
+    .from("providers")
+    .update({
+      lifecycle_status: "abandoned",
+      onboarding_completed: false,
+    })
+    .eq("id", providerIdTrimmed);
+
+  if (error) {
+    return { ok: false, error: error.message };
+  }
+
+  return { ok: true, providerId: providerIdTrimmed };
+}
+
+export async function markProviderDeleted(
+  providerId: string,
+): Promise<ProviderLifecycleActionResult> {
+  if (!isSupabaseConfigured()) {
+    return { ok: false, error: "Supabase is not configured." };
+  }
+
+  const providerIdTrimmed = providerId.trim();
+  if (!providerIdTrimmed) {
+    return { ok: false, error: "Provider id is required." };
+  }
+
+  const supabase = getAdminSupabaseClient();
+  const { error } = await supabase
+    .from("providers")
+    .update({
+      lifecycle_status: "deleted",
+      onboarding_completed: false,
+      deleted_at: new Date().toISOString(),
+    })
+    .eq("id", providerIdTrimmed);
+
+  if (error) {
+    return { ok: false, error: error.message };
+  }
+
+  return { ok: true, providerId: providerIdTrimmed };
+}
