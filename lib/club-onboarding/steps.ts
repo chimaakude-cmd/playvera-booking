@@ -79,7 +79,7 @@ export const ONBOARDING_STEPS: OnboardingStepMeta[] = [
       examples: [
         "Go to dashboard to see your setup checklist",
         "Create your first free session immediately",
-        "Connect Stripe when you want to accept payments",
+        "Connect payments when you want to accept payments",
       ],
     },
   },

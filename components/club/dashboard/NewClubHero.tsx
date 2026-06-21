@@ -35,7 +35,7 @@ function buildPrimaryActions(
     },
     {
       title: "Connect payments",
-      description: "Connect Stripe to accept paid bookings",
+      description: "Choose how parents will pay — Stripe, GoCardless, or both",
       href: payments?.href ?? "/club/finance?tab=payment-providers",
       completed: payments?.completed ?? false,
     },

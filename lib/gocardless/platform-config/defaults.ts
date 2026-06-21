@@ -17,6 +17,7 @@ export const DEFAULT_GOCARDLESS_PLATFORM_CONFIG: GoCardlessPlatformConfigPayload
     connectionStatus: "not_configured",
     lastTestedAt: null,
     lastError: null,
+    lastWebhookReceivedAt: null,
     updatedAt: new Date().toISOString(),
   };
 

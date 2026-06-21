@@ -1,15 +1,15 @@
 import { getVatSettings } from "@/lib/club-finance/vat-settings";
 import { getClubPayoutPreferences } from "@/lib/finance-payouts/storage";
 import { DEMO_FRANCHISEE_PROVIDER_ID } from "@/lib/organisation/defaults";
+import { hasAnyPaymentProviderReady } from "@/lib/payment-providers/availability";
 import {
   getStripeConnectState,
-  isStripeConnected,
   isStripePayoutReady,
 } from "@/lib/stripe-connect";
 import type { WizardFormData } from "@/lib/session-wizard";
 
 export function canPublishPaidSessions(): boolean {
-  return isStripeConnected(getStripeConnectState().status);
+  return hasAnyPaymentProviderReady();
 }
 
 export function canWithdrawPayouts(): boolean {
@@ -37,11 +37,11 @@ export function sessionHasPaidTickets(data: WizardFormData): boolean {
 }
 
 export function getPaidSessionBlockMessage(): string {
-  return "Connect Stripe to accept payments";
+  return "Connect a payment provider to accept paid bookings";
 }
 
 export function getPayoutBlockMessage(): string {
-  return "Connect Stripe to receive payouts";
+  return "Connect Stripe to receive card payouts";
 }
 
 export function getVatBlockMessage(): string {

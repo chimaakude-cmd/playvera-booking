@@ -259,6 +259,7 @@ export function SessionWizard() {
           data={{
             paymentModel: data.paymentModel,
             subscriptionConfig: data.subscriptionConfig,
+            paymentProvider: data.paymentProvider,
           }}
           onChange={updateData}
         />

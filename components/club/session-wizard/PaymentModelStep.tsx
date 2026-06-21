@@ -11,6 +11,7 @@ import {
   type SessionPaymentModel,
   type SessionSubscriptionConfig,
 } from "@/lib/session-wizard/payment-model";
+import { ActivityPaymentProviderFields } from "./ActivityPaymentProviderFields";
 import {
   WizardField,
   wizardInputClassName,
@@ -18,7 +19,10 @@ import {
 } from "./shared";
 
 type PaymentModelStepProps = {
-  data: Pick<WizardFormData, "paymentModel" | "subscriptionConfig">;
+  data: Pick<
+    WizardFormData,
+    "paymentModel" | "subscriptionConfig" | "paymentProvider"
+  >;
   onChange: (updates: Partial<WizardFormData>) => void;
 };
 
@@ -369,10 +373,16 @@ export function PaymentModelStep({ data, onChange }: PaymentModelStepProps) {
       </div>
 
       {data.paymentModel === "subscription" ? (
-        <SessionSubscriptionSetup
-          config={data.subscriptionConfig}
-          onChange={updateSubscriptionConfig}
-        />
+        <>
+          <ActivityPaymentProviderFields
+            value={data.paymentProvider}
+            onChange={(paymentProvider) => onChange({ paymentProvider })}
+          />
+          <SessionSubscriptionSetup
+            config={data.subscriptionConfig}
+            onChange={updateSubscriptionConfig}
+          />
+        </>
       ) : null}
     </section>
   );

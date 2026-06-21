@@ -209,8 +209,14 @@ export default function ClubSettingsPage() {
           cta="Manage team"
         />
         <SettingsHubCard
+          title="Payment provider"
+          description="Choose how parents pay — Stripe for cards, GoCardless for Direct Debit, or pick per activity."
+          href="/club/settings/payments"
+          cta="Manage payments"
+        />
+        <SettingsHubCard
           title="Stripe Connect"
-          description="Connect Stripe to receive payouts. Platform fee depends on your subscription plan."
+          description="Connect Stripe for card payouts. Platform fee depends on your subscription plan."
           href="/club/finance?tab=payment-providers"
           cta="Open in Finance"
         />

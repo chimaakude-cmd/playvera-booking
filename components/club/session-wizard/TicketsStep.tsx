@@ -14,6 +14,8 @@ import {
   WizardFormData,
 } from "@/lib/session-wizard";
 import { formatMoney, SessionTicket, TicketPriceType } from "@/lib/sessions";
+import { sessionHasPaidTickets } from "@/lib/club-setup/guards";
+import { ActivityPaymentProviderFields } from "./ActivityPaymentProviderFields";
 import {
   StepSection,
   StepperButton,
@@ -71,6 +73,8 @@ function oneOffPriceHint(
 export function TicketsStep({ data, onChange }: TicketsStepProps) {
   const activeDates = getActiveWizardDates(data);
   const remainingCount = getRemainingSessionCount(activeDates);
+  const showPaymentProvider =
+    data.paymentModel === "subscription" || sessionHasPaidTickets(data);
 
   function addTicket() {
     onChange({ tickets: [...data.tickets, createEmptyTicket()] });
@@ -116,6 +120,13 @@ export function TicketsStep({ data, onChange }: TicketsStepProps) {
       title="Tickets & pricing"
       description="Set up how parents book and pay for this session."
     >
+      {showPaymentProvider ? (
+        <ActivityPaymentProviderFields
+          value={data.paymentProvider}
+          onChange={(paymentProvider) => onChange({ paymentProvider })}
+        />
+      ) : null}
+
       <div className="flex items-center justify-between gap-3">
         <p className="text-sm text-zinc-500">
           {remainingCount} remaining session{remainingCount === 1 ? "" : "s"} from

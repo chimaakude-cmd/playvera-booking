@@ -18,6 +18,7 @@ import {
   PROVIDER_ACCOUNT_STATUS_LABELS,
   PROVIDER_ORGANISATION_TYPE_LABELS,
 } from "@/lib/admin";
+import { AdminProviderPaymentControls } from "@/components/admin/AdminProviderPaymentControls";
 import type { AdminProviderDetail } from "@/lib/admin/types";
 
 type Props = {
@@ -301,6 +302,8 @@ export function AdminProviderDetailSection({ provider }: Props) {
           </button>
         </form>
       </div>
+
+      <AdminProviderPaymentControls providerId={activeProvider.id} />
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="rounded-2xl border border-zinc-200/80 bg-white p-6 shadow-sm">

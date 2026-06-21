@@ -4,6 +4,7 @@ import { handleGoCardlessBookingWebhookEvent } from "@/lib/gocardless/webhook-ha
 import {
   appendGoCardlessPlatformLog,
   getResolvedGoCardlessEnv,
+  recordGoCardlessWebhookReceived,
 } from "@/lib/gocardless/platform-config";
 import {
   applyServerSubscriptionStatus,
@@ -171,6 +172,8 @@ export async function POST(request: Request) {
         },
       });
     }
+
+    await recordGoCardlessWebhookReceived();
 
     return NextResponse.json({ received: true, mock: false, events: events.length });
   } catch (error) {

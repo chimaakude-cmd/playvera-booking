@@ -1,4 +1,8 @@
 import { getBookings } from "@/lib/bookings";
+import {
+  ACTIVITY_PAYMENT_PROVIDER_BADGES,
+} from "@/lib/payment-providers/types";
+import { resolveSessionPaymentProvider } from "@/lib/payment-providers/availability";
 import { getActivityRatingSummary } from "@/lib/reviews/ratings";
 import { getReviews } from "@/lib/reviews/storage";
 import { formatSessionLocation, getActiveSessionDates } from "@/lib/sessions";
@@ -143,7 +147,12 @@ function buildTags(session: ClubSession): string[] {
     tags.push("Free trial");
   }
 
-  return tags.slice(0, 3);
+  const paymentProvider = resolveSessionPaymentProvider(session);
+  if (paymentProvider) {
+    tags.push(ACTIVITY_PAYMENT_PROVIDER_BADGES[paymentProvider]);
+  }
+
+  return tags.slice(0, 4);
 }
 
 function resolveReviews(sessionId: string): ActivityReviews {

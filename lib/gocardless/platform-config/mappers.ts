@@ -56,6 +56,7 @@ export function rowToPayload(
     connectionStatus: normalizeConnectionStatus(row.connection_status),
     lastTestedAt: row.last_tested_at,
     lastError: row.last_error,
+    lastWebhookReceivedAt: row.last_webhook_received_at ?? null,
     updatedAt: row.updated_at,
   };
 }
@@ -82,6 +83,7 @@ export function payloadToPublic(
       GOCARDLESS_CONNECTION_STATUS_LABELS[payload.connectionStatus],
     lastTestedAt: payload.lastTestedAt,
     lastError: payload.lastError,
+    lastWebhookReceivedAt: payload.lastWebhookReceivedAt,
     updatedAt: payload.updatedAt,
     envOverrides,
   };
@@ -137,7 +139,12 @@ export function updateToRowPatch(
 
 export function seedRowFromDefaults(): Omit<
   GoCardlessPlatformConfigRow,
-  "created_at" | "updated_at" | "updated_by" | "last_tested_at" | "last_error"
+  | "created_at"
+  | "updated_at"
+  | "updated_by"
+  | "last_tested_at"
+  | "last_error"
+  | "last_webhook_received_at"
 > {
   const defaults = DEFAULT_GOCARDLESS_PLATFORM_CONFIG;
   return {

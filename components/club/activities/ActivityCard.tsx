@@ -152,9 +152,21 @@ export function ActivityCard({
         <div className="flex flex-1 flex-col p-4">
           <div className="flex items-start justify-between gap-2">
             <h3 className="text-base font-semibold text-zinc-900">{row.title}</h3>
-            <span className="shrink-0 rounded-full bg-teal-50 px-2 py-0.5 text-xs font-semibold text-teal-700">
-              {row.ageRange}
-            </span>
+            <div className="flex shrink-0 flex-wrap justify-end gap-1">
+              {row.tags
+                .filter((tag) => tag === "Card payments" || tag === "Direct Debit")
+                .map((tag) => (
+                  <span
+                    key={tag}
+                    className="rounded-full bg-violet-50 px-2 py-0.5 text-xs font-semibold text-violet-700"
+                  >
+                    {tag}
+                  </span>
+                ))}
+              <span className="rounded-full bg-teal-50 px-2 py-0.5 text-xs font-semibold text-teal-700">
+                {row.ageRange}
+              </span>
+            </div>
           </div>
 
           <dl className="mt-3 space-y-1.5 text-sm text-zinc-600">

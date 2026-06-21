@@ -369,6 +369,13 @@ async function ensureProviderForOwner(
       ...independentFields,
       account_status: "active",
       platform_fee_percent: freePlan.bookingFeePercent,
+      payment_model: "platform_managed",
+      payments_enabled: true,
+      payments_paused: false,
+      payout_schedule: "weekly",
+      gocardless_status: "connected",
+      payment_method_gocardless_dd: true,
+      preferred_payment_provider: "gocardless",
     })
     .select("id")
     .single();

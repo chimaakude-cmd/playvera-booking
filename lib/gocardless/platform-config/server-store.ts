@@ -244,6 +244,23 @@ export async function listGoCardlessPlatformLogs(
   return (data ?? []) as GoCardlessPlatformLogRow[];
 }
 
+export async function recordGoCardlessWebhookReceived(): Promise<void> {
+  if (!isSupabaseConfigured()) {
+    return;
+  }
+
+  const supabase = createSupabaseServiceRoleClient();
+  const now = new Date().toISOString();
+  const { error } = await supabase
+    .from("gocardless_platform_config")
+    .update({ last_webhook_received_at: now })
+    .eq("id", GOCARDLESS_PLATFORM_CONFIG_ID);
+
+  if (error) {
+    console.error("[gocardless] Failed to record webhook timestamp", error.message);
+  }
+}
+
 export async function recordGoCardlessPaymentSplit(params: {
   bookingId: string;
   providerId: string;

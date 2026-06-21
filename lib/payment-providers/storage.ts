@@ -1,6 +1,9 @@
 import { getStripeConnectState } from "@/lib/stripe-connect/storage";
 import { getGoCardlessConnection } from "@/lib/gocardless/storage";
-import type { PaymentProviderSettings } from "./types";
+import type {
+  ClubDefaultPaymentProvider,
+  PaymentProviderSettings,
+} from "./types";
 import { PAYMENT_PROVIDERS_STORAGE_KEY } from "./types";
 
 function createDefaultSettings(providerId: string): PaymentProviderSettings {
@@ -12,6 +15,7 @@ function createDefaultSettings(providerId: string): PaymentProviderSettings {
     stripe_status: stripe.status,
     gocardless_status: gocardless.status,
     preferred_payment_provider: "stripe",
+    club_default_provider: "stripe",
     enabled_methods: {
       stripe_card: true,
       gocardless_direct_debit: false,
@@ -52,7 +56,16 @@ export function getPaymentProviderSettings(
     }
 
     const parsed = JSON.parse(raw) as PaymentProviderSettings;
-    const base = { ...createDefaultSettings(id), ...parsed, provider_id: id };
+    const rawClubDefault = parsed.club_default_provider;
+    const clubDefaultProvider =
+      rawClubDefault === "gocardless" ? "gocardless" : "stripe";
+
+    const base = {
+      ...createDefaultSettings(id),
+      ...parsed,
+      provider_id: id,
+      club_default_provider: clubDefaultProvider,
+    };
     return syncProviderStatuses(base);
   } catch {
     return createDefaultSettings(id);
@@ -96,14 +109,22 @@ export function setPreferredPaymentProvider(
   });
 }
 
+export function setClubDefaultPaymentProvider(
+  provider: ClubDefaultPaymentProvider,
+  providerId?: string,
+): PaymentProviderSettings {
+  const current = getPaymentProviderSettings(providerId);
+
+  return savePaymentProviderSettings({
+    ...current,
+    club_default_provider: provider,
+    preferred_payment_provider: provider,
+  });
+}
+
 export function isGoCardlessCheckoutAvailable(providerId?: string): boolean {
   const settings = getPaymentProviderSettings(providerId);
-  const gocardless = getGoCardlessConnection(settings.provider_id);
-  return (
-    settings.enabled_methods.gocardless_direct_debit &&
-    gocardless.status === "connected" &&
-    Boolean(gocardless.merchant_id?.trim())
-  );
+  return settings.enabled_methods.gocardless_direct_debit;
 }
 
 export function isStripeCheckoutAvailable(providerId?: string): boolean {

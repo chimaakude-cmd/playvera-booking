@@ -3,6 +3,16 @@ import type { GoCardlessConnectionStatus } from "@/lib/gocardless/types";
 
 export type PreferredPaymentProvider = "stripe" | "gocardless";
 
+/** Club-wide default when an activity uses "club default". */
+export type ClubDefaultPaymentProvider = "stripe" | "gocardless";
+
+/** Per-activity override in the session wizard. */
+export type ActivityPaymentProvider =
+  | "club_default"
+  | "stripe"
+  | "gocardless"
+  | "both";
+
 export type PaymentMethodId =
   | "stripe_card"
   | "gocardless_direct_debit"
@@ -13,6 +23,7 @@ export type PaymentProviderSettings = {
   stripe_status: StripeConnectStatus;
   gocardless_status: GoCardlessConnectionStatus;
   preferred_payment_provider: PreferredPaymentProvider;
+  club_default_provider: ClubDefaultPaymentProvider;
   enabled_methods: Record<PaymentMethodId, boolean>;
   updated_at: string;
 };
@@ -20,14 +31,85 @@ export type PaymentProviderSettings = {
 export const PAYMENT_PROVIDERS_STORAGE_KEY = "activora-payment-providers";
 
 export const PAYMENT_METHOD_LABELS: Record<PaymentMethodId, string> = {
-  stripe_card: "Card payments via Stripe",
-  gocardless_direct_debit: "Direct Debit via GoCardless",
+  stripe_card: "Stripe",
+  gocardless_direct_debit: "GoCardless",
   manual_invoice: "Manual invoice / BACS later",
 };
 
 export const PAYMENT_METHOD_DESCRIPTIONS: Record<PaymentMethodId, string> = {
   stripe_card: "Instant card payments when Stripe Connect is connected.",
   gocardless_direct_debit:
-    "UK Direct Debit for subscriptions and recurring plans when GoCardless is connected.",
+    "UK Direct Debit — Activora manages this on your behalf when enabled.",
   manual_invoice: "Send invoices and collect BACS payments outside Activora.",
 };
+
+export const CLUB_DEFAULT_PAYMENT_PROVIDER_OPTIONS: Array<{
+  value: ClubDefaultPaymentProvider;
+  label: string;
+  description: string;
+}> = [
+  {
+    value: "stripe",
+    label: "Stripe",
+    description: "Cards, Apple Pay, Google Pay",
+  },
+  {
+    value: "gocardless",
+    label: "GoCardless",
+    description: "Direct Debit, lower processing cost",
+  },
+];
+
+export const ACTIVITY_PAYMENT_PROVIDER_OPTIONS: Array<{
+  value: ActivityPaymentProvider;
+  label: string;
+  description: string;
+  example?: string;
+}> = [
+  {
+    value: "club_default",
+    label: "Use club default",
+    description: "Follow your club payment settings",
+  },
+  {
+    value: "stripe",
+    label: "Stripe",
+    description: "Card checkout only",
+    example: "Holiday camp",
+  },
+  {
+    value: "gocardless",
+    label: "GoCardless",
+    description: "Direct Debit only",
+    example: "Monthly subscription",
+  },
+  {
+    value: "both",
+    label: "Accept both",
+    description: "Parents see every method enabled for this activity",
+    example: "Flexible bookings",
+  },
+];
+
+export const ACTIVITY_PAYMENT_PROVIDER_BADGES: Record<
+  "stripe" | "gocardless",
+  string
+> = {
+  stripe: "Card payments",
+  gocardless: "Direct Debit",
+};
+
+export function getActivityPaymentProviderLabel(
+  provider: ActivityPaymentProvider,
+  clubDefault: ClubDefaultPaymentProvider = "stripe",
+): string {
+  if (provider === "club_default") {
+    return clubDefault === "gocardless" ? "Club default (GoCardless)" : "Club default (Stripe)";
+  }
+
+  if (provider === "both") {
+    return "Stripe + GoCardless";
+  }
+
+  return provider === "gocardless" ? "GoCardless" : "Stripe";
+}

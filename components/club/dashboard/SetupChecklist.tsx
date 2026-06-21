@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { ClubPaymentProviderSelector } from "@/components/club/finance/ClubPaymentProviderSelector";
+import { isClubPaymentsConfigured } from "@/lib/payment-providers/availability";
 import {
   isSetupChecklistCollapsed,
   setSetupChecklistCollapsed,
@@ -59,8 +61,8 @@ export function SetupChecklist({ checklist }: SetupChecklistProps) {
             Setup checklist
           </h2>
           <p className="mt-1 text-sm text-zinc-500">
-            Complete these steps when you&apos;re ready — paid sessions need
-            Stripe, but free sessions don&apos;t.
+            Complete these steps when you&apos;re ready — paid activities need a
+            payment provider, but free activities don&apos;t.
           </p>
         </div>
         <button
@@ -82,6 +84,56 @@ export function SetupChecklist({ checklist }: SetupChecklistProps) {
 }
 
 function ChecklistRow({ item }: { item: NewClubChecklistItem }) {
+  const [paymentsReady, setPaymentsReady] = useState(
+    () => item.id !== "connect_payments" || item.completed,
+  );
+
+  if (item.id === "connect_payments") {
+    return (
+      <li className="px-5 py-4">
+        <div className="flex min-w-0 items-start gap-3">
+          <span
+            className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+              paymentsReady
+                ? "bg-emerald-100 text-emerald-700"
+                : "bg-zinc-100 text-zinc-400"
+            }`}
+            aria-hidden
+          >
+            {paymentsReady ? "✓" : ""}
+          </span>
+          <div className="min-w-0 flex-1 space-y-4">
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="text-sm font-semibold text-zinc-900">
+                  {item.title}
+                </p>
+                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800">
+                  Required for paid activities
+                </span>
+              </div>
+              <p className="mt-1 text-sm text-zinc-500">
+                Choose how parents will pay.
+              </p>
+            </div>
+
+            <ClubPaymentProviderSelector
+              compact
+              onChange={() => setPaymentsReady(isClubPaymentsConfigured())}
+            />
+
+            <Link
+              href={item.href}
+              className="inline-flex items-center rounded-xl border border-zinc-200 px-4 py-2 text-sm font-semibold text-zinc-700 transition-colors hover:bg-zinc-50"
+            >
+              Open payment settings
+            </Link>
+          </div>
+        </div>
+      </li>
+    );
+  }
+
   return (
     <li className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex min-w-0 items-start gap-3">

@@ -43,6 +43,12 @@ export type Database = {
           payment_method_manual_invoice: boolean;
           account_status: string;
           platform_fee_percent: number;
+          payments_enabled: boolean;
+          payments_paused: boolean;
+          payout_schedule: string;
+          platform_fee_override_percent: number | null;
+          payment_internal_notes: string | null;
+          payment_model: string;
           fee_handling: Database["public"]["Enums"]["fee_handling"];
           organisation_type: string;
           parent_provider_id: string | null;
@@ -76,6 +82,12 @@ export type Database = {
           payment_method_manual_invoice?: boolean;
           account_status?: string;
           platform_fee_percent?: number;
+          payments_enabled?: boolean;
+          payments_paused?: boolean;
+          payout_schedule?: string;
+          platform_fee_override_percent?: number | null;
+          payment_internal_notes?: string | null;
+          payment_model?: string;
           fee_handling?: Database["public"]["Enums"]["fee_handling"];
           organisation_type?: string;
           parent_provider_id?: string | null;
@@ -109,6 +121,12 @@ export type Database = {
           payment_method_manual_invoice?: boolean;
           account_status?: string;
           platform_fee_percent?: number;
+          payments_enabled?: boolean;
+          payments_paused?: boolean;
+          payout_schedule?: string;
+          platform_fee_override_percent?: number | null;
+          payment_internal_notes?: string | null;
+          payment_model?: string;
           fee_handling?: Database["public"]["Enums"]["fee_handling"];
           organisation_type?: string;
           parent_provider_id?: string | null;
@@ -903,6 +921,7 @@ export type Database = {
           connection_status: string;
           last_tested_at: string | null;
           last_error: string | null;
+          last_webhook_received_at: string | null;
           created_at: string;
           updated_at: string;
           updated_by: string | null;
@@ -921,6 +940,7 @@ export type Database = {
           connection_status?: string;
           last_tested_at?: string | null;
           last_error?: string | null;
+          last_webhook_received_at?: string | null;
           created_at?: string;
           updated_at?: string;
           updated_by?: string | null;
@@ -939,6 +959,7 @@ export type Database = {
           connection_status?: string;
           last_tested_at?: string | null;
           last_error?: string | null;
+          last_webhook_received_at?: string | null;
           created_at?: string;
           updated_at?: string;
           updated_by?: string | null;
@@ -979,6 +1000,54 @@ export type Database = {
           created_at?: string;
         };
         Relationships: [];
+      };
+      provider_payment_audit_log: {
+        Row: {
+          id: string;
+          provider_id: string;
+          admin_user_id: string | null;
+          action: string;
+          previous_values: Json;
+          new_values: Json;
+          note: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          provider_id: string;
+          admin_user_id?: string | null;
+          action: string;
+          previous_values?: Json;
+          new_values?: Json;
+          note?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          provider_id?: string;
+          admin_user_id?: string | null;
+          action?: string;
+          previous_values?: Json;
+          new_values?: Json;
+          note?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "provider_payment_audit_log_provider_id_fkey";
+            columns: ["provider_id"];
+            isOneToOne: false;
+            referencedRelation: "providers";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "provider_payment_audit_log_admin_user_id_fkey";
+            columns: ["admin_user_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_users";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       gocardless_payments: {
         Row: {

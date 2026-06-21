@@ -19,6 +19,7 @@ import {
   venueFormToSessionVenue,
 } from "./session-location";
 import { PLATFORM_FEE_PERCENT, formatMoney, resolvePlatformFeePercent } from "./payments";
+import { validateActivityPaymentProvider } from "./payment-providers/availability";
 import {
   createDefaultSubscriptionConfig,
   validateSessionSubscriptionConfig,
@@ -117,6 +118,7 @@ export {
 export type WizardFormData = {
   paymentModel: import("./session-wizard/payment-model").SessionPaymentModel | null;
   subscriptionConfig: import("./session-wizard/payment-model").SessionSubscriptionConfig;
+  paymentProvider: import("./payment-providers/types").ActivityPaymentProvider;
   bookingStructure: BookingStructureType | null;
   sessionTitle: string;
   description: string;
@@ -149,6 +151,7 @@ export const WIZARD_STEP_LABELS = [
 export const initialWizardFormData: WizardFormData = {
   paymentModel: null,
   subscriptionConfig: createDefaultSubscriptionConfig(),
+  paymentProvider: "club_default",
   bookingStructure: null,
   sessionTitle: "",
   description: "",
@@ -626,6 +629,17 @@ export function validateWizardForPublish(data: WizardFormData): string[] {
   const errors: string[] = [];
 
   errors.push(...validatePaymentModelStep(data));
+  errors.push(
+    ...validateActivityPaymentProvider(
+      data,
+      data.tickets.some(
+        (ticket) =>
+          ticket.priceType !== "free" &&
+          ticket.priceType !== "free_trial" &&
+          (ticket.price ?? 0) > 0,
+      ) || data.paymentModel === "subscription",
+    ),
+  );
 
   for (let step = 0; step < WIZARD_STEP_LABELS.length; step += 1) {
     errors.push(...validateWizardStep(step as WizardStep, data));
@@ -732,6 +746,7 @@ export function compileWizardToSession(
     maxSessionCapacity: maxCapacity,
     published: true,
     providerVenueId: data.venue.providerVenueId,
+    paymentProvider: data.paymentProvider,
   };
 }
 
@@ -752,6 +767,7 @@ export function sessionToWizardFormData(
     paymentModel:
       bookingStructure === "subscription" ? "subscription" : "block_individual",
     subscriptionConfig,
+    paymentProvider: session.paymentProvider ?? "club_default",
     bookingStructure,
     sessionTitle: `${session.sessionTitle}${titleSuffix}`,
     description: session.description ?? details?.description ?? "",

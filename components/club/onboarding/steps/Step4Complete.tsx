@@ -47,7 +47,7 @@ export function Step4Complete({ clubName }: StepProps) {
           />
         </div>
         <p className="mt-3 text-xs text-emerald-800">
-          Connect Stripe, add sessions, and more from your dashboard checklist.
+          Connect payments, add sessions, and more from your dashboard checklist.
         </p>
       </div>
 

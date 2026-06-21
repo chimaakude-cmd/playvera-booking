@@ -11,6 +11,8 @@ import type { AdminFinanceData } from "@/lib/admin/finance-data";
 import dynamic from "next/dynamic";
 import { AdminStripePlatformCard } from "./AdminStripePlatformCard";
 import { AdminGoCardlessSetupSection } from "./finance/AdminGoCardlessSetupSection";
+import { AdminPaymentEventLogSection } from "./finance/AdminPaymentEventLogSection";
+import { AdminPaymentModeBanner } from "./finance/AdminPaymentModeBanner";
 
 const AdminPaymentProvidersSection = dynamic(
   () =>
@@ -56,6 +58,8 @@ export function AdminFinanceSection({ data }: Props) {
         }
       />
 
+      <AdminPaymentModeBanner />
+
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <DashboardStatCard
           label="Platform fees (30d est.)"
@@ -90,6 +94,7 @@ export function AdminFinanceSection({ data }: Props) {
       <AdminStripePlatformCard />
       <AdminGoCardlessSetupSection embedded />
       <AdminPaymentProvidersSection />
+      <AdminPaymentEventLogSection embedded />
 
       <article className="overflow-hidden rounded-2xl border border-zinc-200/80 bg-white shadow-sm">
         <div className="border-b border-zinc-100 px-6 py-5">

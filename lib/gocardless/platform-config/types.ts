@@ -20,6 +20,7 @@ export type GoCardlessPlatformConfigRow = {
   connection_status: GoCardlessPlatformConnectionStatus;
   last_tested_at: string | null;
   last_error: string | null;
+  last_webhook_received_at: string | null;
   created_at: string;
   updated_at: string;
   updated_by: string | null;
@@ -38,6 +39,7 @@ export type GoCardlessPlatformConfigPayload = {
   connectionStatus: GoCardlessPlatformConnectionStatus;
   lastTestedAt: string | null;
   lastError: string | null;
+  lastWebhookReceivedAt: string | null;
   updatedAt: string;
 };
 
@@ -59,6 +61,7 @@ export type GoCardlessPlatformConfigPublic = {
   connectionStatusLabel: string;
   lastTestedAt: string | null;
   lastError: string | null;
+  lastWebhookReceivedAt: string | null;
   updatedAt: string;
   envOverrides: {
     clientId: boolean;

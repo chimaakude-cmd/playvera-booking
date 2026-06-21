@@ -121,6 +121,7 @@ export type ClubSession = {
   published?: boolean;
   venue?: SessionVenue;
   providerVenueId?: string | null;
+  paymentProvider?: import("./payment-providers/types").ActivityPaymentProvider;
 };
 
 export type { SessionVenue } from "./session-location";

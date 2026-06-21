@@ -16,6 +16,10 @@ import {
   WizardFormData,
 } from "@/lib/session-wizard";
 import {
+  ACTIVITY_PAYMENT_PROVIDER_BADGES,
+} from "@/lib/payment-providers/types";
+import { resolveWizardPaymentProvider } from "@/lib/payment-providers/availability";
+import {
   buildSessionLocationLabel,
   venueFormToSessionVenue,
 } from "@/lib/session-location";
@@ -38,6 +42,15 @@ export function ReviewStep({ data }: ReviewStepProps) {
   ]
     .filter(Boolean)
     .join(", ");
+  const resolvedProvider = resolveWizardPaymentProvider(data);
+  const showPaymentProvider =
+    data.paymentModel === "subscription" ||
+    data.tickets.some(
+      (ticket) =>
+        ticket.priceType !== "free" &&
+        ticket.priceType !== "free_trial" &&
+        (ticket.price ?? 0) > 0,
+    );
 
   return (
     <section className="space-y-5">
@@ -99,6 +112,16 @@ export function ReviewStep({ data }: ReviewStepProps) {
                   : "Not set"}
               </dd>
             </div>
+            {showPaymentProvider ? (
+              <div>
+                <dt className="text-zinc-500">Payment provider</dt>
+                <dd className="font-medium text-zinc-900">
+                  {data.paymentProvider === "club_default"
+                    ? `Club default (${ACTIVITY_PAYMENT_PROVIDER_BADGES[resolvedProvider]})`
+                    : ACTIVITY_PAYMENT_PROVIDER_BADGES[resolvedProvider]}
+                </dd>
+              </div>
+            ) : null}
             {data.paymentModel === "subscription" ? (
               <div>
                 <dt className="text-zinc-500">Subscription billing</dt>
