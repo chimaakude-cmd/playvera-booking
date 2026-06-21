@@ -6,7 +6,7 @@ export type SetupProgressStorage = {
 };
 
 export type SetupTaskId =
-  | "connect_stripe"
+  | "connect_payments"
   | "add_social"
   | "configure_payouts"
   | "add_team"
@@ -28,7 +28,7 @@ export type SetupTask = {
 export const SETUP_BASE_PERCENT = 45;
 
 export const SETUP_TASK_WEIGHTS: Record<SetupTaskId, number> = {
-  connect_stripe: 20,
+  connect_payments: 20,
   add_social: 5,
   configure_payouts: 5,
   add_team: 5,

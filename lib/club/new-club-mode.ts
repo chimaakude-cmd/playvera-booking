@@ -1,4 +1,7 @@
 import { createDefaultBookingQuestions } from "@/lib/booking-questions";
+import { fetchSetupProgressFromApi } from "@/lib/club-setup/client";
+import { computeSetupProgressFromSessions } from "@/lib/club-setup/compute";
+import type { SetupProgressResult } from "@/lib/club-setup/types";
 import { CLUB_DEFAULT_BOOKING_QUESTIONS_KEY } from "@/lib/club-onboarding/types";
 import { getClubProfile } from "@/lib/club-profile";
 import { DEFAULT_CLUB_LOCATIONS } from "@/lib/club-profile/defaults";
@@ -9,10 +12,7 @@ import {
 } from "@/lib/club-profile/types";
 import { getClubTeamState } from "@/lib/club-team/storage";
 import { getVatSettings } from "@/lib/club-finance/vat-settings";
-import {
-  getStripeConnectState,
-  isStripeConnected,
-} from "@/lib/stripe-connect";
+import { isClubPaymentsConfigured } from "@/lib/payment-providers/availability";
 import { formatSessionLocation } from "@/lib/session-location";
 import { getSessions, type ClubSession } from "@/lib/sessions";
 
@@ -51,6 +51,7 @@ export type LaunchReadinessItem = {
 export type NewClubModeState = {
   isNewClubMode: boolean;
   publishedActivityCount: number;
+  activityCount: number;
   primaryStepsRemaining: number;
   estimatedMinutesRemaining: string;
   checklist: NewClubChecklistItem[];
@@ -59,6 +60,7 @@ export type NewClubModeState = {
   sessions: ClubSession[];
   profileVisibleToParents: boolean;
   showFirstActivityCelebration: boolean;
+  setupProgress: SetupProgressResult;
 };
 
 /** Alias used by onboarding flows — same as getClubProfile(). */
@@ -282,8 +284,8 @@ export function buildNewClubChecklist(
   sessions: ClubSession[] = getSessions(),
   hasProviderVenues = false,
 ): NewClubChecklistItem[] {
-  const publishedCount = getPublishedActivityCount(sessions);
-  const stripeConnected = isStripeConnected(getStripeConnectState().status);
+  const activityCount = sessions.length;
+  const paymentsConfigured = isClubPaymentsConfigured();
   const venueComplete = hasAnyVenue(profile, sessions, hasProviderVenues);
   const publicProfileComplete = isPublicProfileComplete(
     profile,
@@ -295,20 +297,19 @@ export function buildNewClubChecklist(
     {
       id: "connect_payments",
       title: "Connect payments",
-      description: "Connect Stripe to accept paid bookings. Free sessions still work without this.",
-      actionLabel: stripeConnected ? "Connected" : "Connect",
+      description: "Choose how parents will pay.",
+      actionLabel: paymentsConfigured ? "Connected" : "Connect",
       href: "/club/finance?tab=payment-providers",
-      completed: stripeConnected,
+      completed: paymentsConfigured,
       primary: true,
     },
     {
       id: "create_first_activity",
       title: "Create first activity",
       description: "Publish your first session so parents can discover and book.",
-      actionLabel: publishedCount > 0 ? "View" : "Create",
-      href:
-        publishedCount > 0 ? "/club/activities" : "/club/create-session",
-      completed: publishedCount > 0,
+      actionLabel: activityCount > 0 ? "View" : "Create",
+      href: activityCount > 0 ? "/club/activities" : "/club/create-session",
+      completed: activityCount > 0,
       primary: true,
     },
     buildLogoCoverChecklistItem(profile),
@@ -368,6 +369,7 @@ export function buildNewClubChecklist(
 
 export function buildLaunchReadiness(
   checklist: NewClubChecklistItem[],
+  publishedActivityCount: number,
 ): LaunchReadinessItem[] {
   const profileComplete =
     checklist.find((item) => item.id === "complete_public_profile")
@@ -375,9 +377,7 @@ export function buildLaunchReadiness(
   const paymentsConnected =
     checklist.find((item) => item.id === "connect_payments")?.completed ??
     false;
-  const activitiesPublished =
-    checklist.find((item) => item.id === "create_first_activity")
-      ?.completed ?? false;
+  const activitiesPublished = publishedActivityCount > 0;
 
   const readyForBookings =
     profileComplete && activitiesPublished;
@@ -469,9 +469,11 @@ export function getNewClubModeState(
   sessions: ClubSession[] = getSessions(),
   profile?: ClubProfile,
   hasProviderVenues = false,
+  setupProgress?: SetupProgressResult,
 ): NewClubModeState {
   const resolvedProfile = profile ?? loadClubProfile();
   const publishedActivityCount = getPublishedActivityCount(sessions);
+  const activityCount = sessions.length;
   const isNewClub = publishedActivityCount === 0;
   const checklist = buildNewClubChecklist(
     resolvedProfile,
@@ -479,16 +481,20 @@ export function getNewClubModeState(
     hasProviderVenues,
   );
   const primaryStepsRemaining = getPrimaryStepsRemaining(checklist);
+  const resolvedSetupProgress =
+    setupProgress ??
+    computeSetupProgressFromSessions(sessions, resolvedProfile);
 
   return {
     isNewClubMode: isNewClub,
     publishedActivityCount,
+    activityCount,
     primaryStepsRemaining,
     estimatedMinutesRemaining: getEstimatedMinutesRemaining(
       checklist.filter((item) => !item.completed && !item.optional).length,
     ),
     checklist,
-    launchReadiness: buildLaunchReadiness(checklist),
+    launchReadiness: buildLaunchReadiness(checklist, publishedActivityCount),
     profile: resolvedProfile,
     sessions,
     profileVisibleToParents: isProfileVisibleToParents(
@@ -498,6 +504,7 @@ export function getNewClubModeState(
     ),
     showFirstActivityCelebration:
       shouldShowFirstActivityCelebration(publishedActivityCount),
+    setupProgress: resolvedSetupProgress,
   };
 }
 
@@ -535,10 +542,13 @@ export async function fetchNewClubModeState(): Promise<NewClubModeState> {
   const { fetchClubProfileFromApi } = await import("@/lib/club-profile/client");
   const { loadProviderVenues } = await import("@/lib/data/provider-venues");
 
-  const sessionsResult = await loadSessionsWithMeta();
+  const [sessionsResult, profileResult, setupProgressResult] = await Promise.all([
+    loadSessionsWithMeta(),
+    fetchClubProfileFromApi(),
+    fetchSetupProgressFromApi(),
+  ]);
   const sessions = sessionsResult.data;
 
-  const profileResult = await fetchClubProfileFromApi();
   const profile = profileResult.ok ? profileResult.profile : getClubProfile();
 
   let hasProviderVenues = false;
@@ -549,7 +559,16 @@ export async function fetchNewClubModeState(): Promise<NewClubModeState> {
     hasProviderVenues = false;
   }
 
-  return getNewClubModeState(sessions, profile, hasProviderVenues);
+  const setupProgress = setupProgressResult.ok
+    ? setupProgressResult.progress
+    : computeSetupProgressFromSessions(sessions, profile);
+
+  return getNewClubModeState(
+    sessions,
+    profile,
+    hasProviderVenues,
+    setupProgress,
+  );
 }
 
 /** Nav sections hidden until the first activity is published. */

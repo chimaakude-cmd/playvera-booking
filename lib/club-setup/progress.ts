@@ -5,45 +5,19 @@ import { getClubTeamState } from "@/lib/club-team/storage";
 import { getVatSettings } from "@/lib/club-finance/vat-settings";
 import { getClubPayoutPreferences } from "@/lib/finance-payouts/storage";
 import { DEMO_FRANCHISEE_PROVIDER_ID } from "@/lib/organisation/defaults";
+import { isClubPaymentsConfigured } from "@/lib/payment-providers/availability";
 import {
   getStripeConnectState,
   isStripeConnected,
   isStripePayoutReady,
 } from "@/lib/stripe-connect";
-import { getSessions } from "@/lib/sessions";
-import {
-  SETUP_BASE_PERCENT,
-  SETUP_TASK_WEIGHTS,
-  type SetupProgressResult,
-  type SetupTask,
-  type SetupTaskId,
-} from "./types";
+import { getSessions, type ClubSession } from "@/lib/sessions";
+import type { ClubProfile } from "@/lib/club-profile/types";
+import { computeSetupProgress } from "./compute";
+import type { SetupProgressContext } from "./context";
+import type { SetupProgressResult } from "./types";
 
-function hasSocialLinks(): boolean {
-  const profile = getClubProfile();
-  return Object.values(profile.socialLinks).some((value) => value.trim().length > 0);
-}
-
-function hasCoverImage(): boolean {
-  const profile = getClubProfile();
-  return Boolean(profile.coverImageUrl?.trim() || profile.profileDesign?.coverUrl);
-}
-
-function hasTeamMembers(): boolean {
-  const team = getClubTeamState();
-  return team.members.filter((member) => !member.isOwner).length > 0;
-}
-
-function hasSessions(): boolean {
-  return getSessions().length > 0;
-}
-
-function hasVatDetails(): boolean {
-  const vat = getVatSettings();
-  return vat.isVatRegistered && vat.vatRegistrationNumber.trim().length > 0;
-}
-
-function hasBookingQuestionsConfigured(): boolean {
+function hasBookingQuestionsConfiguredFromStorage(): boolean {
   if (typeof window === "undefined") {
     return false;
   }
@@ -61,117 +35,51 @@ function hasBookingQuestionsConfigured(): boolean {
   }
 }
 
-function hasPayoutPreferencesConfigured(): boolean {
-  const prefs = getClubPayoutPreferences(DEMO_FRANCHISEE_PROVIDER_ID);
+function buildClientSetupProgressContext(
+  sessions: ClubSession[] = getSessions(),
+  profile: ClubProfile = getClubProfile(),
+): SetupProgressContext {
   const stripe = getStripeConnectState();
-  return isStripePayoutReady(stripe.status) || Boolean(prefs.nextEstimatedPayout);
+  const stripeStatus = stripe.status;
+  const prefs = getClubPayoutPreferences(DEMO_FRANCHISEE_PROVIDER_ID);
+  const vat = getVatSettings();
+  const team = getClubTeamState();
+
+  return {
+    sessions,
+    profile,
+    stripeConnected: isStripeConnected(stripeStatus),
+    stripePayoutReady: isStripePayoutReady(stripeStatus),
+    paymentsConfigured: isClubPaymentsConfigured(),
+    hasTeamMembers: team.members.some((member) => !member.isOwner),
+    hasVatDetails:
+      vat.isVatRegistered && vat.vatRegistrationNumber.trim().length > 0,
+    hasBookingQuestionsConfigured: hasBookingQuestionsConfiguredFromStorage(),
+    hasPayoutPreferencesConfigured:
+      isStripePayoutReady(stripeStatus) || Boolean(prefs.nextEstimatedPayout),
+  };
 }
 
-function isTaskCompleted(id: SetupTaskId): boolean {
-  switch (id) {
-    case "connect_stripe":
-      return isStripeConnected(getStripeConnectState().status);
-    case "add_social":
-      return hasSocialLinks();
-    case "configure_payouts":
-      return hasPayoutPreferencesConfigured();
-    case "add_team":
-      return hasTeamMembers();
-    case "create_session":
-      return hasSessions();
-    case "booking_questions":
-      return hasBookingQuestionsConfigured();
-    case "upload_cover":
-      return hasCoverImage();
-    case "add_vat":
-      return hasVatDetails();
-    case "connect_bookkeeping":
-      return false;
-    default:
-      return false;
-  }
+export function getSetupProgressFromContext(
+  context: SetupProgressContext,
+): SetupProgressResult {
+  return computeSetupProgress(context);
 }
 
-const TASK_DEFINITIONS: Omit<SetupTask, "completed">[] = [
-  {
-    id: "connect_stripe",
-    label: "Connect Stripe",
-    description: "Accept card payments for paid sessions.",
-    required: true,
-    href: "/club/finance?tab=payment-providers",
-  },
-  {
-    id: "add_social",
-    label: "Add social links",
-    description: "Help parents find you on social media.",
-    required: false,
-    href: "/club/settings/profile",
-  },
-  {
-    id: "configure_payouts",
-    label: "Configure payouts",
-    description: "Set how often payouts reach your bank.",
-    required: false,
-    href: "/club/finance?tab=payouts",
-  },
-  {
-    id: "add_team",
-    label: "Add team",
-    description: "Invite coaches and administrators.",
-    required: false,
-    href: "/club/settings/team",
-  },
-  {
-    id: "create_session",
-    label: "Create first session",
-    description: "Publish an activity for parents to book.",
-    required: false,
-    href: "/club/create-session",
-  },
-  {
-    id: "booking_questions",
-    label: "Configure booking questions",
-    description: "Customise parent registration questions.",
-    required: false,
-    href: "/club/settings/booking-questions",
-  },
-  {
-    id: "upload_cover",
-    label: "Upload cover image",
-    description: "Make your public profile stand out.",
-    required: false,
-    href: "/club/settings/profile",
-  },
-  {
-    id: "add_vat",
-    label: "Add VAT details",
-    description: "Register VAT if applicable to your club.",
-    required: false,
-    href: "/club/finance?tab=vat",
-  },
-  {
-    id: "connect_bookkeeping",
-    label: "Connect bookkeeping",
-    description: "Sync transactions to your accounting software.",
-    required: false,
-    href: "/club/finance?tab=integrations",
-  },
-];
-
-export function getSetupTasks(): SetupTask[] {
-  return TASK_DEFINITIONS.map((task) => ({
-    ...task,
-    completed: isTaskCompleted(task.id),
-  }));
-}
-
-export function getSetupProgress(): SetupProgressResult {
-  const tasks = getSetupTasks();
-  const earned = tasks.reduce(
-    (sum, task) => sum + (task.completed ? SETUP_TASK_WEIGHTS[task.id] : 0),
-    0,
+export function getSetupProgressWithSessions(
+  sessions: ClubSession[],
+  profile?: ClubProfile,
+): SetupProgressResult {
+  return computeSetupProgress(
+    buildClientSetupProgressContext(sessions, profile ?? getClubProfile()),
   );
-  const percent = Math.min(100, SETUP_BASE_PERCENT + earned);
+}
 
-  return { percent, tasks };
+/** @deprecated Prefer server-derived progress via fetchSetupProgressFromApi. */
+export function getSetupProgress(): SetupProgressResult {
+  return computeSetupProgress(buildClientSetupProgressContext());
+}
+
+export function getSetupTasks() {
+  return getSetupProgress().tasks;
 }

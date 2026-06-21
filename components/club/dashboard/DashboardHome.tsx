@@ -90,8 +90,9 @@ function DashboardHomeContent() {
       }
 
       if (
-        state.showFirstActivityCelebration ||
-        searchParams.get("success") === "1"
+        state.publishedActivityCount > 0 &&
+        (state.showFirstActivityCelebration ||
+          searchParams.get("success") === "1")
       ) {
         setShowCelebration(true);
         markFirstActivityCelebrated();
@@ -210,7 +211,7 @@ function DashboardHomeContent() {
         unreadMessages={unreadMessages}
       />
 
-      <CompleteSetupCard />
+      <CompleteSetupCard progress={newClubState.setupProgress} />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         {kpis.map((kpi) => (

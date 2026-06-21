@@ -1,0 +1,189 @@
+import type { ActivityPaymentProvider } from "./types";
+import {
+  getPaymentProviderSettings,
+  isGoCardlessCheckoutAvailable,
+  isStripeCheckoutAvailable,
+} from "./storage";
+import type { ClubSession } from "@/lib/sessions";
+
+type PaidActivityInput = {
+  paymentModel: "block_individual" | "subscription" | null;
+  paymentProvider: ActivityPaymentProvider;
+};
+
+export type SessionCheckoutMethods = {
+  stripe: boolean;
+  gocardless: boolean;
+  /** True when the activity accepts both and more than one method is shown. */
+  parentPicksMethod: boolean;
+};
+
+export function isStripePaymentsReady(providerId?: string): boolean {
+  return isStripeCheckoutAvailable(providerId);
+}
+
+/** Platform-managed GoCardless — enabled in club settings without club OAuth. */
+export function isGoCardlessPaymentsReady(providerId?: string): boolean {
+  const settings = getPaymentProviderSettings(providerId);
+  return settings.enabled_methods.gocardless_direct_debit;
+}
+
+export function hasAnyPaymentProviderReady(providerId?: string): boolean {
+  return (
+    isStripePaymentsReady(providerId) || isGoCardlessPaymentsReady(providerId)
+  );
+}
+
+export function isClubPaymentsConfigured(providerId?: string): boolean {
+  const settings = getPaymentProviderSettings(providerId);
+  const stripeEnabled = settings.enabled_methods.stripe_card;
+  const gocardlessEnabled = settings.enabled_methods.gocardless_direct_debit;
+
+  if (stripeEnabled && isStripePaymentsReady(providerId)) {
+    return true;
+  }
+
+  if (gocardlessEnabled && isGoCardlessPaymentsReady(providerId)) {
+    return true;
+  }
+
+  return false;
+}
+
+export function resolveActivityPaymentProvider(
+  paymentProvider: ActivityPaymentProvider | undefined,
+  providerId?: string,
+): "stripe" | "gocardless" {
+  if (paymentProvider === "stripe" || paymentProvider === "gocardless") {
+    return paymentProvider;
+  }
+
+  const settings = getPaymentProviderSettings(providerId);
+  if (settings.club_default_provider === "gocardless") {
+    return "gocardless";
+  }
+
+  return "stripe";
+}
+
+export function sessionIsPaid(session: ClubSession): boolean {
+  if (session.bookingStructure === "subscription") {
+    return true;
+  }
+
+  if (session.price > 0) {
+    return true;
+  }
+
+  return (session.tickets ?? []).some(
+    (ticket) =>
+      ticket.priceType !== "free" &&
+      ticket.priceType !== "free_trial" &&
+      (ticket.price ?? 0) > 0,
+  );
+}
+
+export function resolveSessionPaymentProvider(
+  session: ClubSession,
+  providerId?: string,
+): "stripe" | "gocardless" | null {
+  if (!sessionIsPaid(session)) {
+    return null;
+  }
+
+  if (session.paymentProvider === "both") {
+    return null;
+  }
+
+  return resolveActivityPaymentProvider(session.paymentProvider, providerId);
+}
+
+export function resolveSessionCheckoutMethods(
+  session: ClubSession,
+  providerId?: string,
+): SessionCheckoutMethods | null {
+  if (!sessionIsPaid(session)) {
+    return null;
+  }
+
+  const stripeAvailable = isStripeCheckoutAvailable(providerId);
+  const gocardlessAvailable = isGoCardlessCheckoutAvailable(providerId);
+  const activityProvider = session.paymentProvider ?? "club_default";
+
+  if (activityProvider === "both") {
+    const stripe = stripeAvailable;
+    const gocardless = gocardlessAvailable;
+    return {
+      stripe,
+      gocardless,
+      parentPicksMethod: stripe && gocardless,
+    };
+  }
+
+  const resolved = resolveActivityPaymentProvider(activityProvider, providerId);
+
+  if (resolved === "stripe") {
+    return {
+      stripe: stripeAvailable,
+      gocardless: false,
+      parentPicksMethod: false,
+    };
+  }
+
+  return {
+    stripe: false,
+    gocardless: gocardlessAvailable,
+    parentPicksMethod: false,
+  };
+}
+
+export function resolveWizardPaymentProvider(
+  data: PaidActivityInput,
+  providerId?: string,
+): "stripe" | "gocardless" | "both" {
+  if (data.paymentProvider === "both") {
+    return "both";
+  }
+
+  return resolveActivityPaymentProvider(data.paymentProvider, providerId);
+}
+
+export function validateActivityPaymentProvider(
+  data: PaidActivityInput,
+  isPaid: boolean,
+): string[] {
+  if (!isPaid) {
+    return [];
+  }
+
+  if (!hasAnyPaymentProviderReady()) {
+    return [
+      "Connect a payment provider in Finance before publishing paid activities.",
+    ];
+  }
+
+  const resolved = resolveWizardPaymentProvider(data);
+
+  if (resolved === "both") {
+    if (!isStripePaymentsReady() && !isGoCardlessPaymentsReady()) {
+      return [
+        "Enable Stripe and/or GoCardless in Finance before accepting both payment methods.",
+      ];
+    }
+    return [];
+  }
+
+  if (resolved === "stripe" && !isStripePaymentsReady()) {
+    return [
+      "Stripe is not connected. Connect Stripe in Finance or choose Direct Debit.",
+    ];
+  }
+
+  if (resolved === "gocardless" && !isGoCardlessPaymentsReady()) {
+    return [
+      "Direct Debit is not enabled. Enable GoCardless in Finance or choose Stripe.",
+    ];
+  }
+
+  return [];
+}

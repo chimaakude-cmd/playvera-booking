@@ -4,18 +4,20 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
   dismissSetupCard,
-  getSetupProgress,
   isSetupCardDismissed,
+  type SetupProgressResult,
   type SetupTask,
 } from "@/lib/club-setup";
 
-export function CompleteSetupCard() {
-  const [progress, setProgress] = useState(() => getSetupProgress());
+type CompleteSetupCardProps = {
+  progress: SetupProgressResult;
+};
+
+export function CompleteSetupCard({ progress }: CompleteSetupCardProps) {
   const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
     setDismissed(isSetupCardDismissed());
-    setProgress(getSetupProgress());
   }, []);
 
   if (dismissed || progress.percent >= 100) {
@@ -86,7 +88,7 @@ function SetupTaskRow({ task }: { task: SetupTask }) {
           </Link>
           {task.required ? (
             <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800">
-              Required for payments
+              Required for paid activities
             </span>
           ) : null}
         </div>
