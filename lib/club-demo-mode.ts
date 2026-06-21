@@ -9,6 +9,7 @@ export const CLUB_DEMO_ROUTES = [
   "/club/demo",
   "/club/demo-register",
   "/club/demo-customers",
+  "/club/demo-discounts",
 ] as const;
 
 export function isClubDemoRoute(pathname?: string): boolean {

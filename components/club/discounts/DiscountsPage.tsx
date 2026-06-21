@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useMemo, useState } from "react";
+import { DemoDataBadge } from "@/components/club/DemoDataBadge";
 import { PageHeader } from "@/components/club/PageHeader";
 import { DashboardSection } from "@/components/club/dashboard/DashboardCards";
 import { ConfirmDialog } from "@/components/club/ConfirmDialog";
@@ -28,6 +30,7 @@ import {
   type SiblingDiscountFormInput,
 } from "@/lib/club-discounts";
 import { paginateItems } from "@/lib/pagination";
+import { isClubDemoRoute } from "@/lib/club-demo-mode";
 import { DiscountOverviewCards } from "./DiscountOverviewCards";
 import { DiscountsTable } from "./DiscountsTable";
 import { DiscountFormModal } from "./DiscountFormModal";
@@ -39,6 +42,8 @@ import {
 } from "@/lib/club-discounts/presets";
 
 export function DiscountsPage() {
+  const pathname = usePathname();
+  const isDemoExperience = isClubDemoRoute(pathname);
   const role = getCurrentClubRole();
   const canView = roleHasPermission(role, "view_discounts");
   const canManage = roleHasPermission(role, "manage_discounts");
@@ -209,15 +214,20 @@ export function DiscountsPage() {
         title="Discounts"
         description="Create promo codes, track redemptions, and preview how discounts appear at checkout."
         action={
-          canManage ? (
-            <button
-              type="button"
-              onClick={() => openCreateForm()}
-              className="inline-flex rounded-xl bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-teal-700"
-            >
-              Create discount
-            </button>
-          ) : null
+          isDemoExperience || canManage ? (
+            <div className="flex flex-wrap items-center gap-3">
+              {isDemoExperience ? <DemoDataBadge /> : null}
+              {canManage ? (
+                <button
+                  type="button"
+                  onClick={() => openCreateForm()}
+                  className="inline-flex rounded-xl bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-teal-700"
+                >
+                  Create discount
+                </button>
+              ) : null}
+            </div>
+          ) : undefined
         }
       />
 
@@ -229,79 +239,17 @@ export function DiscountsPage() {
         receipts.
       </div>
 
-      <div className="rounded-2xl border border-zinc-200/80 bg-white p-4 shadow-sm sm:p-5">
-        <div className="grid gap-3 lg:grid-cols-3">
-          <label className="block text-xs font-medium text-zinc-500 lg:col-span-1">
-            Search name or code
-            <input
-              type="search"
-              value={filters.query}
-              onChange={(event) => {
-                setFilters((current) => ({
-                  ...current,
-                  query: event.target.value,
-                }));
-                setPage(1);
-              }}
-              placeholder="e.g. SUMMER10"
-              className="mt-1 w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm"
-            />
-          </label>
-          <label className="block text-xs font-medium text-zinc-500">
-            Status
-            <select
-              value={filters.status}
-              onChange={(event) => {
-                setFilters((current) => ({
-                  ...current,
-                  status: event.target.value as DiscountFilters["status"],
-                }));
-                setPage(1);
-              }}
-              className="mt-1 w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm"
-            >
-              <option value="all">All statuses</option>
-              <option value="active">Active</option>
-              <option value="paused">Paused</option>
-              <option value="scheduled">Scheduled</option>
-              <option value="expired">Expired</option>
-              <option value="inactive">Inactive</option>
-              <option value="archived">Archived</option>
-            </select>
-          </label>
-          <label className="block text-xs font-medium text-zinc-500">
-            Type
-            <select
-              value={filters.type}
-              onChange={(event) => {
-                setFilters((current) => ({
-                  ...current,
-                  type: event.target.value as DiscountFilters["type"],
-                }));
-                setPage(1);
-              }}
-              className="mt-1 w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm"
-            >
-              <option value="all">All types</option>
-              <option value="percentage">Percentage</option>
-              <option value="fixed">Fixed amount</option>
-            </select>
-          </label>
-        </div>
-      </div>
-
-      <div className="overflow-hidden rounded-2xl border border-zinc-200/80 bg-white shadow-sm">
-        {pagination.items.length === 0 ? (
+      {discounts.length === 0 ? (
+        <div className="overflow-hidden rounded-2xl border border-zinc-200/80 bg-white shadow-sm">
           <div className="px-6 py-14 text-center">
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-teal-50 text-xl text-teal-600">
               %
             </div>
             <h3 className="mt-4 text-base font-semibold text-zinc-900">
-              Create your first discount code
+              No discounts yet
             </h3>
             <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-zinc-500">
-              Offer percentage or fixed-amount savings on activities, camps, or
-              selected sessions. Parents enter the code at checkout.
+              Create promo codes and discounts to encourage bookings.
             </p>
             {canManage ? (
               <button
@@ -313,27 +261,103 @@ export function DiscountsPage() {
               </button>
             ) : null}
           </div>
-        ) : (
-          <>
-            <DiscountsTable
-              discounts={pagination.items}
-              canManage={canManage}
-              onEdit={openEditForm}
-              onDuplicate={handleDuplicate}
-              onPause={handlePause}
-              onArchive={setArchiveTarget}
-            />
-            <PaginationControls
-              page={pagination.page}
-              totalPages={pagination.totalPages}
-              totalItems={pagination.totalItems}
-              startIndex={pagination.startIndex}
-              endIndex={pagination.endIndex}
-              onPageChange={setPage}
-            />
-          </>
-        )}
-      </div>
+        </div>
+      ) : (
+        <>
+          <div className="rounded-2xl border border-zinc-200/80 bg-white p-4 shadow-sm sm:p-5">
+            <div className="grid gap-3 lg:grid-cols-3">
+              <label className="block text-xs font-medium text-zinc-500 lg:col-span-1">
+                Search name or code
+                <input
+                  type="search"
+                  value={filters.query}
+                  onChange={(event) => {
+                    setFilters((current) => ({
+                      ...current,
+                      query: event.target.value,
+                    }));
+                    setPage(1);
+                  }}
+                  placeholder="Search by name or code"
+                  className="mt-1 w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm"
+                />
+              </label>
+              <label className="block text-xs font-medium text-zinc-500">
+                Status
+                <select
+                  value={filters.status}
+                  onChange={(event) => {
+                    setFilters((current) => ({
+                      ...current,
+                      status: event.target.value as DiscountFilters["status"],
+                    }));
+                    setPage(1);
+                  }}
+                  className="mt-1 w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm"
+                >
+                  <option value="all">All statuses</option>
+                  <option value="active">Active</option>
+                  <option value="paused">Paused</option>
+                  <option value="scheduled">Scheduled</option>
+                  <option value="expired">Expired</option>
+                  <option value="inactive">Inactive</option>
+                  <option value="archived">Archived</option>
+                </select>
+              </label>
+              <label className="block text-xs font-medium text-zinc-500">
+                Type
+                <select
+                  value={filters.type}
+                  onChange={(event) => {
+                    setFilters((current) => ({
+                      ...current,
+                      type: event.target.value as DiscountFilters["type"],
+                    }));
+                    setPage(1);
+                  }}
+                  className="mt-1 w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm"
+                >
+                  <option value="all">All types</option>
+                  <option value="percentage">Percentage</option>
+                  <option value="fixed">Fixed amount</option>
+                </select>
+              </label>
+            </div>
+          </div>
+
+          <div className="overflow-hidden rounded-2xl border border-zinc-200/80 bg-white shadow-sm">
+            {pagination.items.length === 0 ? (
+              <div className="px-6 py-14 text-center">
+                <h3 className="text-base font-semibold text-zinc-900">
+                  No matching discounts
+                </h3>
+                <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-zinc-500">
+                  Try adjusting your search or filters.
+                </p>
+              </div>
+            ) : (
+              <>
+                <DiscountsTable
+                  discounts={pagination.items}
+                  canManage={canManage}
+                  onEdit={openEditForm}
+                  onDuplicate={handleDuplicate}
+                  onPause={handlePause}
+                  onArchive={setArchiveTarget}
+                />
+                <PaginationControls
+                  page={pagination.page}
+                  totalPages={pagination.totalPages}
+                  totalItems={pagination.totalItems}
+                  startIndex={pagination.startIndex}
+                  endIndex={pagination.endIndex}
+                  onPageChange={setPage}
+                />
+              </>
+            )}
+          </div>
+        </>
+      )}
 
       <DashboardSection
         title="Discount tools"

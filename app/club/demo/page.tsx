@@ -10,6 +10,12 @@ const DEMO_EXPERIENCES = [
       "Preview the CRM with sample parents, children, bookings, and spend.",
   },
   {
+    href: "/club/demo-discounts",
+    title: "Example discounts",
+    description:
+      "Preview promo codes, redemptions, and discount analytics with sample data.",
+  },
+  {
     href: "/club/demo-register",
     title: "Example registers",
     description:

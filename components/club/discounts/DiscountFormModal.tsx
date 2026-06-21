@@ -162,7 +162,7 @@ export function DiscountFormModal({
               value={form.name}
               onChange={(event) => updateField("name", event.target.value)}
               className={inputClassName}
-              placeholder="e.g. Summer camp early bird"
+              placeholder="e.g. Holiday camp early bird"
             />
           </label>
 
@@ -177,7 +177,7 @@ export function DiscountFormModal({
                 updateField("code", event.target.value.toUpperCase())
               }
               className={`${inputClassName} font-mono uppercase`}
-              placeholder="SUMMER10"
+              placeholder="e.g. CAMP10"
             />
           </label>
 

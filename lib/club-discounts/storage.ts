@@ -1,3 +1,8 @@
+import {
+  filterProductionClubRecords,
+  isDemoClubRecordId,
+  shouldShowClubDemoData,
+} from "@/lib/club-demo-mode";
 import type {
   ClubDiscount,
   DiscountFilters,
@@ -8,10 +13,11 @@ import type {
 } from "./types";
 import { resolveDiscountStatus } from "./types";
 import {
-  DEFAULT_DISCOUNTS,
-  DEFAULT_REDEMPTIONS,
   DEMO_PROVIDER_ID,
+  LEGACY_SEED_DISCOUNT_IDS,
+  LEGACY_SEED_REDEMPTION_IDS,
 } from "./defaults";
+import { DEMO_DISCOUNTS, DEMO_REDEMPTIONS } from "./demo-seed";
 import { normalizeDiscountCode } from "./validation";
 
 export const DISCOUNTS_STORAGE_KEY = "activora-club-discounts";
@@ -21,28 +27,80 @@ function isBrowser(): boolean {
   return typeof window !== "undefined";
 }
 
-function seedIfEmpty<T>(key: string, defaults: T[]): T[] {
+function loadStoredRecords<T>(key: string): T[] {
   if (!isBrowser()) {
-    return defaults;
+    return [];
   }
 
   try {
     const raw = localStorage.getItem(key);
     if (!raw) {
-      localStorage.setItem(key, JSON.stringify(defaults));
-      return defaults;
+      return [];
     }
 
     const parsed = JSON.parse(raw) as T[];
-    if (!Array.isArray(parsed) || parsed.length === 0) {
-      localStorage.setItem(key, JSON.stringify(defaults));
-      return defaults;
-    }
-
-    return parsed;
+    return Array.isArray(parsed) ? parsed : [];
   } catch {
-    return defaults;
+    return [];
   }
+}
+
+function saveStoredRecords<T>(key: string, records: T[]): void {
+  if (!isBrowser()) {
+    return;
+  }
+
+  try {
+    localStorage.setItem(key, JSON.stringify(records));
+  } catch {
+    // ignore storage errors in stub
+  }
+}
+
+export function isDemoDiscountRecord(discount: ClubDiscount): boolean {
+  return (
+    discount.providerId === DEMO_PROVIDER_ID ||
+    isDemoClubRecordId(discount.id) ||
+    LEGACY_SEED_DISCOUNT_IDS.has(discount.id)
+  );
+}
+
+function isDemoRedemptionRecord(redemption: DiscountRedemption): boolean {
+  return (
+    isDemoClubRecordId(redemption.id) ||
+    isDemoClubRecordId(redemption.discountId) ||
+    isDemoClubRecordId(redemption.bookingId) ||
+    LEGACY_SEED_REDEMPTION_IDS.has(redemption.id) ||
+    LEGACY_SEED_DISCOUNT_IDS.has(redemption.discountId)
+  );
+}
+
+function sanitizeStoredDiscounts(records: ClubDiscount[]): ClubDiscount[] {
+  if (shouldShowClubDemoData()) {
+    return records;
+  }
+
+  const cleaned = records.filter((record) => !isDemoDiscountRecord(record));
+  if (cleaned.length !== records.length) {
+    saveStoredRecords(DISCOUNTS_STORAGE_KEY, cleaned);
+  }
+
+  return cleaned;
+}
+
+function sanitizeStoredRedemptions(
+  records: DiscountRedemption[],
+): DiscountRedemption[] {
+  if (shouldShowClubDemoData()) {
+    return records;
+  }
+
+  const cleaned = records.filter((record) => !isDemoRedemptionRecord(record));
+  if (cleaned.length !== records.length) {
+    saveStoredRecords(REDEMPTIONS_STORAGE_KEY, cleaned);
+  }
+
+  return cleaned;
 }
 
 function migrateDiscount(discount: ClubDiscount): ClubDiscount {
@@ -54,24 +112,39 @@ function migrateDiscount(discount: ClubDiscount): ClubDiscount {
 }
 
 export function getClubDiscounts(): ClubDiscount[] {
-  return seedIfEmpty(DISCOUNTS_STORAGE_KEY, DEFAULT_DISCOUNTS).map(
-    migrateDiscount,
-  );
+  const stored = sanitizeStoredDiscounts(
+    loadStoredRecords<ClubDiscount>(DISCOUNTS_STORAGE_KEY),
+  ).map(migrateDiscount);
+
+  if (stored.length > 0) {
+    return filterProductionClubRecords(stored);
+  }
+
+  if (shouldShowClubDemoData()) {
+    return DEMO_DISCOUNTS.map(migrateDiscount);
+  }
+
+  return [];
 }
 
 export function getDiscountRedemptions(): DiscountRedemption[] {
-  return seedIfEmpty(REDEMPTIONS_STORAGE_KEY, DEFAULT_REDEMPTIONS);
+  const stored = sanitizeStoredRedemptions(
+    loadStoredRecords<DiscountRedemption>(REDEMPTIONS_STORAGE_KEY),
+  );
+
+  if (stored.length > 0) {
+    return filterProductionClubRecords(stored);
+  }
+
+  if (shouldShowClubDemoData()) {
+    return DEMO_REDEMPTIONS;
+  }
+
+  return [];
 }
 
 function saveDiscounts(discounts: ClubDiscount[]): ClubDiscount[] {
-  if (isBrowser()) {
-    try {
-      localStorage.setItem(DISCOUNTS_STORAGE_KEY, JSON.stringify(discounts));
-    } catch {
-      // ignore storage errors in stub
-    }
-  }
-
+  saveStoredRecords(DISCOUNTS_STORAGE_KEY, discounts);
   return discounts;
 }
 
@@ -124,7 +197,7 @@ function buildDiscount(
 
 export function createDiscount(input: DiscountFormInput): ClubDiscount {
   const discount = buildDiscount({ ...input, kind: "promo" });
-  const discounts = [discount, ...getClubDiscounts()];
+  const discounts = [discount, ...loadStoredRecords<ClubDiscount>(DISCOUNTS_STORAGE_KEY).map(migrateDiscount)];
   saveDiscounts(discounts);
   return discount;
 }
@@ -151,7 +224,7 @@ export function createSiblingDiscount(
     canCombine: input.canCombine,
   });
 
-  const discounts = [discount, ...getClubDiscounts()];
+  const discounts = [discount, ...loadStoredRecords<ClubDiscount>(DISCOUNTS_STORAGE_KEY).map(migrateDiscount)];
   saveDiscounts(discounts);
   return discount;
 }
@@ -179,7 +252,7 @@ export function createEarlyBirdDiscount(
     canCombine: input.canCombine,
   });
 
-  const discounts = [discount, ...getClubDiscounts()];
+  const discounts = [discount, ...loadStoredRecords<ClubDiscount>(DISCOUNTS_STORAGE_KEY).map(migrateDiscount)];
   saveDiscounts(discounts);
   return discount;
 }
@@ -188,7 +261,9 @@ export function updateDiscount(
   id: string,
   input: DiscountFormInput,
 ): ClubDiscount {
-  const discounts = getClubDiscounts();
+  const discounts = loadStoredRecords<ClubDiscount>(DISCOUNTS_STORAGE_KEY).map(
+    migrateDiscount,
+  );
   const index = discounts.findIndex((discount) => discount.id === id);
 
   if (index === -1) {
@@ -216,7 +291,9 @@ export function updateSiblingDiscount(
   id: string,
   input: SiblingDiscountFormInput,
 ): ClubDiscount {
-  const discounts = getClubDiscounts();
+  const discounts = loadStoredRecords<ClubDiscount>(DISCOUNTS_STORAGE_KEY).map(
+    migrateDiscount,
+  );
   const index = discounts.findIndex((discount) => discount.id === id);
 
   if (index === -1) {
@@ -254,7 +331,9 @@ export function updateEarlyBirdDiscount(
   id: string,
   input: EarlyBirdDiscountFormInput,
 ): ClubDiscount {
-  const discounts = getClubDiscounts();
+  const discounts = loadStoredRecords<ClubDiscount>(DISCOUNTS_STORAGE_KEY).map(
+    migrateDiscount,
+  );
   const index = discounts.findIndex((discount) => discount.id === id);
 
   if (index === -1) {
@@ -381,7 +460,9 @@ function patchDiscount(
   id: string,
   patch: (discount: ClubDiscount) => ClubDiscount,
 ): ClubDiscount {
-  const discounts = getClubDiscounts();
+  const discounts = loadStoredRecords<ClubDiscount>(DISCOUNTS_STORAGE_KEY).map(
+    migrateDiscount,
+  );
   const index = discounts.findIndex((discount) => discount.id === id);
 
   if (index === -1) {
