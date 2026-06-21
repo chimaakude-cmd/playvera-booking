@@ -3,10 +3,12 @@
 import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
 import { ChangePasswordSection } from "@/components/auth/ChangePasswordSection";
+import { DeleteClubAccountSection } from "@/components/club/settings/DeleteClubAccountSection";
 import { SavedVenuesList } from "@/components/club/SavedVenuesList";
 import { LanguageSettingsSection } from "@/components/i18n/LanguageSettingsSection";
 import { PageHeader } from "@/components/club/PageHeader";
 import { LoadingState } from "@/components/club/LoadingState";
+import { ClubProfileHealthBadge } from "@/components/club/profile/ClubProfileHealthBadge";
 import { deleteProviderVenue, loadProviderVenues } from "@/lib/data";
 import {
   fetchClubProfileFromApi,
@@ -14,16 +16,11 @@ import {
   getPublicClubPath,
   type ClubProfile,
 } from "@/lib/club-profile";
+import {
+  assessClubProfileHealth,
+  type ClubProfileHealth,
+} from "@/lib/club-profile/health";
 import type { ProviderVenue } from "@/lib/provider-venues";
-
-function ProfileLiveBadge() {
-  return (
-    <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-200">
-      Profile live
-      <span aria-hidden className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
-    </span>
-  );
-}
 
 function SettingsHubCard({
   title,
@@ -134,20 +131,34 @@ function SavedVenuesSection() {
 export default function ClubSettingsPage() {
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<ClubProfile | null>(null);
+  const [health, setHealth] = useState<ClubProfileHealth | null>(null);
 
   useEffect(() => {
     async function loadProfile() {
       const apiResult = await fetchClubProfileFromApi();
-      setProfile(apiResult.ok ? apiResult.profile : getClubProfile());
+      const nextProfile = apiResult.ok ? apiResult.profile : getClubProfile();
+      setProfile(nextProfile);
+      setHealth(
+        apiResult.ok
+          ? apiResult.health
+          : assessClubProfileHealth({
+              providerExists: true,
+              providerSlug: nextProfile.publicSlug,
+              profile: nextProfile,
+              publiclyResolvable: false,
+            }),
+      );
       setLoading(false);
     }
 
     void loadProfile();
   }, []);
 
-  if (loading || !profile) {
+  if (loading || !profile || !health) {
     return <LoadingState message="Loading settings..." />;
   }
+
+  const publicSlug = health.slug ?? profile.publicSlug;
 
   return (
     <div className="mx-auto max-w-4xl space-y-8">
@@ -162,7 +173,16 @@ export default function ClubSettingsPage() {
           description="Logo, branding, locations, social links, and your public parent-facing page."
           href="/club/settings/profile"
           cta="Open club profile"
-          badge={profile.publicSlug?.trim() ? <ProfileLiveBadge /> : undefined}
+          badge={
+            <ClubProfileHealthBadge
+              health={health}
+              compact
+              onRepaired={(result) => {
+                setProfile(result.profile);
+                setHealth(result.health);
+              }}
+            />
+          }
         />
         <SettingsHubCard
           title="Edit club profile"
@@ -170,11 +190,11 @@ export default function ClubSettingsPage() {
           href="/club/settings/profile/edit"
           cta="Edit profile"
         />
-        {profile.publicSlug?.trim() ? (
+        {health.isLive && publicSlug ? (
           <SettingsHubCard
             title="Public club page"
             description="Preview exactly what parents see when they discover your club."
-            href={getPublicClubPath(profile.publicSlug)}
+            href={getPublicClubPath(publicSlug)}
             cta="View public page"
           />
         ) : null}
@@ -243,6 +263,8 @@ export default function ClubSettingsPage() {
       <LanguageSettingsSection />
 
       <ChangePasswordSection />
+
+      <DeleteClubAccountSection />
 
       <SavedVenuesSection />
     </div>

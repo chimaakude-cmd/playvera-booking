@@ -35,6 +35,8 @@ export function AdminProviderDetailSection({ provider }: Props) {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [modal, setModal] = useState<"edit" | "plan" | "payment" | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   if (!provider) {
     return (
@@ -112,6 +114,51 @@ export function AdminProviderDetailSection({ provider }: Props) {
     }
 
     refresh();
+  }
+
+  async function handleDeleteProvider() {
+    setDeleteError(null);
+
+    const confirmed = window.confirm(
+      "Permanently delete this provider? Login, profile, public listing, activities, registers, drafts, settings, team, media, and marketplace access will be disabled. Completed payment, payout, finance, and audit records will be retained.",
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setDeleting(true);
+
+    try {
+      const response = await fetch(
+        `/api/admin/providers/${activeProvider.id}/lifecycle`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "delete" }),
+        },
+      );
+      const payload = (await response.json()) as {
+        error?: string;
+        financeWarning?: string | null;
+      };
+
+      if (!response.ok) {
+        setDeleteError(payload.error || "Delete failed.");
+        return;
+      }
+
+      if (payload.financeWarning) {
+        window.alert(payload.financeWarning);
+      }
+
+      router.push("/admin/providers");
+      router.refresh();
+    } catch {
+      setDeleteError("Delete request failed.");
+    } finally {
+      setDeleting(false);
+    }
   }
 
   async function toggleAccountStatus() {
@@ -193,7 +240,21 @@ export function AdminProviderDetailSection({ provider }: Props) {
         >
           Payment settings
         </button>
+        <button
+          type="button"
+          disabled={deleting}
+          onClick={() => void handleDeleteProvider()}
+          className="rounded-xl border border-rose-200 px-3 py-2 text-xs font-medium text-rose-700 hover:bg-rose-50 disabled:opacity-60"
+        >
+          {deleting ? "Deleting…" : "Delete provider"}
+        </button>
       </div>
+
+      {deleteError ? (
+        <p className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+          {deleteError}
+        </p>
+      ) : null}
 
       {error ? (
         <p className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
@@ -262,6 +323,53 @@ export function AdminProviderDetailSection({ provider }: Props) {
           className="space-y-4 rounded-2xl border border-zinc-200/80 bg-white p-6 shadow-sm"
         >
           <h2 className="text-sm font-semibold text-zinc-900">Public profile</h2>
+          <dl className="grid gap-3 rounded-xl border border-zinc-100 bg-zinc-50/80 p-4 text-sm">
+            <div className="flex justify-between gap-4">
+              <dt className="text-zinc-500">Provider exists</dt>
+              <dd className="font-medium text-zinc-900">Yes</dd>
+            </div>
+            <div className="flex justify-between gap-4">
+              <dt className="text-zinc-500">Public profile exists</dt>
+              <dd className="font-medium text-zinc-900">
+                {activeProvider.publicProfileExists ? "Yes" : "No"}
+              </dd>
+            </div>
+            <div className="flex justify-between gap-4">
+              <dt className="text-zinc-500">Provider slug</dt>
+              <dd className="font-mono text-xs text-zinc-800">
+                {activeProvider.providerSlug || "—"}
+              </dd>
+            </div>
+            <div className="flex justify-between gap-4">
+              <dt className="text-zinc-500">Profile slug</dt>
+              <dd className="font-mono text-xs text-zinc-800">
+                {activeProvider.profileSlug || "—"}
+              </dd>
+            </div>
+            <div className="flex justify-between gap-4">
+              <dt className="text-zinc-500">Public URL</dt>
+              <dd className="text-right">
+                {activeProvider.publicProfileUrl ? (
+                  <a
+                    href={activeProvider.publicProfileUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-medium text-violet-700 hover:text-violet-900"
+                  >
+                    {activeProvider.publicProfileUrl.replace(/^https?:\/\//, "")}
+                  </a>
+                ) : (
+                  "—"
+                )}
+              </dd>
+            </div>
+            <div className="flex justify-between gap-4">
+              <dt className="text-zinc-500">Last profile repair status</dt>
+              <dd className="text-right font-medium text-zinc-900">
+                {activeProvider.lastProfileRepairStatus}
+              </dd>
+            </div>
+          </dl>
           <label className="block">
             <span className="text-xs font-medium text-zinc-600">Slug</span>
             <input

@@ -1,8 +1,13 @@
+import type { ClubProfileHealth } from "./health";
 import type { ClubProfile, ClubProfileInput } from "./types";
 import { cacheClubProfileLocally } from "./storage";
 
 export type FetchClubProfileResult =
-  | { ok: true; profile: ClubProfile }
+  | { ok: true; profile: ClubProfile; health: ClubProfileHealth }
+  | { ok: false; error: string; status?: number };
+
+export type RepairClubProfileResult =
+  | { ok: true; profile: ClubProfile; health: ClubProfileHealth }
   | { ok: false; error: string; status?: number };
 
 export type SaveClubProfileResult =
@@ -23,10 +28,11 @@ export async function fetchClubProfileFromApi(): Promise<FetchClubProfileResult>
 
     const payload = (await response.json()) as {
       profile?: ClubProfile;
+      health?: ClubProfileHealth;
       error?: string;
     };
 
-    if (!response.ok || !payload.profile) {
+    if (!response.ok || !payload.profile || !payload.health) {
       return {
         ok: false,
         error: payload.error ?? "Could not load club profile.",
@@ -35,7 +41,11 @@ export async function fetchClubProfileFromApi(): Promise<FetchClubProfileResult>
     }
 
     cacheClubProfileLocally(payload.profile);
-    return { ok: true, profile: payload.profile };
+    return {
+      ok: true,
+      profile: payload.profile,
+      health: payload.health,
+    };
   } catch (error) {
     return {
       ok: false,
@@ -43,6 +53,44 @@ export async function fetchClubProfileFromApi(): Promise<FetchClubProfileResult>
         error instanceof Error
           ? error.message
           : "Could not load club profile.",
+    };
+  }
+}
+
+export async function repairClubProfileFromApi(): Promise<RepairClubProfileResult> {
+  try {
+    const response = await fetch("/api/club/profile/repair", {
+      method: "POST",
+      credentials: "include",
+    });
+
+    const payload = (await response.json()) as {
+      profile?: ClubProfile;
+      health?: ClubProfileHealth;
+      error?: string;
+    };
+
+    if (!response.ok || !payload.profile || !payload.health) {
+      return {
+        ok: false,
+        error: payload.error ?? "Could not repair club profile.",
+        status: response.status,
+      };
+    }
+
+    cacheClubProfileLocally(payload.profile);
+    return {
+      ok: true,
+      profile: payload.profile,
+      health: payload.health,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Could not repair club profile.",
     };
   }
 }

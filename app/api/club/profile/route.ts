@@ -3,7 +3,8 @@ import { createSupabaseCookieClient } from "@/lib/supabase-ssr";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import {
   ensureMinimalPublicClubProfileForProvider,
-  fetchClubProfileForProvider,
+  getClubProfileHealthForProvider,
+  repairPublicClubProfileForProvider,
   resolveProviderIdForAuthUser,
   saveClubProfileForProvider,
 } from "@/lib/club-profile/server";
@@ -37,18 +38,19 @@ export async function GET() {
       );
     }
 
-    const profile = await ensureMinimalPublicClubProfileForProvider(
-      supabase,
+    const repairClient = supabase;
+    const repaired = await repairPublicClubProfileForProvider(
+      repairClient,
       providerId,
     );
-    if (!profile) {
-      return NextResponse.json(
-        { error: "Club profile not found." },
-        { status: 404 },
-      );
+    if (!repaired.ok) {
+      return NextResponse.json({ error: repaired.error }, { status: 404 });
     }
 
-    return NextResponse.json({ profile });
+    return NextResponse.json({
+      profile: repaired.profile,
+      health: repaired.health,
+    });
   } catch (error) {
     console.error("[club-profile] GET failed:", error);
     return NextResponse.json(

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import type { ClubProfile } from "@/lib/club-profile/types";
+import type { ClubProfileHealth } from "@/lib/club-profile/health";
 
 function isPublicProfileContentComplete(profile: ClubProfile): boolean {
   const description =
@@ -24,13 +25,15 @@ function isPublicProfileContentComplete(profile: ClubProfile): boolean {
 
 type IncompleteProfileLiveBannerProps = {
   profile: ClubProfile;
+  health: ClubProfileHealth;
 };
 
 export function IncompleteProfileLiveBanner({
   profile,
+  health,
 }: IncompleteProfileLiveBannerProps) {
   if (
-    !profile.publicSlug?.trim() ||
+    !health.isLive ||
     isPublicProfileContentComplete(profile)
   ) {
     return null;

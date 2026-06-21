@@ -99,6 +99,12 @@ export type AdminProvider = {
   accountStatus: ProviderAccountStatus;
   verified: boolean;
   joinedAt: string;
+  providerExists: boolean;
+  publicProfileExists: boolean;
+  publicSlug: string | null;
+  publicProfileUrl: string | null;
+  profileHealthStatus: "live" | "needs_repair";
+  profileRepairReasons: string[];
 };
 
 export type AdminFinanceSummary = {
@@ -186,21 +192,39 @@ export type AdminProviderDetail = AdminProvider & {
   paymentMethodStripeCard: boolean;
   paymentMethodGoCardlessDd: boolean;
   paymentMethodManualInvoice: boolean;
+  providerSlug: string | null;
+  profileSlug: string | null;
+  lastProfileRepairStatus: string;
 };
 
 import type {
   ProviderHiddenReason,
   ProviderLifecycleStatus,
+  ProviderLifecycleTab,
 } from "./provider-status";
 
-export type AdminHiddenProvider = {
+export type AdminLifecycleProvider = {
   id: string;
-  name: string;
-  email: string | null;
+  clubName: string;
+  ownerEmail: string;
   lifecycleStatus: ProviderLifecycleStatus;
+  lifecycleTab: ProviderLifecycleTab;
+  onboardingComplete: boolean;
   hiddenReasons: ProviderHiddenReason[];
   queryError: string | null;
   createdAt: string;
+  activitiesCount: number;
+  bookingsCount: number;
+  paymentStatus: string;
+};
+
+export type AdminHiddenProvider = AdminLifecycleProvider;
+
+export type AdminProvidersByTab = {
+  active: AdminProvider[];
+  incomplete: AdminLifecycleProvider[];
+  hiddenBroken: AdminLifecycleProvider[];
+  deleted: AdminLifecycleProvider[];
 };
 
 export type AdminProvidersDiagnostics = {
@@ -219,6 +243,7 @@ export type AdminProvidersDiagnostics = {
 
 export type AdminProvidersListResult = {
   providers: AdminProvider[];
+  byTab: AdminProvidersByTab;
   dataSource: "supabase" | "env_missing";
   diagnostics: AdminProvidersDiagnostics | null;
 };

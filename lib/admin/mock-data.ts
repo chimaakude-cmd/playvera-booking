@@ -18,6 +18,12 @@ const MOCK_PROVIDER_DEFAULTS: Pick<
   | "rollingTwelveMonthRevenue"
   | "vatRegistrationNumber"
   | "vatFlags"
+  | "providerExists"
+  | "publicProfileExists"
+  | "publicSlug"
+  | "publicProfileUrl"
+  | "profileHealthStatus"
+  | "profileRepairReasons"
 > = {
   organisationType: "club",
   clubsCount: 0,
@@ -27,6 +33,12 @@ const MOCK_PROVIDER_DEFAULTS: Pick<
   rollingTwelveMonthRevenue: 0,
   vatRegistrationNumber: "",
   vatFlags: [],
+  providerExists: true,
+  publicProfileExists: true,
+  publicSlug: "riverside-fc",
+  publicProfileUrl: "/clubs/riverside-fc",
+  profileHealthStatus: "live",
+  profileRepairReasons: [],
 };
 
 export const MOCK_OVERVIEW_METRICS: AdminOverviewMetrics = {
@@ -221,9 +233,19 @@ export const BOOKING_PAYMENT_STATUS_LABELS: Record<
   partial_refund: "Partial refund",
 };
 
+const MOCK_PROVIDER_DETAIL_DEFAULTS: Pick<
+  AdminProviderDetail,
+  "providerSlug" | "profileSlug" | "lastProfileRepairStatus"
+> = {
+  providerSlug: "riverside-fc",
+  profileSlug: "riverside-fc",
+  lastProfileRepairStatus: "Public profile resolves",
+};
+
 export const MOCK_PROVIDER_DETAILS: Record<string, AdminProviderDetail> = {
   prov_001: {
     ...MOCK_PROVIDERS[0],
+    ...MOCK_PROVIDER_DETAIL_DEFAULTS,
     phone: "0113 496 1234",
     location: "Leeds, West Yorkshire",
     slug: "riverside-fc",
@@ -240,6 +262,9 @@ export const MOCK_PROVIDER_DETAILS: Record<string, AdminProviderDetail> = {
   },
   prov_002: {
     ...MOCK_PROVIDERS[1],
+    ...MOCK_PROVIDER_DETAIL_DEFAULTS,
+    providerSlug: "little-kickers-leeds",
+    profileSlug: "little-kickers-leeds",
     phone: "0113 555 7890",
     location: "Leeds, West Yorkshire",
     slug: "little-kickers-leeds",
@@ -255,6 +280,9 @@ export const MOCK_PROVIDER_DETAILS: Record<string, AdminProviderDetail> = {
   },
   prov_003: {
     ...MOCK_PROVIDERS[2],
+    ...MOCK_PROVIDER_DETAIL_DEFAULTS,
+    providerSlug: "north-star-gymnastics",
+    profileSlug: "north-star-gymnastics",
     phone: "0114 222 3344",
     location: "Sheffield, South Yorkshire",
     slug: "north-star-gymnastics",
@@ -270,6 +298,10 @@ export const MOCK_PROVIDER_DETAILS: Record<string, AdminProviderDetail> = {
   },
   prov_004: {
     ...MOCK_PROVIDERS[3],
+    ...MOCK_PROVIDER_DETAIL_DEFAULTS,
+    providerSlug: "city-swim-school",
+    profileSlug: "city-swim-school",
+    lastProfileRepairStatus: "Profile not published",
     phone: "0117 888 9900",
     location: "Bristol",
     slug: "city-swim-school",
@@ -285,6 +317,9 @@ export const MOCK_PROVIDER_DETAILS: Record<string, AdminProviderDetail> = {
   },
   prov_005: {
     ...MOCK_PROVIDERS[4],
+    ...MOCK_PROVIDER_DETAIL_DEFAULTS,
+    providerSlug: "peak-dance",
+    profileSlug: "peak-dance",
     phone: "0161 444 5566",
     location: "Manchester",
     slug: "peak-dance",

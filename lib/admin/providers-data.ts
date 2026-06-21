@@ -14,11 +14,15 @@ import type {
   AdminPaymentProviderMode,
   AdminProvider,
   AdminProviderDetail,
+  AdminProvidersByTab,
   AdminProvidersListResult,
+  AdminLifecycleProvider,
   ProviderAccountStatus,
   ProviderStripeStatus,
 } from "@/lib/admin/types";
 import { GOCARDLESS_STATUS_LABELS } from "@/lib/gocardless/types";
+import { assessClubProfileHealth } from "@/lib/club-profile/health";
+import { getClubPublicUrl } from "@/lib/club-share/url";
 import { STRIPE_CONNECT_STATUS_LABELS } from "@/lib/stripe-connect/types";
 import { adminListDataSource } from "@/lib/admin/data-source";
 import {
@@ -26,6 +30,7 @@ import {
   classifyLoadedProvider,
   loadAllProviderRecords,
   loadedRecordToProviderRow,
+  toLifecycleProvider,
 } from "@/lib/admin/providers-diagnostics";
 import {
   getAdminSupabaseClient,
@@ -52,6 +57,7 @@ export type ProviderRow = {
   organisation_type?: string | null;
   parent_provider_id?: string | null;
   vat_registration_number?: string | null;
+  lifecycle_status?: string | null;
   club_profiles?:
     | {
         verified: boolean;
@@ -59,6 +65,8 @@ export type ProviderRow = {
         public_slug: string | null;
         short_description: string;
         website: string;
+        visibility?: string | null;
+        published?: boolean | null;
       }
     | {
         verified: boolean;
@@ -66,6 +74,8 @@ export type ProviderRow = {
         public_slug: string | null;
         short_description: string;
         website: string;
+        visibility?: string | null;
+        published?: boolean | null;
       }[]
     | null;
   provider_subscriptions?:
@@ -193,6 +203,32 @@ function resolveOwnerName(row: ProviderRow): string {
   return "—";
 }
 
+function buildProviderProfileHealth(
+  row: ProviderRow,
+  profile: {
+    public_slug: string | null;
+    club_name: string;
+    visibility?: string | null;
+    published?: boolean | null;
+  } | null,
+) {
+  return assessClubProfileHealth({
+    providerExists: true,
+    providerSlug: row.slug,
+    providerLifecycleStatus: row.lifecycle_status,
+    profile: profile
+      ? {
+          publicSlug: profile.public_slug ?? "",
+          visibility:
+            (profile.visibility as import("@/lib/club-profile/types").ClubProfileVisibility | null) ??
+            "draft",
+          published: profile.published ?? false,
+          clubName: profile.club_name,
+        }
+      : null,
+  });
+}
+
 function mapProviderRow(
   row: ProviderRow,
   revenue: RevenueStats,
@@ -205,6 +241,7 @@ function mapProviderRow(
   const gocardlessStatus = row.gocardless_status ?? "not_connected";
   const planId = storagePlanToAdminPlan(subscription?.plan);
   const vatRegistrationNumber = row.vat_registration_number?.trim() ?? "";
+  const profileHealth = buildProviderProfileHealth(row, profile);
 
   return {
     id: row.id,
@@ -233,6 +270,14 @@ function mapProviderRow(
     accountStatus: normalizeAccountStatus(row.account_status),
     verified: profile?.verified ?? false,
     joinedAt: row.created_at.slice(0, 10),
+    providerExists: true,
+    publicProfileExists: Boolean(profile),
+    publicSlug: profileHealth.slug,
+    publicProfileUrl: profileHealth.slug
+      ? getClubPublicUrl(profileHealth.slug)
+      : null,
+    profileHealthStatus: profileHealth.isLive ? "live" : "needs_repair",
+    profileRepairReasons: profileHealth.reasons,
   };
 }
 
@@ -244,12 +289,13 @@ function mapProviderDetail(
 ): AdminProviderDetail {
   const profile = firstRelation(row.club_profiles);
   const base = mapProviderRow(row, revenue, rollingTwelveMonthRevenue, clubsCount);
+  const profileHealth = buildProviderProfileHealth(row, profile);
 
   return {
     ...base,
     phone: row.phone?.trim() || "—",
     location: row.location?.trim() || "—",
-    slug: profile?.public_slug?.trim() || row.slug?.trim() || "—",
+    slug: profileHealth.slug ?? profile?.public_slug?.trim() ?? row.slug?.trim() ?? "—",
     description: profile?.short_description?.trim() || "",
     website: profile?.website?.trim() || "",
     stripeAccountId: row.stripe_account_id?.trim() || "",
@@ -259,6 +305,11 @@ function mapProviderDetail(
     paymentMethodStripeCard: Boolean(row.payment_method_stripe_card),
     paymentMethodGoCardlessDd: Boolean(row.payment_method_gocardless_dd),
     paymentMethodManualInvoice: Boolean(row.payment_method_manual_invoice),
+    providerSlug: row.slug?.trim() || null,
+    profileSlug: profile?.public_slug?.trim() || null,
+    lastProfileRepairStatus: profileHealth.isLive
+      ? "Public profile resolves"
+      : profileHealth.reasons.join("; ") || "Needs repair",
   };
 }
 
@@ -359,6 +410,125 @@ function emptyRevenueStats(): RevenueStats {
   };
 }
 
+async function fetchProviderLinkCounts(): Promise<
+  Map<string, { activitiesCount: number; bookingsCount: number }>
+> {
+  const supabase = getAdminSupabaseClient();
+  const counts = new Map<string, { activitiesCount: number; bookingsCount: number }>();
+
+  const { data: sessions, error: sessionsError } = await supabase
+    .from("sessions")
+    .select("id, provider_id");
+
+  if (sessionsError) {
+    console.error(
+      "[Admin providers] Failed to load sessions for link counts:",
+      sessionsError.message,
+    );
+    return counts;
+  }
+
+  const sessionToProvider = new Map<string, string>();
+  for (const session of sessions ?? []) {
+    sessionToProvider.set(session.id, session.provider_id);
+    const current = counts.get(session.provider_id) ?? {
+      activitiesCount: 0,
+      bookingsCount: 0,
+    };
+    current.activitiesCount += 1;
+    counts.set(session.provider_id, current);
+  }
+
+  if (sessionToProvider.size === 0) {
+    return counts;
+  }
+
+  const { data: bookings, error: bookingsError } = await supabase
+    .from("bookings")
+    .select("session_id, status");
+
+  if (bookingsError) {
+    console.error(
+      "[Admin providers] Failed to load bookings for link counts:",
+      bookingsError.message,
+    );
+    return counts;
+  }
+
+  for (const booking of bookings ?? []) {
+    if (booking.status === "cancelled") {
+      continue;
+    }
+
+    const providerId = sessionToProvider.get(booking.session_id);
+    if (!providerId) {
+      continue;
+    }
+
+    const current = counts.get(providerId) ?? {
+      activitiesCount: 0,
+      bookingsCount: 0,
+    };
+    current.bookingsCount += 1;
+    counts.set(providerId, current);
+  }
+
+  return counts;
+}
+
+function emptyLinkCounts() {
+  return { activitiesCount: 0, bookingsCount: 0 };
+}
+
+function buildProvidersByTab(input: {
+  classified: Awaited<ReturnType<typeof loadClassifiedProviderRecords>>;
+  revenueMap: Map<string, RevenueStats> | null;
+  rollingRevenueMap: Map<string, number>;
+  childClubCounts: Map<string, number> | null;
+  linkCounts: Map<string, { activitiesCount: number; bookingsCount: number }>;
+}): AdminProvidersByTab {
+  const active: AdminProvider[] = [];
+  const incomplete: AdminLifecycleProvider[] = [];
+  const hiddenBroken: AdminLifecycleProvider[] = [];
+  const deleted: AdminLifecycleProvider[] = [];
+
+  for (const record of input.classified) {
+    const linkCount = input.linkCounts.get(record.id) ?? emptyLinkCounts();
+    const row = loadedRecordToProviderRow(record);
+    const stripeStatus = normalizeStripeStatus(row.stripe_connect_status);
+    const paymentStatus =
+      PAYMENT_PROVIDER_MODE_LABELS[
+        resolvePaymentProviderMode(stripeStatus, row.gocardless_status)
+      ];
+
+    if (record.lifecycleTab === "active") {
+      const revenue = input.revenueMap?.get(record.id) ?? emptyRevenueStats();
+      const rollingTwelveMonthRevenue = input.rollingRevenueMap.get(record.id) ?? 0;
+      const clubsCount = input.childClubCounts?.get(record.id) ?? 0;
+      active.push(
+        mapProviderRow(row, revenue, rollingTwelveMonthRevenue, clubsCount),
+      );
+      continue;
+    }
+
+    const lifecycleProvider = toLifecycleProvider(
+      record,
+      linkCount,
+      paymentStatus,
+    );
+
+    if (record.lifecycleTab === "incomplete") {
+      incomplete.push(lifecycleProvider);
+    } else if (record.lifecycleTab === "hidden_broken") {
+      hiddenBroken.push(lifecycleProvider);
+    } else {
+      deleted.push(lifecycleProvider);
+    }
+  }
+
+  return { active, incomplete, hiddenBroken, deleted };
+}
+
 async function loadClassifiedProviderRecords() {
   const supabase = getAdminSupabaseClient();
   const records = await loadAllProviderRecords(supabase);
@@ -367,31 +537,36 @@ async function loadClassifiedProviderRecords() {
 
 export async function fetchAdminProvidersList(): Promise<AdminProvidersListResult> {
   if (adminListDataSource() === "env_missing") {
-    return { providers: [], dataSource: "env_missing", diagnostics: null };
+    return {
+      providers: [],
+      byTab: { active: [], incomplete: [], hiddenBroken: [], deleted: [] },
+      dataSource: "env_missing",
+      diagnostics: null,
+    };
   }
 
-  const [classified, revenueMap, rollingRevenueMap, childClubCounts] =
+  const [classified, revenueMap, rollingRevenueMap, childClubCounts, linkCounts] =
     await Promise.all([
       loadClassifiedProviderRecords(),
       fetchRevenueByProvider(),
       computeRollingTwelveMonthTaxableVolumeByProvider(getAdminSupabaseClient()),
       fetchChildClubCounts(),
+      fetchProviderLinkCounts(),
     ]);
 
-  const visibleRecords = classified.filter((record) => record.isVisible);
-  const rows = visibleRecords.map(loadedRecordToProviderRow);
-
-  const providers = rows.map((row) => {
-    const revenue = revenueMap?.get(row.id) ?? emptyRevenueStats();
-    const rollingTwelveMonthRevenue = rollingRevenueMap.get(row.id) ?? 0;
-    const clubsCount = childClubCounts?.get(row.id) ?? 0;
-    return mapProviderRow(row, revenue, rollingTwelveMonthRevenue, clubsCount);
+  const byTab = buildProvidersByTab({
+    classified,
+    revenueMap,
+    rollingRevenueMap,
+    childClubCounts,
+    linkCounts,
   });
 
-  const diagnostics = await buildAdminProvidersDiagnostics(classified);
+  const diagnostics = await buildAdminProvidersDiagnostics(classified, linkCounts);
 
   return {
-    providers,
+    providers: byTab.active,
+    byTab,
     dataSource: "supabase",
     diagnostics,
   };
@@ -412,7 +587,8 @@ export async function fetchAdminProviderById(
     return null;
   }
 
-  const data = loadedRecordToProviderRow(classifyLoadedProvider(record));
+  const classified = classifyLoadedProvider(record);
+  const data = loadedRecordToProviderRow(classified);
 
   const revenueMap = await fetchRevenueByProvider();
   const rollingRevenueMap = await computeRollingTwelveMonthTaxableVolumeByProvider(
@@ -542,6 +718,7 @@ export async function updateAdminProvider(
 
   if (payload.slug !== undefined) {
     profileUpdate.public_slug = payload.slug;
+    providerUpdate.slug = payload.slug;
   }
 
   if (payload.website !== undefined) {

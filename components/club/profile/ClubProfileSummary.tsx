@@ -1,8 +1,10 @@
 "use client";
 
-import type { ReactNode } from "react";
 import Link from "next/link";
+import type { ReactNode } from "react";
+import { ClubProfileHealthBadge } from "@/components/club/profile/ClubProfileHealthBadge";
 import type { ClubProfile } from "@/lib/club-profile";
+import type { ClubProfileHealth } from "@/lib/club-profile/health";
 import {
   formatClubAddress,
   getMainClubLocation,
@@ -26,8 +28,15 @@ function SummaryCard({
   );
 }
 
-export function ClubProfileSummary({ profile }: { profile: ClubProfile }) {
+export function ClubProfileSummary({
+  profile,
+  health,
+}: {
+  profile: ClubProfile;
+  health: ClubProfileHealth;
+}) {
   const mainLocation = getMainClubLocation(profile);
+  const publicSlug = health.slug ?? profile.publicSlug;
 
   return (
     <div className="space-y-6">
@@ -65,9 +74,9 @@ export function ClubProfileSummary({ profile }: { profile: ClubProfile }) {
               >
                 Edit profile
               </Link>
-              {profile.publicSlug?.trim() ? (
+              {health.isLive && publicSlug ? (
                 <Link
-                  href={getPublicClubPath(profile.publicSlug)}
+                  href={getPublicClubPath(publicSlug)}
                   className="rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-800 transition-colors hover:bg-zinc-50"
                 >
                   View public page
@@ -163,24 +172,12 @@ export function ClubProfileSummary({ profile }: { profile: ClubProfile }) {
           <p>Font preset: {profile.branding.fontPreset}</p>
           <p>
             Public URL:{" "}
-            {profile.publicSlug
-              ? getPublicClubPath(profile.publicSlug)
-              : "Not set"}
+            {publicSlug ? getPublicClubPath(publicSlug) : "Not set"}
           </p>
-          <p className="inline-flex items-center gap-1.5">
+          <div className="inline-flex items-center gap-2">
             Status:{" "}
-            {profile.publicSlug?.trim() ? (
-              <>
-                Profile live
-                <span
-                  aria-hidden
-                  className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500"
-                />
-              </>
-            ) : (
-              "Setting up profile"
-            )}
-          </p>
+            <ClubProfileHealthBadge health={health} compact />
+          </div>
         </SummaryCard>
       </div>
 

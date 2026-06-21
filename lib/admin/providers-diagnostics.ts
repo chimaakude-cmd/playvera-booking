@@ -44,11 +44,14 @@ export type LoadedProviderRecord = {
     public_slug: string | null;
     short_description: string;
     website: string;
+    visibility: string | null;
+    published: boolean | null;
   }>;
   provider_subscriptions: Array<{ plan: string }>;
   club_team_members: Array<{
     first_name: string;
     last_name: string;
+    email: string | null;
     is_owner: boolean;
     status: string;
   }>;
@@ -59,6 +62,8 @@ export type ClassifiedProviderRecord = LoadedProviderRecord & {
   lifecycleStatus: ProviderLifecycleStatus;
   hiddenReasons: ProviderHiddenReason[];
   isVisible: boolean;
+  lifecycleTab: import("@/lib/admin/provider-status").ProviderLifecycleTab;
+  onboardingComplete: boolean;
 };
 
 const BASE_PROVIDER_SELECT = `
@@ -172,7 +177,7 @@ export async function loadAllProviderRecords(
     supabase
       .from("club_profiles")
       .select(
-        "provider_id, verified, club_name, public_slug, short_description, website",
+        "provider_id, verified, club_name, public_slug, short_description, website, visibility, published",
       )
       .in("provider_id", providerIds),
     supabase
@@ -181,7 +186,7 @@ export async function loadAllProviderRecords(
       .in("provider_id", providerIds),
     supabase
       .from("club_team_members")
-      .select("provider_id, first_name, last_name, is_owner, status")
+      .select("provider_id, first_name, last_name, email, is_owner, status")
       .in("provider_id", providerIds),
   ]);
 
@@ -226,6 +231,8 @@ export async function loadAllProviderRecords(
       public_slug: (row.public_slug as string | null) ?? null,
       short_description: String(row.short_description ?? ""),
       website: String(row.website ?? ""),
+      visibility: (row.visibility as string | null) ?? null,
+      published: (row.published as boolean | null) ?? null,
     });
     profilesByProvider.set(providerId, current);
   }
@@ -251,6 +258,7 @@ export async function loadAllProviderRecords(
     current.push({
       first_name: String(row.first_name ?? ""),
       last_name: String(row.last_name ?? ""),
+      email: (row.email as string | null) ?? null,
       is_owner: Boolean(row.is_owner),
       status: String(row.status ?? ""),
     });
@@ -300,20 +308,35 @@ export function classifyLoadedProvider(
     lifecycleStatus: classification.lifecycleStatus,
     hiddenReasons: classification.hiddenReasons,
     isVisible: classification.isVisible,
+    lifecycleTab: classification.lifecycleTab,
+    onboardingComplete: classification.onboardingComplete,
   };
 }
 
-function toHiddenProvider(record: ClassifiedProviderRecord): AdminHiddenProvider {
+export function toLifecycleProvider(
+  record: ClassifiedProviderRecord,
+  counts: { activitiesCount: number; bookingsCount: number },
+  paymentStatus: string,
+): AdminHiddenProvider {
   const profile = record.club_profiles[0] ?? null;
+  const owner = record.club_team_members.find(
+    (member) => member.is_owner && member.status === "active",
+  );
 
   return {
     id: record.id,
-    name: profile?.club_name?.trim() || record.name.trim() || "Unnamed provider",
-    email: record.email,
+    clubName:
+      profile?.club_name?.trim() || record.name.trim() || "Unnamed provider",
+    ownerEmail: owner?.email?.trim() || record.email?.trim() || "—",
     lifecycleStatus: record.lifecycleStatus,
+    lifecycleTab: record.lifecycleTab,
+    onboardingComplete: record.onboardingComplete,
     hiddenReasons: record.hiddenReasons,
     queryError: record.loadError,
     createdAt: record.created_at.slice(0, 10),
+    activitiesCount: counts.activitiesCount,
+    bookingsCount: counts.bookingsCount,
+    paymentStatus,
   };
 }
 
@@ -340,6 +363,7 @@ async function fetchAnonVisibleProviderCount(): Promise<number | null> {
 
 export async function buildAdminProvidersDiagnostics(
   classified: ClassifiedProviderRecord[],
+  linkCounts?: Map<string, { activitiesCount: number; bookingsCount: number }>,
 ): Promise<AdminProvidersDiagnostics | null> {
   if (adminListDataSource() === "env_missing") {
     return null;
@@ -349,8 +373,20 @@ export async function buildAdminProvidersDiagnostics(
   const totalProviderRows = classified.length;
   const visibleProviders = classified.filter((record) => record.isVisible);
   const hiddenProviders = classified
-    .filter((record) => !record.isVisible)
-    .map(toHiddenProvider);
+    .filter((record) => record.lifecycleTab !== "active")
+    .map((record) => {
+      const row = loadedRecordToProviderRow(record);
+      const stripeStatus = row.stripe_connect_status ?? "not_connected";
+      const paymentStatus =
+        stripeStatus === "not_connected" && !row.stripe_account_id
+          ? "No payment provider yet"
+          : stripeStatus.replaceAll("_", " ");
+      return toLifecycleProvider(
+        record,
+        linkCounts?.get(record.id) ?? { activitiesCount: 0, bookingsCount: 0 },
+        paymentStatus,
+      );
+    });
   const [anonVisibleCount, orphanedClubAuthUsers] = await Promise.all([
     fetchAnonVisibleProviderCount(),
     findOrphanedClubAuthUsers(),
@@ -401,6 +437,7 @@ export function loadedRecordToProviderRow(record: ClassifiedProviderRecord): Pro
     organisation_type: record.organisation_type,
     parent_provider_id: record.parent_provider_id,
     vat_registration_number: record.vat_registration_number,
+    lifecycle_status: record.lifecycle_status,
     club_profiles: record.club_profiles,
     provider_subscriptions: record.provider_subscriptions,
     club_team_members: record.club_team_members,

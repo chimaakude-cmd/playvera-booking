@@ -4,6 +4,7 @@ import { computeSetupProgressFromSessions } from "@/lib/club-setup/compute";
 import type { SetupProgressResult } from "@/lib/club-setup/types";
 import { CLUB_DEFAULT_BOOKING_QUESTIONS_KEY } from "@/lib/club-onboarding/types";
 import { getClubProfile } from "@/lib/club-profile";
+import { assessClubProfileHealth, type ClubProfileHealth } from "@/lib/club-profile/health";
 import { DEFAULT_CLUB_LOCATIONS } from "@/lib/club-profile/defaults";
 import {
   formatClubAddress,
@@ -58,6 +59,7 @@ export type NewClubModeState = {
   checklist: NewClubChecklistItem[];
   launchReadiness: LaunchReadinessItem[];
   profile: ClubProfile;
+  profileHealth: ClubProfileHealth;
   sessions: ClubSession[];
   profileVisibleToParents: boolean;
   showFirstActivityCelebration: boolean;
@@ -465,8 +467,17 @@ export function getNewClubModeState(
   hasProviderVenues = false,
   setupProgress?: SetupProgressResult,
   rollingTwelveMonthRevenue = 0,
+  profileHealth?: ClubProfileHealth,
 ): NewClubModeState {
   const resolvedProfile = profile ?? loadClubProfile();
+  const resolvedHealth =
+    profileHealth ??
+    assessClubProfileHealth({
+      providerExists: true,
+      providerSlug: resolvedProfile.publicSlug,
+      profile: resolvedProfile,
+      publiclyResolvable: false,
+    });
   const publishedActivityCount = getPublishedActivityCount(sessions);
   const activityCount = sessions.length;
   const isNewClub = publishedActivityCount === 0;
@@ -492,6 +503,7 @@ export function getNewClubModeState(
     checklist,
     launchReadiness: buildLaunchReadiness(checklist, publishedActivityCount),
     profile: resolvedProfile,
+    profileHealth: resolvedHealth,
     sessions,
     profileVisibleToParents: isProfileVisibleToParents(
       resolvedProfile,
@@ -552,6 +564,14 @@ export async function fetchNewClubModeState(): Promise<NewClubModeState> {
   const sessions = sessionsResult.data;
 
   const profile = profileResult.ok ? profileResult.profile : getClubProfile();
+  const profileHealth = profileResult.ok
+    ? profileResult.health
+    : assessClubProfileHealth({
+        providerExists: true,
+        providerSlug: profile.publicSlug,
+        profile,
+        publiclyResolvable: false,
+      });
 
   let hasProviderVenues = false;
   try {
@@ -574,6 +594,7 @@ export async function fetchNewClubModeState(): Promise<NewClubModeState> {
     hasProviderVenues,
     setupProgress,
     rollingTwelveMonthRevenue,
+    profileHealth,
   );
 }
 

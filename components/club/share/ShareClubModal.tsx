@@ -23,7 +23,7 @@ import {
   type EmbedType,
   type SharePlatform,
 } from "@/lib/club-share";
-import { fetchClubProfileFromApi } from "@/lib/club-profile/client";
+import { fetchClubProfileFromApi, repairClubProfileFromApi } from "@/lib/club-profile/client";
 import { getClubProfile } from "@/lib/club-profile";
 import { SharePlatformButton } from "./SharePlatformButton";
 import {
@@ -85,7 +85,7 @@ export function ShareClubModal({
     setProfileLoading(true);
 
     let cancelled = false;
-    void fetchClubProfileFromApi()
+    void repairClubProfileFromApi()
       .then((result) => {
         if (cancelled) {
           return;
@@ -98,7 +98,21 @@ export function ShareClubModal({
           if (result.profile.clubName?.trim()) {
             setResolvedClubName(result.profile.clubName);
           }
+          return;
         }
+
+        return fetchClubProfileFromApi().then((fallback) => {
+          if (cancelled || !fallback.ok) {
+            return;
+          }
+
+          if (fallback.profile.publicSlug?.trim()) {
+            setResolvedSlug(fallback.profile.publicSlug);
+          }
+          if (fallback.profile.clubName?.trim()) {
+            setResolvedClubName(fallback.profile.clubName);
+          }
+        });
       })
       .finally(() => {
         if (!cancelled) {

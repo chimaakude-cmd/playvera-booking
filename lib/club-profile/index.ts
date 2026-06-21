@@ -4,3 +4,4 @@ export * from "./storage";
 export * from "./links";
 export * from "./validation";
 export * from "./client";
+export * from "./health";

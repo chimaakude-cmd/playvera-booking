@@ -10,6 +10,10 @@ import {
 import { DEMO_PROVIDER_ID } from "@/lib/stripe-connect/types";
 import { getAdminSupabaseClient } from "@/lib/admin/supabase-client";
 import {
+  classifyLoadedProvider,
+  loadAllProviderRecords,
+} from "@/lib/admin/providers-diagnostics";
+import {
   isSupabaseConfigured,
 } from "@/lib/supabase";
 
@@ -92,29 +96,47 @@ async function countRows(
   return count ?? 0;
 }
 
+async function countActiveClubs(): Promise<number | null> {
+  const supabase = getAdminSupabaseClient();
+  const records = await loadAllProviderRecords(supabase);
+  const activeCount = records
+    .map(classifyLoadedProvider)
+    .filter(
+      (record) =>
+        record.lifecycleTab === "active" &&
+        record.id !== DEMO_PROVIDER_ID &&
+        !isDemoProviderRecord({ id: record.id, name: record.name, slug: record.slug }),
+    ).length;
+
+  return activeCount;
+}
+
 async function fetchRecentSignups(): Promise<AdminDashboardSignup[] | null> {
   const supabase = getAdminSupabaseClient();
-  const { data, error } = await supabase
-    .from("providers")
-    .select("id, name, slug, created_at")
-    .order("created_at", { ascending: false })
-    .limit(20);
+  const records = await loadAllProviderRecords(supabase);
 
-  if (error) {
-    console.error("[Admin dashboard] Failed to load recent signups:", error.message);
-    return null;
-  }
+  const activeProviders = records
+    .map(classifyLoadedProvider)
+    .filter((record) => record.lifecycleTab === "active")
+    .filter(
+      (record) =>
+        record.id !== DEMO_PROVIDER_ID &&
+        !isDemoProviderRecord({ id: record.id, name: record.name, slug: record.slug }),
+    )
+    .sort(
+      (left, right) =>
+        new Date(right.created_at).getTime() - new Date(left.created_at).getTime(),
+    )
+    .slice(0, 5);
 
-  const realProviders = (data ?? []).filter(
-    (provider) =>
-      provider.id !== DEMO_PROVIDER_ID && !isDemoProviderRecord(provider),
-  );
-
-  return realProviders.slice(0, 5).map((provider) => ({
-    id: provider.id,
-    name: provider.name.trim() || "Unnamed club",
-    joinedLabel: formatRelativeJoinDate(provider.created_at),
-  }));
+  return activeProviders.map((record) => {
+    const profile = record.club_profiles[0];
+    return {
+      id: record.id,
+      name: profile?.club_name?.trim() || record.name.trim() || "Unnamed club",
+      joinedLabel: formatRelativeJoinDate(record.created_at),
+    };
+  });
 }
 
 async function countPublishedClubProfiles(): Promise<number | null> {
@@ -174,7 +196,7 @@ export async function fetchAdminDashboardData(): Promise<AdminDashboardData> {
     recentSignups,
     platformRevenue,
   ] = await Promise.all([
-    countRows("providers"),
+    countActiveClubs(),
     countRows("parent_profiles"),
     countPublishedClubProfiles(),
     countRows("bookings", {

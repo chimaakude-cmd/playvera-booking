@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireManageProvidersActor } from "@/lib/admin-users/api-auth";
 import {
+  deleteProviderPermanently,
+  previewProviderDelete,
+} from "@/lib/admin/provider-delete";
+import {
   markProviderAbandoned,
-  markProviderDeleted,
   repairProviderById,
 } from "@/lib/admin/provider-repair";
 
@@ -60,10 +63,24 @@ export async function POST(
     return NextResponse.json({ providerId: result.providerId, status: "abandoned" });
   }
 
-  const result = await markProviderDeleted(providerId);
-  if (!result.ok) {
-    return NextResponse.json({ error: result.error }, { status: 500 });
+  if (action === "delete") {
+    const preview = await previewProviderDelete(providerId);
+    const result = await deleteProviderPermanently(providerId, {
+      actorId: auth.actor.adminId,
+      actorType: "admin",
+      actorEmail: auth.actor.email,
+    });
+
+    if (!result.ok) {
+      return NextResponse.json({ error: result.error }, { status: 500 });
+    }
+
+    return NextResponse.json({
+      providerId: result.providerId,
+      status: "deleted",
+      financeWarning: preview.financeWarning,
+    });
   }
 
-  return NextResponse.json({ providerId: result.providerId, status: "deleted" });
+  return NextResponse.json({ error: "Unknown action." }, { status: 400 });
 }

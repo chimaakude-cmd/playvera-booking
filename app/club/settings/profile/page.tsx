@@ -12,24 +12,42 @@ import {
   getClubProfile,
   type ClubProfile,
 } from "@/lib/club-profile";
+import {
+  assessClubProfileHealth,
+  type ClubProfileHealth,
+} from "@/lib/club-profile/health";
 
 export default function ClubProfilePage() {
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<ClubProfile | null>(null);
+  const [health, setHealth] = useState<ClubProfileHealth | null>(null);
 
   useEffect(() => {
     async function load() {
       const apiResult = await fetchClubProfileFromApi();
-      setProfile(apiResult.ok ? apiResult.profile : getClubProfile());
+      const nextProfile = apiResult.ok ? apiResult.profile : getClubProfile();
+      setProfile(nextProfile);
+      setHealth(
+        apiResult.ok
+          ? apiResult.health
+          : assessClubProfileHealth({
+              providerExists: true,
+              providerSlug: nextProfile.publicSlug,
+              profile: nextProfile,
+              publiclyResolvable: false,
+            }),
+      );
       setLoading(false);
     }
 
     void load();
   }, []);
 
-  if (loading || !profile) {
+  if (loading || !profile || !health) {
     return <LoadingState message="Loading club profile..." />;
   }
+
+  const publicSlug = health.slug ?? profile.publicSlug;
 
   return (
     <div className="space-y-6">
@@ -40,7 +58,7 @@ export default function ClubProfilePage() {
           <div className="flex flex-wrap gap-2">
             <ShareClubButton
               clubName={profile.clubName}
-              slug={profile.publicSlug}
+              slug={publicSlug}
               providerId={profile.providerId}
               logoUrl={profile.logoUrl}
               primaryColor={profile.branding.primaryColor}
@@ -57,7 +75,7 @@ export default function ClubProfilePage() {
         }
       />
       <FranchiseeManagedBanner providerId={profile.providerId} />
-      <ClubProfileSummary profile={profile} />
+      <ClubProfileSummary profile={profile} health={health} />
     </div>
   );
 }

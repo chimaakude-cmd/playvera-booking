@@ -351,6 +351,31 @@ export async function repairProviderById(
     }
 
     repaired.push("club profile");
+  } else {
+    const { error: slugSyncError } = await supabase
+      .from("club_profiles")
+      .update({
+        public_slug: slug,
+        published: true,
+        visibility: "published",
+        published_at: new Date().toISOString(),
+      })
+      .eq("provider_id", providerIdTrimmed);
+
+    if (slugSyncError) {
+      return { ok: false, error: slugSyncError.message };
+    }
+
+    repaired.push("club profile slug");
+  }
+
+  const { error: providerSlugError } = await supabase
+    .from("providers")
+    .update({ slug })
+    .eq("id", providerIdTrimmed);
+
+  if (providerSlugError) {
+    return { ok: false, error: providerSlugError.message };
   }
 
   const { data: existingSubscription, error: subscriptionLookupError } =

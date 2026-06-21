@@ -4,11 +4,12 @@ import { fetchAdminProvidersList } from "@/lib/admin/providers-data";
 export const dynamic = "force-dynamic";
 
 export default async function AdminProvidersPage() {
-  const { providers, dataSource, diagnostics } = await fetchAdminProvidersList();
+  const { providers, byTab, dataSource, diagnostics } = await fetchAdminProvidersList();
 
   return (
     <AdminProvidersSection
       providers={providers}
+      byTab={byTab}
       dataSource={dataSource}
       diagnostics={diagnostics}
     />

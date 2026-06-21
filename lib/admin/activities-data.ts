@@ -76,8 +76,16 @@ type SessionRow = {
   created_at: string;
   moderation_status?: "active" | "removed" | null;
   providers:
-    | { name: string; slug?: string | null }
-    | { name: string; slug?: string | null }[]
+    | {
+        name: string;
+        slug?: string | null;
+        lifecycle_status?: string | null;
+      }
+    | {
+        name: string;
+        slug?: string | null;
+        lifecycle_status?: string | null;
+      }[]
     | null;
 };
 
@@ -200,9 +208,15 @@ const SESSION_SELECT = `
   created_at,
   providers (
     name,
-    slug
+    slug,
+    lifecycle_status
   )
 `;
+
+function isDeletedProviderActivity(row: SessionRow): boolean {
+  const provider = firstRelation(row.providers);
+  return provider?.lifecycle_status === "deleted";
+}
 
 async function fetchSessionRows(): Promise<SessionRow[] | null> {
   const supabase = getAdminSupabaseClient();
@@ -221,7 +235,8 @@ async function fetchSessionRows(): Promise<SessionRow[] | null> {
     .filter(
       (row) =>
         !isRemovedActivityRow(row as SessionRow) &&
-        !isDemoActivityRow(row as SessionRow),
+        !isDemoActivityRow(row as SessionRow) &&
+        !isDeletedProviderActivity(row as SessionRow),
     ) as unknown as SessionRow[];
 }
 

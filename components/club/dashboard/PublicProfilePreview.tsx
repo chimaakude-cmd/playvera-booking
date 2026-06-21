@@ -5,6 +5,8 @@ import {
   getProfileDescription,
   getProfileLocationLabel,
 } from "@/lib/club/new-club-mode";
+import { ClubProfileHealthBadge } from "@/components/club/profile/ClubProfileHealthBadge";
+import type { ClubProfileHealth } from "@/lib/club-profile/health";
 import {
   getPublicClubPath,
   type ClubProfile,
@@ -13,21 +15,23 @@ import type { ClubSession } from "@/lib/sessions";
 
 type PublicProfilePreviewProps = {
   profile: ClubProfile;
+  health: ClubProfileHealth;
   sessions?: ClubSession[];
+  onProfileRepaired?: () => void;
 };
 
 export function PublicProfilePreview({
   profile,
+  health,
   sessions = [],
+  onProfileRepaired,
 }: PublicProfilePreviewProps) {
   const logoUrl =
     profile.logoUrl?.trim() || profile.profileDesign?.logoUrl?.trim() || null;
   const description = getProfileDescription(profile);
   const locationLabel = getProfileLocationLabel(profile, sessions);
-  const previewPath = getPublicClubPath(profile.publicSlug);
-  const profileLive =
-    profile.clubName.trim().length > 0 &&
-    Boolean(profile.publicSlug?.trim());
+  const previewSlug = health.slug ?? profile.publicSlug;
+  const previewPath = previewSlug ? getPublicClubPath(previewSlug) : "/clubs";
 
   return (
     <section className="rounded-2xl border border-zinc-200/80 bg-white shadow-sm">
@@ -40,15 +44,11 @@ export function PublicProfilePreview({
             What parents will see — your personal details stay private.
           </p>
         </div>
-        <span
-          className={`rounded-full px-3 py-1 text-xs font-semibold ${
-            profileLive
-              ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"
-              : "bg-amber-50 text-amber-800 ring-1 ring-amber-200"
-          }`}
-        >
-          {profileLive ? "Profile live" : "Setting up profile"}
-        </span>
+        <ClubProfileHealthBadge
+          health={health}
+          compact
+          onRepaired={() => onProfileRepaired?.()}
+        />
       </div>
 
       <div className="flex flex-col gap-5 p-5 sm:flex-row sm:items-start">
@@ -73,14 +73,21 @@ export function PublicProfilePreview({
           <p className="mt-3 text-sm text-zinc-500">{locationLabel}</p>
         </div>
 
-        <Link
-          href={previewPath}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex shrink-0 rounded-xl border border-violet-200 bg-violet-50 px-4 py-2.5 text-sm font-semibold text-violet-800 transition-colors hover:bg-violet-100"
-        >
-          Preview profile
-        </Link>
+        {health.isLive ? (
+          <Link
+            href={previewPath}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex shrink-0 rounded-xl border border-violet-200 bg-violet-50 px-4 py-2.5 text-sm font-semibold text-violet-800 transition-colors hover:bg-violet-100"
+          >
+            Preview profile
+          </Link>
+        ) : (
+          <ClubProfileHealthBadge
+            health={health}
+            onRepaired={() => onProfileRepaired?.()}
+          />
+        )}
       </div>
     </section>
   );

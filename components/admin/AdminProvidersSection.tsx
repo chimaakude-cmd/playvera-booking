@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { AdminProviderLifecycleTable } from "@/components/admin/AdminProviderLifecycleTable";
 import { ProviderRowActions } from "@/components/admin/AdminProviderActions";
 import { PageHeader } from "@/components/club/PageHeader";
 import { PaginationControls } from "@/components/ui/PaginationControls";
@@ -21,11 +22,14 @@ import type {
   AdminPaymentProviderMode,
   AdminProvider,
   AdminHiddenProvider,
+  AdminProvidersByTab,
   AdminProvidersDiagnostics,
 } from "@/lib/admin/types";
 import {
   PROVIDER_HIDDEN_REASON_LABELS,
   PROVIDER_LIFECYCLE_STATUS_LABELS,
+  PROVIDER_LIFECYCLE_TAB_LABELS,
+  type ProviderLifecycleTab,
 } from "@/lib/admin/provider-status";
 import {
   ADMIN_VAT_FLAG_LABELS,
@@ -35,6 +39,7 @@ import { paginateItems } from "@/lib/pagination";
 
 type Props = {
   providers: AdminProvider[];
+  byTab: AdminProvidersByTab;
   dataSource: "supabase" | "env_missing";
   diagnostics: AdminProvidersDiagnostics | null;
 };
@@ -133,6 +138,42 @@ function formatCreatedDate(joinedAt: string): string {
   });
 }
 
+function ProfileHealthCell({ provider }: { provider: AdminProvider }) {
+  const isLive = provider.profileHealthStatus === "live";
+
+  return (
+    <div className="max-w-xs text-xs">
+      <span
+        className={`inline-flex rounded-full px-2 py-0.5 font-semibold ${
+          isLive
+            ? "bg-emerald-50 text-emerald-700"
+            : "bg-amber-50 text-amber-800"
+        }`}
+      >
+        {isLive ? "Live" : "Needs repair"}
+      </span>
+      <p className="mt-1 font-medium text-zinc-800">
+        {provider.publicSlug || "No slug"}
+      </p>
+      {provider.publicProfileUrl ? (
+        <a
+          href={provider.publicProfileUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-0.5 block truncate text-violet-700 hover:text-violet-900"
+        >
+          {provider.publicProfileUrl.replace(/^https?:\/\//, "")}
+        </a>
+      ) : null}
+      {!isLive && provider.profileRepairReasons.length > 0 ? (
+        <p className="mt-1 text-zinc-500">
+          {provider.profileRepairReasons.join("; ")}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 function ClubRow({ provider }: { provider: AdminProvider }) {
   return (
     <tr className="transition-colors hover:bg-zinc-50/50">
@@ -153,6 +194,9 @@ function ClubRow({ provider }: { provider: AdminProvider }) {
       </td>
       <td className="px-4 py-4">
         <PaymentSetupCell provider={provider} />
+      </td>
+      <td className="px-4 py-4">
+        <ProfileHealthCell provider={provider} />
       </td>
       <td className="whitespace-nowrap px-4 py-4">
         <VerificationBadge verified={provider.verified} />
@@ -259,6 +303,7 @@ const TABLE_HEADINGS: Record<ProviderOrganisationType, string[]> = {
     "Owner",
     "Plan",
     "Payment setup",
+    "Public profile",
     "Verification",
     "VAT flags",
     "Status",
@@ -333,9 +378,9 @@ function HiddenProviderRow({
     <li className="rounded-xl border border-zinc-200 bg-white px-3 py-3">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="font-medium text-zinc-900">{provider.name}</p>
+          <p className="font-medium text-zinc-900">{provider.clubName}</p>
           <p className="text-xs text-zinc-500">
-            {provider.email || "No email"} · Created {provider.createdAt}
+            {provider.ownerEmail} · Created {provider.createdAt}
           </p>
           <p className="mt-1 text-xs text-zinc-600">
             Status:{" "}
@@ -546,7 +591,13 @@ function ProvidersDiagnosticsPanel({
   );
 }
 
-export function AdminProvidersSection({ providers, dataSource, diagnostics }: Props) {
+export function AdminProvidersSection({
+  providers,
+  byTab,
+  dataSource,
+  diagnostics,
+}: Props) {
+  const [lifecycleTab, setLifecycleTab] = useState<ProviderLifecycleTab>("active");
   const [activeTab, setActiveTab] = useState<ProviderOrganisationType>("club");
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
@@ -556,6 +607,27 @@ export function AdminProvidersSection({ providers, dataSource, diagnostics }: Pr
   const [search, setSearch] = useState("");
   const [copiedOnboarding, setCopiedOnboarding] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+
+  const lifecycleCounts: Record<ProviderLifecycleTab, number> = {
+    active: byTab.active.length,
+    incomplete: byTab.incomplete.length,
+    hidden_broken: byTab.hiddenBroken.length,
+    deleted: byTab.deleted.length,
+  };
+
+  const lifecycleProviders =
+    lifecycleTab === "incomplete"
+      ? byTab.incomplete
+      : lifecycleTab === "hidden_broken"
+        ? byTab.hiddenBroken
+        : lifecycleTab === "deleted"
+          ? byTab.deleted
+          : [];
+
+  function handleLifecycleRefresh() {
+    setRefreshKey((value) => value + 1);
+    window.location.reload();
+  }
 
   const counts = useMemo(() => {
     const tally: Record<ProviderOrganisationType, number> = {
@@ -669,13 +741,44 @@ export function AdminProvidersSection({ providers, dataSource, diagnostics }: Pr
         <ProvidersDiagnosticsPanel
           key={refreshKey}
           diagnostics={diagnostics}
-          onRepaired={() => {
-            setRefreshKey((value) => value + 1);
-            window.location.reload();
-          }}
+          onRepaired={handleLifecycleRefresh}
         />
       ) : null}
 
+      <div className="flex flex-wrap gap-2 border-b border-zinc-200">
+        {(
+          [
+            "active",
+            "incomplete",
+            "hidden_broken",
+            "deleted",
+          ] as ProviderLifecycleTab[]
+        ).map((tab) => (
+          <button
+            key={tab}
+            type="button"
+            onClick={() => {
+              setLifecycleTab(tab);
+              setPage(1);
+            }}
+            className={`rounded-t-xl px-4 py-2.5 text-sm font-medium transition-colors ${
+              lifecycleTab === tab
+                ? "border-b-2 border-violet-600 text-violet-800"
+                : "text-zinc-500 hover:text-zinc-800"
+            }`}
+          >
+            {PROVIDER_LIFECYCLE_TAB_LABELS[tab]} ({lifecycleCounts[tab]})
+          </button>
+        ))}
+      </div>
+
+      {lifecycleTab !== "active" ? (
+        <AdminProviderLifecycleTable
+          providers={lifecycleProviders}
+          onActionComplete={handleLifecycleRefresh}
+        />
+      ) : (
+        <>
       <div className="flex flex-wrap gap-2 border-b border-zinc-200">
         {ORGANISATION_TABS.map((tab) => (
           <button
@@ -833,6 +936,8 @@ export function AdminProvidersSection({ providers, dataSource, diagnostics }: Pr
           ) : null}
         </div>
       </div>
+        </>
+      )}
     </div>
   );
 }

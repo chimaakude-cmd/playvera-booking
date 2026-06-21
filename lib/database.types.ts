@@ -1064,6 +1064,47 @@ export type Database = {
           },
         ];
       };
+      provider_deletion_audit_log: {
+        Row: {
+          id: string;
+          provider_id: string;
+          actor_id: string;
+          actor_type: string;
+          actor_email: string | null;
+          finance_records_retained: boolean;
+          note: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          provider_id: string;
+          actor_id: string;
+          actor_type: string;
+          actor_email?: string | null;
+          finance_records_retained?: boolean;
+          note?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          provider_id?: string;
+          actor_id?: string;
+          actor_type?: string;
+          actor_email?: string | null;
+          finance_records_retained?: boolean;
+          note?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "provider_deletion_audit_log_provider_id_fkey";
+            columns: ["provider_id"];
+            isOneToOne: false;
+            referencedRelation: "providers";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       gocardless_payments: {
         Row: {
           id: string;

@@ -16,5 +16,6 @@ export * from "./reviews-data";
 export * from "./provider-repair";
 export * from "./provider-status";
 export * from "./providers-diagnostics";
+export * from "./provider-delete";
 export * from "./supabase-client";
 export * from "./organisation-types";

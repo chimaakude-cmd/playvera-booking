@@ -159,7 +159,10 @@ function DashboardHomeContent() {
           checklist={newClubState.checklist}
         />
 
-        <IncompleteProfileLiveBanner profile={liveProfile} />
+        <IncompleteProfileLiveBanner
+          profile={liveProfile}
+          health={newClubState.profileHealth}
+        />
 
         <LaunchReadinessCard items={newClubState.launchReadiness} />
 
@@ -167,7 +170,11 @@ function DashboardHomeContent() {
 
         <PublicProfilePreview
           profile={newClubState.profile}
+          health={newClubState.profileHealth}
           sessions={newClubState.sessions}
+          onProfileRepaired={() => {
+            void fetchNewClubModeState().then(setNewClubState);
+          }}
         />
 
         <NewClubShareSection
@@ -202,7 +209,10 @@ function DashboardHomeContent() {
         />
       ) : null}
 
-      <IncompleteProfileLiveBanner profile={liveProfile} />
+      <IncompleteProfileLiveBanner
+        profile={liveProfile}
+        health={newClubState.profileHealth}
+      />
 
       <DashboardHeader
         clubName={clubName}
