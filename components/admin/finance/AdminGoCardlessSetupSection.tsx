@@ -359,14 +359,27 @@ export function AdminGoCardlessSetupSection() {
           <div>
             <h2 className="text-lg font-semibold text-zinc-900">Platform status</h2>
             <p className="mt-1 text-sm text-zinc-500">
-              Clubs can connect only when platform is enabled and credentials are valid.
+              Save credentials, run Test connection, then enable platform for clubs.
             </p>
           </div>
           {config ? (
-            <StatusPill
-              label={config.connectionStatusLabel}
-              tone={connectionTone(config.connectionStatus)}
-            />
+            <div className="flex flex-col items-end gap-1">
+              <StatusPill
+                label={
+                  config.connectionStatus === "live_connected" ||
+                  config.connectionStatus === "sandbox_connected"
+                    ? "Connected"
+                    : config.connectionStatusLabel
+                }
+                tone={connectionTone(config.connectionStatus)}
+              />
+              {config.connectionStatus === "live_connected" ||
+              config.connectionStatus === "sandbox_connected" ? (
+                <span className="text-xs text-zinc-500">
+                  {config.connectionStatusLabel}
+                </span>
+              ) : null}
+            </div>
           ) : null}
         </div>
 
@@ -535,7 +548,7 @@ export function AdminGoCardlessSetupSection() {
 
         <div className="flex flex-wrap gap-2 border-t border-zinc-100 px-6 py-4">
           <ActionButton onClick={() => void handleSave()} disabled={saving || loading}>
-            Save
+            {saving ? "Saving…" : "Save securely"}
           </ActionButton>
           <ActionButton
             variant="secondary"
