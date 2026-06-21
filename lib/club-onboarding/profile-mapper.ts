@@ -48,6 +48,39 @@ function buildOnboardingDescriptionFallbacks(
   return { tagline, description };
 }
 
+/** Minimum club_profiles row when ensuring a profile for an existing provider. */
+export function buildMinimalClubProfilesRowFromProvider(
+  providerId: string,
+  provider: {
+    name: string;
+    slug?: string | null;
+    email?: string | null;
+    phone?: string | null;
+  },
+): MinimalClubProfilesRow {
+  const clubName = provider.name.trim();
+  const slug = provider.slug?.trim() || slugifyClubName(clubName);
+
+  return {
+    provider_id: providerId,
+    club_name: clubName,
+    public_slug: slug,
+    tagline: "",
+    short_description: "",
+    long_description: "",
+    meta_title: `${clubName} | Activeora`,
+    meta_description: `${clubName} offers children's activities and clubs.`,
+    categories: [],
+    age_ranges: [],
+    email: provider.email?.trim() || "",
+    phone: provider.phone?.trim() || "",
+    verified: false,
+    published: true,
+    visibility: "published",
+    published_at: new Date().toISOString(),
+  };
+}
+
 /** Minimum club_profiles row for onboarding submit — auto-published with available data. */
 export function buildMinimalClubProfilesRow(
   providerId: string,

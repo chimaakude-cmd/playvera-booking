@@ -2,16 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseCookieClient } from "@/lib/supabase-ssr";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import {
+  ensureMinimalPublicClubProfileForProvider,
   fetchClubProfileForProvider,
   resolveProviderIdForAuthUser,
   saveClubProfileForProvider,
 } from "@/lib/club-profile/server";
 import type { ClubProfileInput } from "@/lib/club-profile/types";
-import {
-  formatPublishErrors,
-  hasPublishErrors,
-  validateClubProfilePublish,
-} from "@/lib/club-profile/validation";
 import { validateClubProfileInput } from "@/lib/club-profile/storage";
 
 export async function GET() {
@@ -41,19 +37,16 @@ export async function GET() {
       );
     }
 
-    const profile = await fetchClubProfileForProvider(supabase, providerId);
+    const profile = await ensureMinimalPublicClubProfileForProvider(
+      supabase,
+      providerId,
+    );
     if (!profile) {
       return NextResponse.json(
         { error: "Club profile not found." },
         { status: 404 },
       );
     }
-
-    console.info("[club-profile] GET visibility:", {
-      visibility: profile.visibility,
-      published: profile.published,
-      publicSlug: profile.publicSlug,
-    });
 
     return NextResponse.json({ profile });
   } catch (error) {
@@ -92,17 +85,6 @@ export async function PUT(request: NextRequest) {
         error: "Fix contact and social link errors before saving.",
         contactErrors: validation.contactErrors,
         socialErrors: validation.socialErrors,
-      },
-      { status: 400 },
-    );
-  }
-
-  const publishErrors = validateClubProfilePublish(input);
-  if (hasPublishErrors(publishErrors)) {
-    return NextResponse.json(
-      {
-        error: formatPublishErrors(publishErrors),
-        publishErrors,
       },
       { status: 400 },
     );

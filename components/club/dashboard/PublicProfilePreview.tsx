@@ -14,19 +14,20 @@ import type { ClubSession } from "@/lib/sessions";
 type PublicProfilePreviewProps = {
   profile: ClubProfile;
   sessions?: ClubSession[];
-  visibleToParents: boolean;
 };
 
 export function PublicProfilePreview({
   profile,
   sessions = [],
-  visibleToParents,
 }: PublicProfilePreviewProps) {
   const logoUrl =
     profile.logoUrl?.trim() || profile.profileDesign?.logoUrl?.trim() || null;
   const description = getProfileDescription(profile);
   const locationLabel = getProfileLocationLabel(profile, sessions);
   const previewPath = getPublicClubPath(profile.publicSlug);
+  const profileLive =
+    profile.clubName.trim().length > 0 &&
+    Boolean(profile.publicSlug?.trim());
 
   return (
     <section className="rounded-2xl border border-zinc-200/80 bg-white shadow-sm">
@@ -41,14 +42,12 @@ export function PublicProfilePreview({
         </div>
         <span
           className={`rounded-full px-3 py-1 text-xs font-semibold ${
-            visibleToParents
+            profileLive
               ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"
               : "bg-amber-50 text-amber-800 ring-1 ring-amber-200"
           }`}
         >
-          {visibleToParents
-            ? "Visible to parents"
-            : "Not visible to parents yet"}
+          {profileLive ? "Profile live" : "Setting up profile"}
         </span>
       </div>
 

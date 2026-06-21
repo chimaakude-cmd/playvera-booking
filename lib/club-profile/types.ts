@@ -332,16 +332,17 @@ export const clubProfileVisibilityLabels: Record<ClubProfileVisibility, string> 
 export function isPubliclyAccessibleProfile(profile: {
   visibility?: ClubProfileVisibility;
   published?: boolean;
+  publicSlug?: string;
 }): boolean {
+  if (profile.publicSlug?.trim()) {
+    return true;
+  }
+
   if (
     profile.visibility === "published" ||
     profile.visibility === "hidden"
   ) {
     return true;
-  }
-
-  if (profile.visibility === "draft") {
-    return false;
   }
 
   return Boolean(profile.published);

@@ -23,10 +23,6 @@ import {
   validateClubProfileInput,
   type ClubProfileVisibility,
 } from "@/lib/club-profile";
-import {
-  hasPublishErrors,
-  validateClubProfilePublish,
-} from "@/lib/club-profile/validation";
 import { useFranchiseePolicy } from "@/lib/organisation";
 import {
   ClubMediaFileUpload,
@@ -192,15 +188,14 @@ export function ClubProfileEditForm({
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const validation = validateClubProfileInput(profile);
-    const publishValidation = validateClubProfilePublish(profile);
 
     setFieldErrors({
       contact: validation.contactErrors,
       social: validation.socialErrors,
-      publish: publishValidation,
+      publish: {},
     });
 
-    if (!validation.isValid || hasPublishErrors(publishValidation)) {
+    if (!validation.isValid) {
       return;
     }
 
@@ -253,9 +248,7 @@ export function ClubProfileEditForm({
             bucket="cover"
           />
         </div>
-        {fieldErrors.publish.logoUrl ? (
-          <p className="text-sm text-red-600">{fieldErrors.publish.logoUrl}</p>
-        ) : null}
+
         <ProfileField label="Club name" htmlFor="club-name">
           <ProfileTextInput
             id="club-name"
@@ -339,11 +332,6 @@ export function ClubProfileEditForm({
             rows={5}
           />
         </ProfileField>
-        {fieldErrors.publish.description ? (
-          <p className="text-sm text-red-600">
-            {fieldErrors.publish.description}
-          </p>
-        ) : null}
         <ProfileField label="What makes your club unique" htmlFor="unique-points">
           <ProfileTextarea
             id="unique-points"
@@ -918,9 +906,6 @@ export function ClubProfileEditForm({
             ).map(([value, label]) => ({ value, label }))}
           />
         </ProfileField>
-        {fieldErrors.publish.contact ? (
-          <p className="text-sm text-red-600">{fieldErrors.publish.contact}</p>
-        ) : null}
       </ProfileSection>
 
       <div className="sticky bottom-4 flex flex-wrap gap-3 rounded-2xl border border-zinc-200 bg-white/95 p-4 shadow-lg backdrop-blur">

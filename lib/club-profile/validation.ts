@@ -1,5 +1,4 @@
 import type { ClubProfileInput } from "./types";
-import { isPlaceholderEmail } from "@/lib/email/placeholder";
 
 export type ClubProfilePublishErrors = {
   logoUrl?: string;
@@ -7,42 +6,11 @@ export type ClubProfilePublishErrors = {
   contact?: string;
 };
 
+/** Profiles auto-publish on save — no manual publish gate. */
 export function validateClubProfilePublish(
-  input: ClubProfileInput,
+  _input: ClubProfileInput,
 ): ClubProfilePublishErrors {
-  const errors: ClubProfilePublishErrors = {};
-  const visibility = input.visibility ?? (input.published ? "published" : "draft");
-
-  if (visibility === "draft") {
-    return errors;
-  }
-
-  if (!input.logoUrl?.trim()) {
-    errors.logoUrl = "Upload a club logo before publishing.";
-  }
-
-  const description =
-    input.longDescription.trim() ||
-    input.shortDescription.trim() ||
-    input.tagline.trim();
-
-  if (!description) {
-    errors.description =
-      "Add a club description before publishing.";
-  }
-
-  const hasEmail = Boolean(input.contact.email.trim());
-  const hasPhone = Boolean(input.contact.phone.trim());
-
-  if (!hasEmail && !hasPhone) {
-    errors.contact =
-      "Add a contact email or phone number before publishing.";
-  } else if (hasEmail && isPlaceholderEmail(input.contact.email)) {
-    errors.contact =
-      "Replace the placeholder contact email with your real club email before publishing.";
-  }
-
-  return errors;
+  return {};
 }
 
 export function hasPublishErrors(errors: ClubProfilePublishErrors): boolean {

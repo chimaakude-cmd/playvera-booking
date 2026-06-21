@@ -1,28 +1,16 @@
-import type { ClubProfileVisibility } from "@/lib/club-profile/types";
-
 export type ShareValidationResult =
   | { ok: true }
   | { ok: false; message: string };
 
+/** Shareable when the club has a public slug — no manual publish step. */
 export function validateClubShareTarget(options: {
   slug: string;
-  visibility?: ClubProfileVisibility;
 }): ShareValidationResult {
   const slug = options.slug.trim();
   if (!slug) {
     return {
       ok: false,
-      message: "Add a public URL slug in your club profile before sharing.",
-    };
-  }
-
-  if (
-    options.visibility !== "published" &&
-    options.visibility !== "hidden"
-  ) {
-    return {
-      ok: false,
-      message: "Publish your club profile before sharing.",
+      message: "Your club profile is being set up. Try again in a moment.",
     };
   }
 

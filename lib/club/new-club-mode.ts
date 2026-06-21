@@ -220,16 +220,12 @@ function hasAccountingConnected(): boolean {
 
 export function isProfileVisibleToParents(
   profile: ClubProfile,
-  sessions: ClubSession[] = [],
-  hasProviderVenues = false,
+  _sessions: ClubSession[] = [],
+  _hasProviderVenues = false,
 ): boolean {
-  const hasPublishedActivity = getPublishedActivityCount(sessions) > 0;
-
   return (
     profile.clubName.trim().length > 0 &&
-    hasLogo(profile) &&
-    hasPublishedActivity &&
-    hasAnyVenue(profile, sessions, hasProviderVenues)
+    Boolean(profile.publicSlug?.trim())
   );
 }
 

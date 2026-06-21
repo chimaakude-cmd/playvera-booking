@@ -10,7 +10,7 @@ import type {
   ClubProfileVisibility,
   LegacyClubProfileFields,
 } from "./types";
-import { CLUB_PROFILE_STORAGE_KEY, isPubliclyAccessibleProfile } from "./types";
+import { CLUB_PROFILE_STORAGE_KEY } from "./types";
 
 export const CLUB_PROFILE_SAVE_QUOTA_MESSAGE =
   "Your club profile could not be cached locally because browser storage is full.";
@@ -189,7 +189,7 @@ export function saveClubProfile(
 /** @deprecated Public pages load from Supabase. Cache-only helper for legacy callers. */
 export function getClubProfileBySlug(slug: string): ClubProfile | null {
   const profile = getClubProfile();
-  if (profile.publicSlug !== slug || !isPubliclyAccessibleProfile(profile)) {
+  if (profile.publicSlug !== slug) {
     return null;
   }
 

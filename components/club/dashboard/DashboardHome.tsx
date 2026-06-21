@@ -167,7 +167,6 @@ function DashboardHomeContent() {
         <PublicProfilePreview
           profile={newClubState.profile}
           sessions={newClubState.sessions}
-          visibleToParents={newClubState.profileVisibleToParents}
         />
 
         <NewClubShareSection

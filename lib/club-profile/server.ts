@@ -12,12 +12,9 @@ import {
   mapClubProfileRowToProfile,
   mapLocationInputToRow,
 } from "./db-mapper";
+import { buildMinimalClubProfilesRowFromProvider } from "@/lib/club-onboarding/profile-mapper";
 import type { ClubProfile, ClubProfileInput } from "./types";
 import { slugifyClubName } from "./types";
-import {
-  hasPublishErrors,
-  validateClubProfilePublish,
-} from "./validation";
 
 const PROFILE_SELECT = `
   *,
@@ -133,17 +130,7 @@ function isPublicClubProfileRow(
     "visibility" | "published" | "public_slug"
   >,
 ): boolean {
-  const slug = row.public_slug?.trim();
-  if (!slug) {
-    return false;
-  }
-
-  if (row.visibility === "published" || row.visibility === "hidden") {
-    return true;
-  }
-
-  // Legacy rows created before visibility enum (published flag only).
-  return row.published === true;
+  return Boolean(row.public_slug?.trim());
 }
 
 async function queryPublicClubProfile(
@@ -165,6 +152,78 @@ async function queryPublicClubProfile(
   }
 
   return mapQueryRow(row);
+}
+
+function isUniqueProfileViolation(error: PostgrestError | null): boolean {
+  return error?.code === "23505";
+}
+
+/** Create or upgrade a minimal public profile — no manual publish step. */
+export async function ensureMinimalPublicClubProfileForProvider(
+  supabase: ActivoraSupabaseClient,
+  providerId: string,
+): Promise<ClubProfile | null> {
+  let profile = await fetchClubProfileForProvider(supabase, providerId);
+
+  if (profile?.publicSlug?.trim()) {
+    if (!profile.published || profile.visibility === "draft") {
+      const publishedAt =
+        profile.profileDesign?.publishedAt ?? new Date().toISOString();
+      const { error } = await supabase
+        .from("club_profiles")
+        .update({
+          published: true,
+          visibility: "published",
+          published_at: publishedAt,
+        })
+        .eq("provider_id", providerId);
+
+      if (!error) {
+        profile = await fetchClubProfileForProvider(supabase, providerId);
+      }
+    }
+
+    return profile;
+  }
+
+  const { data: provider, error: providerError } = await supabase
+    .from("providers")
+    .select("name, slug, email, phone")
+    .eq("id", providerId)
+    .maybeSingle();
+
+  if (providerError || !provider?.name?.trim()) {
+    return profile ?? null;
+  }
+
+  const row = buildMinimalClubProfilesRowFromProvider(providerId, provider);
+  const { error: insertError } = await supabase
+    .from("club_profiles")
+    .insert(row);
+
+  if (insertError) {
+    if (isUniqueProfileViolation(insertError)) {
+      const { error: updateError } = await supabase
+        .from("club_profiles")
+        .update(row)
+        .eq("provider_id", providerId);
+
+      if (updateError) {
+        console.error("[club-profile] ensure profile update failed:", updateError);
+        return profile ?? null;
+      }
+    } else {
+      console.error("[club-profile] ensure profile insert failed:", insertError);
+      return profile ?? null;
+    }
+  }
+
+  await supabase
+    .from("providers")
+    .update({ slug: row.public_slug })
+    .eq("id", providerId);
+
+  return fetchClubProfileForProvider(supabase, providerId);
 }
 
 async function fetchPublicClubProfileByProviderSlug(
@@ -238,27 +297,16 @@ function normalizePublishInput(
   input: ClubProfileInput,
   existingPublishedAt?: string | null,
 ): ClubProfileInput {
-  const wantsLive =
-    input.published ||
-    input.visibility === "published" ||
-    input.visibility === "hidden";
+  const clubName = input.clubName.trim();
+  const slug = input.publicSlug.trim() || slugifyClubName(clubName);
 
-  if (!wantsLive) {
-    return input;
-  }
-
-  const publishErrors = validateClubProfilePublish({
-    ...input,
-    visibility: input.visibility === "hidden" ? "hidden" : "published",
-    published: true,
-  });
-
-  if (hasPublishErrors(publishErrors)) {
+  if (!clubName || !slug) {
     return input;
   }
 
   return {
     ...input,
+    publicSlug: slug,
     visibility: input.visibility === "hidden" ? "hidden" : "published",
     published: true,
     profileDesign: input.profileDesign
@@ -430,7 +478,6 @@ export async function fetchPublicClubProfileBySlugAdmin(
     .from("club_profiles")
     .select(PROFILE_SELECT)
     .eq("public_slug", slug.trim())
-    .in("visibility", ["published", "hidden"])
     .maybeSingle();
 
   if (error || !data) {

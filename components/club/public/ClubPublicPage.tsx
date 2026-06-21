@@ -270,10 +270,10 @@ export function ClubPublicPage({ profile, sessions }: ClubPublicPageProps) {
           {venueGroups.length === 0 ? (
             <div className="rounded-3xl border border-dashed border-zinc-300 bg-white px-6 py-12 text-center">
               <p className="text-sm font-medium text-zinc-700">
-                No activities published yet
+                No activities available yet.
               </p>
               <p className="mt-1 text-sm text-zinc-500">
-                Sessions from this club will appear here once live.
+                Sessions from this club will appear here once they are published.
               </p>
             </div>
           ) : (

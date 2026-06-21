@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import type { ClubProfile } from "@/lib/club-profile/types";
-import { isPubliclyAccessibleProfile } from "@/lib/club-profile/types";
 
 function isPublicProfileContentComplete(profile: ClubProfile): boolean {
   const description =
@@ -31,7 +30,7 @@ export function IncompleteProfileLiveBanner({
   profile,
 }: IncompleteProfileLiveBannerProps) {
   if (
-    !isPubliclyAccessibleProfile(profile) ||
+    !profile.publicSlug?.trim() ||
     isPublicProfileContentComplete(profile)
   ) {
     return null;

@@ -23,7 +23,6 @@ import {
 } from "@/lib/club-share";
 import { fetchClubProfileFromApi } from "@/lib/club-profile/client";
 import { getClubProfile } from "@/lib/club-profile";
-import type { ClubProfileVisibility } from "@/lib/club-profile/types";
 import { SharePlatformButton } from "./SharePlatformButton";
 import {
   ShareInstagramImage,
@@ -39,7 +38,9 @@ type ShareClubModalProps = {
   logoUrl?: string | null;
   primaryColor?: string;
   secondaryColor?: string;
-  visibility?: ClubProfileVisibility;
+  /** @deprecated Profiles auto-publish — ignored. */
+  visibility?: string;
+  /** @deprecated Profiles auto-publish — ignored. */
   published?: boolean;
 };
 
@@ -54,8 +55,6 @@ export function ShareClubModal({
   logoUrl,
   primaryColor = "#0d9488",
   secondaryColor = "#14b8a6",
-  visibility: visibilityProp,
-  published: _publishedProp,
 }: ShareClubModalProps) {
   const [tab, setTab] = useState<TabId>("share");
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
@@ -66,9 +65,8 @@ export function ShareClubModal({
   const [showInstagram, setShowInstagram] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
-  const [resolvedVisibility, setResolvedVisibility] = useState<
-    ClubProfileVisibility | undefined
-  >(visibilityProp);
+  const [resolvedSlug, setResolvedSlug] = useState(slug);
+  const [resolvedClubName, setResolvedClubName] = useState(clubName);
 
   useEffect(() => {
     setMounted(true);
@@ -79,7 +77,8 @@ export function ShareClubModal({
       return;
     }
 
-    setResolvedVisibility(visibilityProp);
+    setResolvedSlug(slug);
+    setResolvedClubName(clubName);
 
     let cancelled = false;
     void fetchClubProfileFromApi().then((result) => {
@@ -87,67 +86,50 @@ export function ShareClubModal({
         return;
       }
 
-      setResolvedVisibility(result.profile.visibility);
-      console.log("[ShareClubModal] visibility from API:", result.profile.visibility, {
-        slug: result.profile.publicSlug,
-        published: result.profile.published,
-      });
+      if (result.profile.publicSlug?.trim()) {
+        setResolvedSlug(result.profile.publicSlug);
+      }
+      if (result.profile.clubName?.trim()) {
+        setResolvedClubName(result.profile.clubName);
+      }
     });
 
     return () => {
       cancelled = true;
     };
-  }, [open, visibilityProp]);
+  }, [open, slug, clubName]);
 
   const cachedProfile = getClubProfile();
-  const effectiveVisibility =
-    resolvedVisibility ?? visibilityProp ?? cachedProfile.visibility;
+  const effectiveSlug =
+    resolvedSlug.trim() ||
+    cachedProfile.publicSlug?.trim() ||
+    slug.trim();
 
   const shareValidation = useMemo(
-    () =>
-      validateClubShareTarget({
-        slug,
-        visibility: effectiveVisibility,
-      }),
-    [slug, effectiveVisibility],
+    () => validateClubShareTarget({ slug: effectiveSlug }),
+    [effectiveSlug],
   );
   const canShare = shareValidation.ok;
 
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-
-    console.log("[ShareClubModal] share validation visibility:", effectiveVisibility, {
-      visibilityProp,
-      resolvedVisibility,
-      cachedVisibility: cachedProfile.visibility,
-      slug,
-      canShare,
-    });
-  }, [
-    open,
-    effectiveVisibility,
-    visibilityProp,
-    resolvedVisibility,
-    cachedProfile.visibility,
-    slug,
-    canShare,
-  ]);
-
-  const publicUrl = useMemo(() => getClubPublicUrl(slug), [slug]);
-  const qrUrl = useMemo(() => getClubPublicUrl(slug, { forQr: true }), [slug]);
+  const publicUrl = useMemo(
+    () => getClubPublicUrl(effectiveSlug),
+    [effectiveSlug],
+  );
+  const qrUrl = useMemo(
+    () => getClubPublicUrl(effectiveSlug, { forQr: true }),
+    [effectiveSlug],
+  );
   const shareContent = useMemo(
-    () => buildShareContent(clubName, publicUrl),
-    [clubName, publicUrl],
+    () => buildShareContent(resolvedClubName, publicUrl),
+    [resolvedClubName, publicUrl],
   );
   const primaryActions = useMemo(
-    () => getPrimarySocialShareActions(clubName, publicUrl),
-    [clubName, publicUrl],
+    () => getPrimarySocialShareActions(resolvedClubName, publicUrl),
+    [resolvedClubName, publicUrl],
   );
   const moreActions = useMemo(
-    () => getMoreSocialShareActions(clubName, publicUrl),
-    [clubName, publicUrl],
+    () => getMoreSocialShareActions(resolvedClubName, publicUrl),
+    [resolvedClubName, publicUrl],
   );
   const embedCode = useMemo(
     () => generateEmbedCode(embedType, providerId),
@@ -216,7 +198,7 @@ export function ShareClubModal({
     }
     downloadDataUrl(
       qrDataUrl,
-      `${slug}-qr.png`,
+      `${effectiveSlug}-qr.png`,
     );
     showToast("QR downloaded");
   }
@@ -225,7 +207,7 @@ export function ShareClubModal({
     if (!qrDataUrl) {
       return;
     }
-    openPrintView(qrDataUrl, clubName, publicUrl);
+    openPrintView(qrDataUrl, resolvedClubName, publicUrl);
   }
 
   async function handleSocialAction(
@@ -307,7 +289,7 @@ export function ShareClubModal({
                 id="share-club-title"
                 className="text-lg font-semibold text-zinc-900 sm:text-xl"
               >
-                Share {clubName}
+                Share {resolvedClubName}
               </h2>
               <p className="mt-1 text-sm text-zinc-500">
                 Invite families and grow your community.
@@ -366,7 +348,7 @@ export function ShareClubModal({
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={qrDataUrl}
-                      alt={`QR code for ${clubName}`}
+                      alt={`QR code for ${resolvedClubName}`}
                       className="h-full w-full object-contain"
                     />
                   ) : (
@@ -449,7 +431,7 @@ export function ShareClubModal({
                     Instagram share image
                   </p>
                   <ShareInstagramImage
-                    clubName={clubName}
+                    clubName={resolvedClubName}
                     link={publicUrl}
                     logoUrl={logoUrl}
                     primaryColor={primaryColor}
