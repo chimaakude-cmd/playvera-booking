@@ -34,8 +34,8 @@ function buildPrimaryActions(
       completed: activity?.completed ?? false,
     },
     {
-      title: "Connect payments",
-      description: "Choose how parents will pay — Stripe, GoCardless, or both",
+      title: "Connect payment provider",
+      description: "Connect Stripe and/or GoCardless to accept payments.",
       href: payments?.href ?? "/club/finance?tab=payment-providers",
       completed: payments?.completed ?? false,
     },

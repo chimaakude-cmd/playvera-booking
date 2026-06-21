@@ -147,9 +147,13 @@ function buildTags(session: ClubSession): string[] {
     tags.push("Free trial");
   }
 
-  const paymentProvider = resolveSessionPaymentProvider(session);
-  if (paymentProvider) {
-    tags.push(ACTIVITY_PAYMENT_PROVIDER_BADGES[paymentProvider]);
+  if (session.paymentProvider === "both") {
+    tags.push("Stripe + GoCardless");
+  } else {
+    const paymentProvider = resolveSessionPaymentProvider(session);
+    if (paymentProvider) {
+      tags.push(ACTIVITY_PAYMENT_PROVIDER_BADGES[paymentProvider]);
+    }
   }
 
   return tags.slice(0, 4);

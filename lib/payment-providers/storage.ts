@@ -57,7 +57,7 @@ export function getPaymentProviderSettings(
 
     const parsed = JSON.parse(raw) as PaymentProviderSettings;
     const rawClubDefault = parsed.club_default_provider;
-    const clubDefaultProvider =
+    const clubDefaultProvider: ClubDefaultPaymentProvider =
       rawClubDefault === "gocardless" ? "gocardless" : "stripe";
 
     const base = {

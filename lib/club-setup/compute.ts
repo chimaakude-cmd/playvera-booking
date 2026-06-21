@@ -56,8 +56,8 @@ function isTaskCompleted(
 const TASK_DEFINITIONS: Omit<SetupTask, "completed">[] = [
   {
     id: "connect_payments",
-    label: "Connect payments",
-    description: "Choose how parents will pay.",
+    label: "Connect payment provider",
+    description: "Connect Stripe and/or GoCardless to accept payments.",
     required: true,
     href: "/club/finance?tab=payment-providers",
   },

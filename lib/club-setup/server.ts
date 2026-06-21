@@ -115,11 +115,7 @@ async function loadProviderPaymentFlags(
     return { stripeStatus: "not_connected", gocardlessEnabled: false };
   }
 
-  const preferred = String(data.preferred_payment_provider ?? "stripe");
-  const gocardlessEnabled =
-    Boolean(data.payment_method_gocardless_dd) ||
-    preferred === "gocardless" ||
-    preferred === "ask_per_activity";
+  const gocardlessEnabled = Boolean(data.payment_method_gocardless_dd);
 
   return {
     stripeStatus: normalizeStripeStatus(data.stripe_connect_status),

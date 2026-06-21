@@ -296,8 +296,8 @@ export function buildNewClubChecklist(
   return [
     {
       id: "connect_payments",
-      title: "Connect payments",
-      description: "Choose how parents will pay.",
+      title: "Connect payment provider",
+      description: "Connect Stripe and/or GoCardless to accept payments.",
       actionLabel: paymentsConfigured ? "Connected" : "Connect",
       href: "/club/finance?tab=payment-providers",
       completed: paymentsConfigured,

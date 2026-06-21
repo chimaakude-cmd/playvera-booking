@@ -23,9 +23,9 @@ import {
   PLATFORM_FEE_PERCENT,
 } from "@/lib/payments";
 import {
-  isGoCardlessCheckoutAvailable,
-  isStripeCheckoutAvailable,
-} from "@/lib/payment-providers/storage";
+  resolveSessionCheckoutMethods,
+  sessionIsPaid,
+} from "@/lib/payment-providers/availability";
 import {
   calculateGoCardlessPayoutBreakdown,
   createMockGoCardlessPayment,
@@ -89,9 +89,11 @@ export default function BookSessionPageLegacy({
     "stripe_card" | "gocardless_direct_debit"
   >("stripe_card");
   const [checkoutLoaded, setCheckoutLoaded] = useState(false);
-  const [stripeCheckoutAvailable, setStripeCheckoutAvailable] = useState(false);
-  const [gocardlessCheckoutAvailable, setGocardlessCheckoutAvailable] =
-    useState(false);
+
+  const checkoutMethods = useMemo(
+    () => (session ? resolveSessionCheckoutMethods(session) : null),
+    [session],
+  );
 
   const bookingQuestions = useMemo(
     () => (session ? getSessionBookingQuestions(session) : []),
@@ -108,13 +110,21 @@ export default function BookSessionPageLegacy({
   }, [sessionId, initialSession]);
 
   useEffect(() => {
-    setStripeCheckoutAvailable(isStripeCheckoutAvailable());
-    setGocardlessCheckoutAvailable(isGoCardlessCheckoutAvailable());
-    setCheckoutLoaded(true);
-    if (isGoCardlessCheckoutAvailable() && !isStripeCheckoutAvailable()) {
-      setPaymentMethod("gocardless_direct_debit");
+    if (!checkoutMethods) {
+      setCheckoutLoaded(true);
+      return;
     }
-  }, []);
+
+    if (checkoutMethods.stripe && !checkoutMethods.gocardless) {
+      setPaymentMethod("stripe_card");
+    } else if (checkoutMethods.gocardless && !checkoutMethods.stripe) {
+      setPaymentMethod("gocardless_direct_debit");
+    } else if (checkoutMethods.stripe) {
+      setPaymentMethod("stripe_card");
+    }
+
+    setCheckoutLoaded(true);
+  }, [checkoutMethods]);
 
   function updateField(field: keyof FormState, value: string) {
     setForm((current) => ({ ...current, [field]: value }));
@@ -271,9 +281,16 @@ export default function BookSessionPageLegacy({
           session.platformFeePercent ?? PLATFORM_FEE_PERCENT,
         )
       : null;
-  const showPaymentOptions =
+  const isPaidSession = sessionIsPaid(session);
+  const showPaymentSection =
     checkoutLoaded &&
-    (stripeCheckoutAvailable || gocardlessCheckoutAvailable);
+    isPaidSession &&
+    checkoutMethods !== null &&
+    (checkoutMethods.stripe || checkoutMethods.gocardless);
+  const showMethodChoice =
+    checkoutMethods?.parentPicksMethod &&
+    checkoutMethods.stripe &&
+    checkoutMethods.gocardless;
   const { mainImageId, galleryImageIds } = getSessionImages(session);
 
   return (
@@ -346,72 +363,85 @@ export default function BookSessionPageLegacy({
                 </div>
               </div>
 
-              {showPaymentOptions ? (
+              {showPaymentSection ? (
                 <div className="rounded-xl border border-zinc-200 bg-white p-4">
                   <p className="text-sm font-semibold text-zinc-900">
-                    Payment method
+                    {showMethodChoice ? "How would you like to pay?" : "Payment"}
                   </p>
-                  <div className="mt-3 space-y-2">
-                    {stripeCheckoutAvailable ? (
-                      <label
-                        className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors ${
-                          paymentMethod === "stripe_card"
-                            ? "border-teal-300 bg-teal-50/50"
-                            : "border-zinc-200 hover:border-zinc-300"
-                        }`}
-                      >
-                        <input
-                          type="radio"
-                          name="paymentMethod"
-                          value="stripe_card"
-                          checked={paymentMethod === "stripe_card"}
-                          onChange={() => setPaymentMethod("stripe_card")}
-                          className="mt-0.5"
-                        />
-                        <div>
-                          <p className="text-sm font-medium text-zinc-900">
-                            Card payment (Stripe)
-                          </p>
-                          <p className="text-xs text-zinc-500">
-                            Primary option — instant confirmation when Stripe is
-                            connected.
-                          </p>
-                        </div>
-                      </label>
-                    ) : null}
-                    {gocardlessCheckoutAvailable ? (
-                      <label
-                        className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors ${
-                          paymentMethod === "gocardless_direct_debit"
-                            ? "border-teal-300 bg-teal-50/50"
-                            : "border-zinc-200 hover:border-zinc-300"
-                        }`}
-                      >
-                        <input
-                          type="radio"
-                          name="paymentMethod"
-                          value="gocardless_direct_debit"
-                          checked={
+
+                  {showMethodChoice ? (
+                    <div className="mt-3 space-y-2">
+                      {checkoutMethods?.stripe ? (
+                        <label
+                          className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors ${
+                            paymentMethod === "stripe_card"
+                              ? "border-teal-300 bg-teal-50/50"
+                              : "border-zinc-200 hover:border-zinc-300"
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="paymentMethod"
+                            value="stripe_card"
+                            checked={paymentMethod === "stripe_card"}
+                            onChange={() => setPaymentMethod("stripe_card")}
+                            className="mt-0.5"
+                          />
+                          <div>
+                            <p className="text-sm font-medium text-zinc-900">
+                              Card payment
+                            </p>
+                            <p className="text-xs text-zinc-500">
+                              Instant confirmation at checkout.
+                            </p>
+                          </div>
+                        </label>
+                      ) : null}
+                      {checkoutMethods?.gocardless ? (
+                        <label
+                          className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors ${
                             paymentMethod === "gocardless_direct_debit"
-                          }
-                          onChange={() =>
-                            setPaymentMethod("gocardless_direct_debit")
-                          }
-                          className="mt-0.5"
-                        />
-                        <div>
-                          <p className="text-sm font-medium text-zinc-900">
-                            Direct Debit (GoCardless)
-                          </p>
-                          <p className="text-xs text-zinc-500">
-                            Backup option — may take a few working days to
-                            confirm. Booking stays pending until payment is
-                            confirmed.
-                          </p>
-                        </div>
-                      </label>
-                    ) : null}
-                  </div>
+                              ? "border-teal-300 bg-teal-50/50"
+                              : "border-zinc-200 hover:border-zinc-300"
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="paymentMethod"
+                            value="gocardless_direct_debit"
+                            checked={
+                              paymentMethod === "gocardless_direct_debit"
+                            }
+                            onChange={() =>
+                              setPaymentMethod("gocardless_direct_debit")
+                            }
+                            className="mt-0.5"
+                          />
+                          <div>
+                            <p className="text-sm font-medium text-zinc-900">
+                              Direct Debit
+                            </p>
+                            <p className="text-xs text-zinc-500">
+                              Booking stays pending until payment is confirmed.
+                            </p>
+                          </div>
+                        </label>
+                      ) : null}
+                    </div>
+                  ) : (
+                    <div className="mt-3 rounded-lg border border-zinc-100 bg-zinc-50 p-3">
+                      <p className="text-sm font-medium text-zinc-900">
+                        {paymentMethod === "gocardless_direct_debit"
+                          ? "Direct Debit"
+                          : "Card payment"}
+                      </p>
+                      <p className="mt-1 text-xs text-zinc-500">
+                        {paymentMethod === "gocardless_direct_debit"
+                          ? "Your booking will be confirmed once Direct Debit is set up."
+                          : "Pay securely by card at checkout."}
+                      </p>
+                    </div>
+                  )}
 
                   {gcFeePreview ? (
                     <div className="mt-4 rounded-lg border border-zinc-100 bg-zinc-50 p-3 text-xs text-zinc-600">
@@ -445,15 +475,12 @@ export default function BookSessionPageLegacy({
                     </div>
                   ) : null}
                 </div>
-              ) : (
-                <button
-                  type="button"
-                  disabled
-                  className="w-full cursor-not-allowed rounded-lg border border-zinc-200 bg-zinc-100 px-6 py-3 text-sm font-semibold text-zinc-500 sm:w-auto"
-                >
-                  Pay Now — Stripe coming soon
-                </button>
-              )}
+              ) : isPaidSession && checkoutLoaded ? (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                  Payment is not available for this activity yet. Contact the
+                  club for help.
+                </div>
+              ) : null}
             </div>
           </div>
         </div>

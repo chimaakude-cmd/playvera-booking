@@ -152,8 +152,8 @@ const newClubQuickActions: QuickAction[] = [
     tone: "neutral",
   },
   {
-    label: "Connect payments",
-    description: "Set up Stripe for paid bookings",
+    label: "Connect payment provider",
+    description: "Connect Stripe and/or GoCardless to accept payments.",
     href: "/club/finance?tab=payment-providers",
     tone: "neutral",
   },

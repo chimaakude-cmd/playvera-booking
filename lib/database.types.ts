@@ -604,6 +604,7 @@ export type Database = {
           platform_fee_percent: number;
           bookings_count: number;
           published: boolean;
+          activity_payment_provider: string;
           moderation_status: Database["public"]["Enums"]["session_moderation_status"];
           removal_reason: string | null;
           removal_notes: string | null;
@@ -645,6 +646,7 @@ export type Database = {
           platform_fee_percent?: number;
           bookings_count?: number;
           published?: boolean;
+          activity_payment_provider?: string;
           moderation_status?: Database["public"]["Enums"]["session_moderation_status"];
           removal_reason?: string | null;
           removal_notes?: string | null;
@@ -686,6 +688,7 @@ export type Database = {
           platform_fee_percent?: number;
           bookings_count?: number;
           published?: boolean;
+          activity_payment_provider?: string;
           moderation_status?: Database["public"]["Enums"]["session_moderation_status"];
           removal_reason?: string | null;
           removal_notes?: string | null;
