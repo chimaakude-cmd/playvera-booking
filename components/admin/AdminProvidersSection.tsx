@@ -342,11 +342,13 @@ function HiddenProviderRow({
   onActionComplete: () => void;
 }) {
   const [busyAction, setBusyAction] = useState<
-    "repair" | "abandon" | "delete" | null
+    "repair" | "repair_profile" | "repair_activities" | "abandon" | "delete" | null
   >(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  async function runLifecycleAction(action: "repair" | "abandon" | "delete") {
+  async function runLifecycleAction(
+    action: "repair" | "repair_profile" | "repair_activities" | "abandon" | "delete",
+  ) {
     setBusyAction(action);
     setActionError(null);
 
@@ -411,6 +413,22 @@ function HiddenProviderRow({
             className="rounded-lg bg-violet-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-800 disabled:opacity-60"
           >
             {busyAction === "repair" ? "Repairing…" : "Repair provider"}
+          </button>
+          <button
+            type="button"
+            disabled={busyAction !== null}
+            onClick={() => void runLifecycleAction("repair_profile")}
+            className="rounded-lg border border-violet-200 px-3 py-1.5 text-xs font-medium text-violet-800 hover:bg-violet-50 disabled:opacity-60"
+          >
+            {busyAction === "repair_profile" ? "Repairing…" : "Repair public profile"}
+          </button>
+          <button
+            type="button"
+            disabled={busyAction !== null}
+            onClick={() => void runLifecycleAction("repair_activities")}
+            className="rounded-lg border border-sky-200 px-3 py-1.5 text-xs font-medium text-sky-800 hover:bg-sky-50 disabled:opacity-60"
+          >
+            {busyAction === "repair_activities" ? "Repairing…" : "Repair activities"}
           </button>
           <button
             type="button"
@@ -521,6 +539,126 @@ function ProvidersDiagnosticsPanel({
           </dd>
         </div>
       </dl>
+
+      {diagnostics.auditCounts ? (
+        <dl className="mt-4 grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
+          <div>
+            <dt className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+              DB providers
+            </dt>
+            <dd className="mt-0.5 text-base font-medium text-zinc-900">
+              {diagnostics.auditCounts.providers}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+              Club profiles
+            </dt>
+            <dd className="mt-0.5 text-base font-medium text-zinc-900">
+              {diagnostics.auditCounts.clubProfiles}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+              Public profiles
+            </dt>
+            <dd className="mt-0.5 text-base font-medium text-zinc-900">
+              {diagnostics.auditCounts.publicClubProfiles}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+              Sessions
+            </dt>
+            <dd className="mt-0.5 text-base font-medium text-zinc-900">
+              {diagnostics.auditCounts.sessions}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+              Bookings
+            </dt>
+            <dd className="mt-0.5 text-base font-medium text-zinc-900">
+              {diagnostics.auditCounts.bookings}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+              Orphan profiles
+            </dt>
+            <dd className="mt-0.5 text-base font-medium text-zinc-900">
+              {diagnostics.auditCounts.orphanedClubProfiles}
+            </dd>
+          </div>
+        </dl>
+      ) : null}
+
+      {diagnostics.diagnosticRows.length > 0 ? (
+        <div className="mt-4 overflow-x-auto rounded-xl border border-zinc-200 bg-white">
+          <table className="min-w-full divide-y divide-zinc-100 text-xs">
+            <thead className="bg-zinc-50/80">
+              <tr>
+                {[
+                  "Provider",
+                  "Owner",
+                  "Slug",
+                  "Deleted",
+                  "Hidden",
+                  "Onboarding",
+                  "Public profile",
+                ].map((heading) => (
+                  <th
+                    key={heading}
+                    className="px-3 py-2 text-left font-semibold uppercase tracking-wide text-zinc-500"
+                  >
+                    {heading}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-zinc-100">
+              {diagnostics.diagnosticRows.map((row) => (
+                <tr key={row.providerId}>
+                  <td className="px-3 py-2 font-mono text-zinc-700">
+                    {row.providerId.slice(0, 8)}…
+                  </td>
+                  <td className="px-3 py-2 font-mono text-zinc-700">
+                    {row.ownerUserId ? `${row.ownerUserId.slice(0, 8)}…` : "—"}
+                  </td>
+                  <td className="px-3 py-2 text-zinc-700">{row.slug || "—"}</td>
+                  <td className="px-3 py-2">{row.isDeleted ? "Yes" : "No"}</td>
+                  <td className="px-3 py-2">{row.isHidden ? "Yes" : "No"}</td>
+                  <td className="px-3 py-2">
+                    {row.onboardingComplete ? "Complete" : "Incomplete"}
+                  </td>
+                  <td className="px-3 py-2">
+                    {row.publicProfileExists ? "Yes" : "No"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
+
+      {diagnostics.orphanedClubProfiles.length > 0 ? (
+        <div className="mt-4 space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+            Club profiles without a provider row
+          </p>
+          <ul className="space-y-2">
+            {diagnostics.orphanedClubProfiles.map((orphan) => (
+              <li
+                key={orphan.clubProfileId}
+                className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900"
+              >
+                {orphan.clubName} · profile {orphan.clubProfileId.slice(0, 8)}… ·
+                missing provider {orphan.providerId.slice(0, 8)}…
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
 
       {diagnostics.hiddenReason ? (
         <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">

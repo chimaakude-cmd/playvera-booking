@@ -118,22 +118,28 @@ export function resolveProviderLifecycleTab(
   return "incomplete";
 }
 
+function isDeletedProvider(input: ProviderClassificationInput): boolean {
+  return input.lifecycleStatus === "deleted" || Boolean(input.deletedAt);
+}
+
 export function classifyProvider(
   input: ProviderClassificationInput,
 ): ProviderClassification {
   const hiddenReasons: ProviderHiddenReason[] = [];
+  const structurallyOnboarded = isStructurallyOnboarded(input);
   const onboardingComplete =
-    input.onboardingCompleted === true || isStructurallyOnboarded(input);
+    input.onboardingCompleted === true || structurallyOnboarded;
+  const deleted = isDeletedProvider(input);
 
   if (input.loadError) {
     hiddenReasons.push("query_error");
   }
 
-  if (input.lifecycleStatus === "deleted" || input.deletedAt) {
+  if (deleted) {
     hiddenReasons.push("deleted");
   }
 
-  if (input.lifecycleStatus === "abandoned") {
+  if (input.lifecycleStatus === "abandoned" && !structurallyOnboarded) {
     hiddenReasons.push("abandoned");
   }
 
@@ -151,17 +157,29 @@ export function classifyProvider(
 
   let lifecycleStatus: ProviderLifecycleStatus;
 
-  if (input.lifecycleStatus === "deleted" || input.deletedAt) {
+  if (deleted && !structurallyOnboarded) {
     lifecycleStatus = "deleted";
+  } else if (onboardingComplete) {
+    // Structurally complete clubs stay visible even when lifecycle migration
+    // or cleanup scripts left stale abandoned/incomplete/deleted flags in the DB.
+    lifecycleStatus = "active";
   } else if (input.lifecycleStatus === "abandoned") {
     lifecycleStatus = "abandoned";
-  } else if (onboardingComplete) {
-    lifecycleStatus = "active";
   } else {
     lifecycleStatus = "incomplete";
   }
 
-  const dedupedReasons = [...new Set(hiddenReasons)];
+  let dedupedReasons = [...new Set(hiddenReasons)];
+
+  if (lifecycleStatus === "active") {
+    dedupedReasons = dedupedReasons.filter(
+      (reason) =>
+        reason !== "abandoned" &&
+        reason !== "onboarding_incomplete" &&
+        reason !== "deleted",
+    );
+  }
+
   const lifecycleTab = resolveProviderLifecycleTab(
     lifecycleStatus,
     dedupedReasons,

@@ -239,6 +239,38 @@ export type AdminProvidersDiagnostics = {
     email: string;
     name: string;
   }>;
+  auditCounts: ProviderAuditCounts | null;
+  diagnosticRows: ProviderDiagnosticRow[];
+  orphanedClubProfiles: OrphanedClubProfile[];
+};
+
+export type ProviderAuditCounts = {
+  providers: number;
+  clubProfiles: number;
+  publicClubProfiles: number;
+  sessions: number;
+  bookings: number;
+  orphanedClubProfiles: number;
+};
+
+export type ProviderDiagnosticRow = {
+  providerId: string;
+  clubProfileId: string | null;
+  ownerUserId: string | null;
+  slug: string | null;
+  isDeleted: boolean;
+  isHidden: boolean;
+  onboardingComplete: boolean;
+  publicProfileExists: boolean;
+  lifecycleStatus: ProviderLifecycleStatus;
+};
+
+export type OrphanedClubProfile = {
+  clubProfileId: string;
+  providerId: string;
+  clubName: string;
+  publicSlug: string | null;
+  providerMissing: boolean;
 };
 
 export type AdminProvidersListResult = {

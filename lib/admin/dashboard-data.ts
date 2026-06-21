@@ -103,7 +103,7 @@ async function countActiveClubs(): Promise<number | null> {
     .map(classifyLoadedProvider)
     .filter(
       (record) =>
-        record.lifecycleTab === "active" &&
+        record.isVisible &&
         record.id !== DEMO_PROVIDER_ID &&
         !isDemoProviderRecord({ id: record.id, name: record.name, slug: record.slug }),
     ).length;
@@ -117,7 +117,7 @@ async function fetchRecentSignups(): Promise<AdminDashboardSignup[] | null> {
 
   const activeProviders = records
     .map(classifyLoadedProvider)
-    .filter((record) => record.lifecycleTab === "active")
+    .filter((record) => record.isVisible)
     .filter(
       (record) =>
         record.id !== DEMO_PROVIDER_ID &&
@@ -139,16 +139,16 @@ async function fetchRecentSignups(): Promise<AdminDashboardSignup[] | null> {
   });
 }
 
-async function countPublishedClubProfiles(): Promise<number | null> {
+async function countPublicClubProfiles(): Promise<number | null> {
   const supabase = getAdminSupabaseClient();
   const { count, error } = await supabase
     .from("club_profiles")
     .select("*", { count: "exact", head: true })
-    .eq("published", true);
+    .or("published.eq.true,visibility.eq.published");
 
   if (error) {
     console.error(
-      "[Admin dashboard] Failed to count published club profiles:",
+      "[Admin dashboard] Failed to count public club profiles:",
       error.message,
     );
     return null;
@@ -198,7 +198,7 @@ export async function fetchAdminDashboardData(): Promise<AdminDashboardData> {
   ] = await Promise.all([
     countActiveClubs(),
     countRows("parent_profiles"),
-    countPublishedClubProfiles(),
+    countPublicClubProfiles(),
     countRows("bookings", {
       column: "created_at",
       value: thirtyDaysAgo.toISOString(),

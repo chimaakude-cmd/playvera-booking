@@ -135,3 +135,23 @@ where p.slug is not null
   and cp.public_slug is not null
   and trim(p.slug) <> trim(cp.public_slug)
 order by p.name;
+
+-- Restore lifecycle visibility for structurally complete providers (00055+)
+update public.providers p
+set
+  lifecycle_status = 'active'::public.provider_lifecycle_status,
+  onboarding_completed = true,
+  deleted_at = null,
+  updated_at = now()
+where p.auth_user_id is not null
+  and exists (
+    select 1
+    from public.club_profiles cp
+    where cp.provider_id = p.id
+      and trim(coalesce(cp.club_name, '')) <> ''
+  )
+  and (
+    p.lifecycle_status <> 'active'::public.provider_lifecycle_status
+    or p.onboarding_completed = false
+    or p.deleted_at is not null
+  );

@@ -446,12 +446,18 @@ export async function repairProviderById(
       .update({
         onboarding_completed: true,
         lifecycle_status: "active",
+        deleted_at: null,
+        account_status: "active",
+        payments_enabled: true,
+        payments_paused: false,
       })
       .eq("id", providerIdTrimmed);
 
     if (activateError && !activateError.message.includes("lifecycle_status")) {
       return { ok: false, error: activateError.message };
     }
+
+    repaired.push("lifecycle status");
   }
 
   return {
@@ -459,6 +465,183 @@ export async function repairProviderById(
     providerId: providerIdTrimmed,
     repaired: repaired.length > 0 ? repaired : ["verified existing records"],
   };
+}
+
+export type RepairPublicProfileResult =
+  | { ok: true; providerId: string; repaired: string[] }
+  | { ok: false; error: string };
+
+export async function repairPublicProfileByProviderId(
+  providerId: string,
+): Promise<RepairPublicProfileResult> {
+  if (!isSupabaseConfigured()) {
+    return { ok: false, error: "Supabase is not configured." };
+  }
+
+  const providerIdTrimmed = providerId.trim();
+  if (!providerIdTrimmed) {
+    return { ok: false, error: "Provider id is required." };
+  }
+
+  const supabase = getAdminSupabaseClient();
+  const { data: provider, error: providerError } = await supabase
+    .from("providers")
+    .select("id, name, slug, email, phone")
+    .eq("id", providerIdTrimmed)
+    .maybeSingle();
+
+  if (providerError) {
+    return { ok: false, error: providerError.message };
+  }
+
+  if (!provider?.id) {
+    return { ok: false, error: "Provider not found." };
+  }
+
+  const displayName = provider.name?.trim() || "Unnamed club";
+  const email = provider.email?.trim() || "";
+  const slug =
+    provider.slug?.trim() || (await resolveUniqueProviderSlug(displayName));
+  const repaired: string[] = [];
+  const publishedAt = new Date().toISOString();
+
+  const { data: existingProfile, error: profileLookupError } = await supabase
+    .from("club_profiles")
+    .select("id")
+    .eq("provider_id", providerIdTrimmed)
+    .maybeSingle();
+
+  if (profileLookupError) {
+    return { ok: false, error: profileLookupError.message };
+  }
+
+  if (!existingProfile?.id) {
+    const profileRow = buildMinimalClubProfilesRowFromProvider(providerIdTrimmed, {
+      name: displayName,
+      slug,
+      email,
+      phone: provider.phone,
+    });
+
+    const { error: profileError } = await supabase
+      .from("club_profiles")
+      .insert(profileRow);
+
+    if (profileError) {
+      return { ok: false, error: profileError.message };
+    }
+
+    repaired.push("created club profile");
+  } else {
+    const { error: profileError } = await supabase
+      .from("club_profiles")
+      .update({
+        club_name: displayName,
+        public_slug: slug,
+        email,
+        phone: provider.phone?.trim() || "",
+        published: true,
+        visibility: "published",
+        published_at: publishedAt,
+      })
+      .eq("provider_id", providerIdTrimmed);
+
+    if (profileError) {
+      return { ok: false, error: profileError.message };
+    }
+
+    repaired.push("published club profile");
+  }
+
+  const { error: providerSlugError } = await supabase
+    .from("providers")
+    .update({ slug })
+    .eq("id", providerIdTrimmed);
+
+  if (providerSlugError) {
+    return { ok: false, error: providerSlugError.message };
+  }
+
+  repaired.push("synced provider slug");
+
+  return {
+    ok: true,
+    providerId: providerIdTrimmed,
+    repaired,
+  };
+}
+
+export type RepairProviderActivitiesResult =
+  | { ok: true; providerId: string; repairedCount: number }
+  | { ok: false; error: string };
+
+export async function repairProviderActivitiesByProviderId(
+  providerId: string,
+): Promise<RepairProviderActivitiesResult> {
+  if (!isSupabaseConfigured()) {
+    return { ok: false, error: "Supabase is not configured." };
+  }
+
+  const providerIdTrimmed = providerId.trim();
+  if (!providerIdTrimmed) {
+    return { ok: false, error: "Provider id is required." };
+  }
+
+  const supabase = getAdminSupabaseClient();
+  const updatedAt = new Date().toISOString();
+
+  const { data: sessions, error: sessionsError } = await supabase
+    .from("sessions")
+    .select("id, moderation_status, schedule_config")
+    .eq("provider_id", providerIdTrimmed);
+
+  if (sessionsError) {
+    return { ok: false, error: sessionsError.message };
+  }
+
+  const repairable = (sessions ?? []).filter(
+    (row) => row.moderation_status !== "removed",
+  );
+
+  if (repairable.length === 0) {
+    return { ok: true, providerId: providerIdTrimmed, repairedCount: 0 };
+  }
+
+  let repairedCount = 0;
+
+  for (const session of repairable) {
+    const scheduleConfig =
+      session.schedule_config &&
+      typeof session.schedule_config === "object" &&
+      !Array.isArray(session.schedule_config)
+        ? { ...(session.schedule_config as Record<string, unknown>) }
+        : {};
+
+    if (scheduleConfig.admin_status === "unpublished") {
+      delete scheduleConfig.admin_status;
+    }
+
+    if (scheduleConfig.visibility === "hidden") {
+      scheduleConfig.visibility = "public";
+    }
+
+    const { error } = await supabase
+      .from("sessions")
+      .update({
+        published: true,
+        schedule_config: scheduleConfig as import("@/lib/database.types").Json,
+        updated_at: updatedAt,
+      })
+      .eq("id", session.id);
+
+    if (error) {
+      return { ok: false, error: error.message };
+    }
+
+    repairedCount += 1;
+  }
+
+  return { ok: true, providerId: providerIdTrimmed, repairedCount };
 }
 
 export async function markProviderAbandoned(

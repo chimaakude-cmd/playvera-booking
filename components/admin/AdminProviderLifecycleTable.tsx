@@ -16,11 +16,13 @@ function LifecycleActionButtons({
   onActionComplete: () => void;
 }) {
   const [busyAction, setBusyAction] = useState<
-    "repair" | "abandon" | "delete" | null
+    "repair" | "repair_profile" | "repair_activities" | "abandon" | "delete" | null
   >(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  async function runLifecycleAction(action: "repair" | "abandon" | "delete") {
+  async function runLifecycleAction(
+    action: "repair" | "repair_profile" | "repair_activities" | "abandon" | "delete",
+  ) {
     if (
       action === "delete" &&
       !window.confirm(
@@ -78,6 +80,22 @@ function LifecycleActionButtons({
           className="rounded-lg bg-violet-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-800 disabled:opacity-60"
         >
           {busyAction === "repair" ? "Repairing…" : "Repair"}
+        </button>
+        <button
+          type="button"
+          disabled={busyAction !== null}
+          onClick={() => void runLifecycleAction("repair_profile")}
+          className="rounded-lg border border-violet-200 px-3 py-1.5 text-xs font-medium text-violet-800 hover:bg-violet-50 disabled:opacity-60"
+        >
+          {busyAction === "repair_profile" ? "Repairing…" : "Repair profile"}
+        </button>
+        <button
+          type="button"
+          disabled={busyAction !== null}
+          onClick={() => void runLifecycleAction("repair_activities")}
+          className="rounded-lg border border-sky-200 px-3 py-1.5 text-xs font-medium text-sky-800 hover:bg-sky-50 disabled:opacity-60"
+        >
+          {busyAction === "repair_activities" ? "Repairing…" : "Repair activities"}
         </button>
         <button
           type="button"

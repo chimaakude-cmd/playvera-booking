@@ -6,10 +6,17 @@ import {
 } from "@/lib/admin/provider-delete";
 import {
   markProviderAbandoned,
+  repairProviderActivitiesByProviderId,
   repairProviderById,
+  repairPublicProfileByProviderId,
 } from "@/lib/admin/provider-repair";
 
-type LifecycleAction = "repair" | "abandon" | "delete";
+type LifecycleAction =
+  | "repair"
+  | "repair_profile"
+  | "repair_activities"
+  | "abandon"
+  | "delete";
 
 export async function POST(
   request: NextRequest,
@@ -35,9 +42,18 @@ export async function POST(
   }
 
   const action = body.action;
-  if (action !== "repair" && action !== "abandon" && action !== "delete") {
+  if (
+    action !== "repair" &&
+    action !== "repair_profile" &&
+    action !== "repair_activities" &&
+    action !== "abandon" &&
+    action !== "delete"
+  ) {
     return NextResponse.json(
-      { error: "action must be repair, abandon, or delete." },
+      {
+        error:
+          "action must be repair, repair_profile, repair_activities, abandon, or delete.",
+      },
       { status: 400 },
     );
   }
@@ -51,6 +67,30 @@ export async function POST(
     return NextResponse.json({
       providerId: result.providerId,
       repaired: result.repaired,
+    });
+  }
+
+  if (action === "repair_profile") {
+    const result = await repairPublicProfileByProviderId(providerId);
+    if (!result.ok) {
+      return NextResponse.json({ error: result.error }, { status: 500 });
+    }
+
+    return NextResponse.json({
+      providerId: result.providerId,
+      repaired: result.repaired,
+    });
+  }
+
+  if (action === "repair_activities") {
+    const result = await repairProviderActivitiesByProviderId(providerId);
+    if (!result.ok) {
+      return NextResponse.json({ error: result.error }, { status: 500 });
+    }
+
+    return NextResponse.json({
+      providerId: result.providerId,
+      repairedCount: result.repairedCount,
     });
   }
 

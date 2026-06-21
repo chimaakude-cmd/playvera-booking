@@ -215,7 +215,8 @@ const SESSION_SELECT = `
 
 function isDeletedProviderActivity(row: SessionRow): boolean {
   const provider = firstRelation(row.providers);
-  return provider?.lifecycle_status === "deleted";
+  const status = provider?.lifecycle_status?.trim().toLowerCase();
+  return status === "deleted";
 }
 
 async function fetchSessionRows(): Promise<SessionRow[] | null> {

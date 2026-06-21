@@ -1,6 +1,9 @@
 import type {
   AdminHiddenProvider,
   AdminProvidersDiagnostics,
+  OrphanedClubProfile,
+  ProviderAuditCounts,
+  ProviderDiagnosticRow,
 } from "@/lib/admin/types";
 import {
   classifyProvider,
@@ -8,7 +11,7 @@ import {
   type ProviderLifecycleStatus,
 } from "@/lib/admin/provider-status";
 import { findOrphanedClubAuthUsers } from "@/lib/admin/provider-repair";
-import { getAdminSupabaseClientMode } from "@/lib/admin/supabase-client";
+import { getAdminSupabaseClientMode, getAdminSupabaseClient } from "@/lib/admin/supabase-client";
 import { adminListDataSource } from "@/lib/admin/data-source";
 import {
   createSupabaseServerClient,
@@ -39,6 +42,7 @@ export type LoadedProviderRecord = {
   onboarding_completed: boolean | null;
   deleted_at: string | null;
   club_profiles: Array<{
+    id: string;
     verified: boolean;
     club_name: string;
     public_slug: string | null;
@@ -168,6 +172,13 @@ export async function loadAllProviderRecords(
     return [];
   }
 
+  if ((baseRows ?? []).length === 0) {
+    const recovered = await loadProvidersFromRelatedTables(supabase);
+    if (recovered.length > 0) {
+      baseRows = recovered as Array<Record<string, unknown>>;
+    }
+  }
+
   const providerIds = (baseRows ?? []).map((row) => String(row.id));
   if (providerIds.length === 0) {
     return [];
@@ -177,7 +188,7 @@ export async function loadAllProviderRecords(
     supabase
       .from("club_profiles")
       .select(
-        "provider_id, verified, club_name, public_slug, short_description, website, visibility, published",
+        "id, provider_id, verified, club_name, public_slug, short_description, website, visibility, published",
       )
       .in("provider_id", providerIds),
     supabase
@@ -226,6 +237,7 @@ export async function loadAllProviderRecords(
     const providerId = String(row.provider_id);
     const current = profilesByProvider.get(providerId) ?? [];
     current.push({
+      id: String(row.id),
       verified: Boolean(row.verified),
       club_name: String(row.club_name ?? ""),
       public_slug: (row.public_slug as string | null) ?? null,
@@ -280,6 +292,162 @@ export async function loadAllProviderRecords(
       provider_subscriptions: subscriptionsByProvider.get(providerId) ?? [],
       club_team_members: teamByProvider.get(providerId) ?? [],
       loadError: relationErrors.length > 0 ? relationErrors.join("; ") : null,
+    };
+  });
+}
+
+async function loadProvidersFromRelatedTables(
+  supabase: ReturnType<
+    typeof import("@/lib/admin/supabase-client").getAdminSupabaseClient
+  >,
+): Promise<Array<Record<string, unknown>>> {
+  const [profilesResult, sessionsResult] = await Promise.all([
+    supabase.from("club_profiles").select("provider_id"),
+    supabase.from("sessions").select("provider_id"),
+  ]);
+
+  const providerIds = [
+    ...new Set(
+      [...(profilesResult.data ?? []), ...(sessionsResult.data ?? [])]
+        .map((row) => String(row.provider_id))
+        .filter(Boolean),
+    ),
+  ];
+
+  if (providerIds.length === 0) {
+    return [];
+  }
+
+  const primary = await supabase
+    .from("providers")
+    .select(EXTENDED_PROVIDER_SELECT)
+    .in("id", providerIds)
+    .order("created_at", { ascending: false });
+
+  if (primary.error) {
+    const fallback = await supabase
+      .from("providers")
+      .select(BASE_PROVIDER_SELECT)
+      .in("id", providerIds)
+      .order("created_at", { ascending: false });
+
+    return (fallback.data ?? []) as Array<Record<string, unknown>>;
+  }
+
+  return (primary.data ?? []) as Array<Record<string, unknown>>;
+}
+
+export async function fetchProviderAuditCounts(): Promise<ProviderAuditCounts | null> {
+  const supabase = getAdminSupabaseClient();
+
+  const [
+    providersResult,
+    clubProfilesResult,
+    publicProfilesResult,
+    sessionsResult,
+    bookingsResult,
+  ] = await Promise.all([
+    supabase.from("providers").select("id", { count: "exact", head: true }),
+    supabase.from("club_profiles").select("id", { count: "exact", head: true }),
+    supabase
+      .from("club_profiles")
+      .select("id", { count: "exact", head: true })
+      .or("published.eq.true,visibility.eq.published"),
+    supabase.from("sessions").select("id", { count: "exact", head: true }),
+    supabase.from("bookings").select("id", { count: "exact", head: true }),
+  ]);
+
+  if (
+    providersResult.error ||
+    clubProfilesResult.error ||
+    publicProfilesResult.error
+  ) {
+    console.error("[Admin providers] Failed to load audit counts");
+    return null;
+  }
+
+  const orphanedClubProfiles = await findOrphanedClubProfiles(supabase);
+
+  return {
+    providers: providersResult.count ?? 0,
+    clubProfiles: clubProfilesResult.count ?? 0,
+    publicClubProfiles: publicProfilesResult.count ?? 0,
+    sessions: sessionsResult.count ?? 0,
+    bookings: bookingsResult.count ?? 0,
+    orphanedClubProfiles: orphanedClubProfiles.length,
+  };
+}
+
+export async function findOrphanedClubProfiles(
+  supabase: ReturnType<
+    typeof import("@/lib/admin/supabase-client").getAdminSupabaseClient
+  >,
+): Promise<OrphanedClubProfile[]> {
+  const { data: profiles, error: profilesError } = await supabase
+    .from("club_profiles")
+    .select("id, provider_id, club_name, public_slug");
+
+  if (profilesError) {
+    console.error(
+      "[Admin providers] Failed to load club profiles for orphan check:",
+      profilesError.message,
+    );
+    return [];
+  }
+
+  const providerIds = [
+    ...new Set((profiles ?? []).map((row) => String(row.provider_id))),
+  ];
+
+  if (providerIds.length === 0) {
+    return [];
+  }
+
+  const { data: providers, error: providersError } = await supabase
+    .from("providers")
+    .select("id")
+    .in("id", providerIds);
+
+  if (providersError) {
+    console.error(
+      "[Admin providers] Failed to load providers for orphan check:",
+      providersError.message,
+    );
+    return [];
+  }
+
+  const existingProviderIds = new Set(
+    (providers ?? []).map((row) => String(row.id)),
+  );
+
+  return (profiles ?? [])
+    .filter((row) => !existingProviderIds.has(String(row.provider_id)))
+    .map((row) => ({
+      clubProfileId: String(row.id),
+      providerId: String(row.provider_id),
+      clubName: String(row.club_name ?? ""),
+      publicSlug: (row.public_slug as string | null) ?? null,
+      providerMissing: true,
+    }));
+}
+
+export function buildProviderDiagnosticRows(
+  classified: ClassifiedProviderRecord[],
+): ProviderDiagnosticRow[] {
+  return classified.map((record) => {
+    const profile = record.club_profiles[0] ?? null;
+
+    return {
+      providerId: record.id,
+      clubProfileId: profile?.id ?? null,
+      ownerUserId: record.auth_user_id,
+      slug: record.slug ?? profile?.public_slug ?? null,
+      isDeleted:
+        record.lifecycleStatus === "deleted" || Boolean(record.deleted_at),
+      isHidden: !record.isVisible,
+      onboardingComplete: record.onboardingComplete,
+      publicProfileExists: Boolean(profile),
+      lifecycleStatus: record.lifecycleStatus,
     };
   });
 }
@@ -372,8 +540,9 @@ export async function buildAdminProvidersDiagnostics(
   const queryClient = getAdminSupabaseClientMode();
   const totalProviderRows = classified.length;
   const visibleProviders = classified.filter((record) => record.isVisible);
+  const supabase = getAdminSupabaseClient();
   const hiddenProviders = classified
-    .filter((record) => record.lifecycleTab !== "active")
+    .filter((record) => !record.isVisible)
     .map((record) => {
       const row = loadedRecordToProviderRow(record);
       const stripeStatus = row.stripe_connect_status ?? "not_connected";
@@ -387,9 +556,12 @@ export async function buildAdminProvidersDiagnostics(
         paymentStatus,
       );
     });
-  const [anonVisibleCount, orphanedClubAuthUsers] = await Promise.all([
+  const [anonVisibleCount, orphanedClubAuthUsers, auditCounts, orphanedClubProfiles] =
+    await Promise.all([
     fetchAnonVisibleProviderCount(),
     findOrphanedClubAuthUsers(),
+    fetchProviderAuditCounts(),
+    findOrphanedClubProfiles(supabase),
   ]);
 
   let hiddenReason: string | null = null;
@@ -405,6 +577,12 @@ export async function buildAdminProvidersDiagnostics(
   } else if (queryClient === "anon" && totalProviderRows === 0) {
     hiddenReason =
       "Admin queries are using the anon key without service role — club-scoped RLS may hide all providers. Set SUPABASE_SERVICE_ROLE_KEY on the server.";
+  } else if (
+    auditCounts &&
+    auditCounts.clubProfiles > 0 &&
+    totalProviderRows === 0
+  ) {
+    hiddenReason = `${auditCounts.clubProfiles} club profile(s) exist but no provider rows are visible to admin — run repair or check service role / lifecycle status.`;
   }
 
   return {
@@ -415,6 +593,9 @@ export async function buildAdminProvidersDiagnostics(
     queryClient,
     hiddenProviders,
     orphanedClubAuthUsers,
+    auditCounts,
+    diagnosticRows: buildProviderDiagnosticRows(classified),
+    orphanedClubProfiles,
   };
 }
 
