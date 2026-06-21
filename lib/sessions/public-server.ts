@@ -4,6 +4,7 @@ import {
   type SessionRow,
   type TicketRow,
 } from "@/lib/data/mappers/session-mapper";
+import { filterBookableSessions } from "@/lib/sessions/bookable";
 import {
   createSupabaseServerClient,
   createSupabaseServiceRoleClient,
@@ -11,6 +12,10 @@ import {
   isSupabaseServiceRoleConfigured,
 } from "@/lib/supabase";
 import type { ClubSession } from "@/lib/sessions";
+
+type PublicSessionRow = SessionRow & {
+  moderation_status?: "active" | "removed" | null;
+};
 
 function groupBySessionId<T extends { session_id: string }>(rows: T[]) {
   const grouped = new Map<string, T[]>();
@@ -24,7 +29,11 @@ function groupBySessionId<T extends { session_id: string }>(rows: T[]) {
   return grouped;
 }
 
-export async function fetchPublicSessionsForProvider(
+function isRemovedSessionRow(row: PublicSessionRow): boolean {
+  return row.moderation_status === "removed";
+}
+
+export async function getBookableActivitiesForClub(
   providerId: string,
 ): Promise<ClubSession[]> {
   if (!providerId.trim() || !isSupabaseConfigured()) {
@@ -46,7 +55,14 @@ export async function fetchPublicSessionsForProvider(
     return [];
   }
 
-  const rows = sessionRows as SessionRow[];
+  const rows = (sessionRows as PublicSessionRow[]).filter(
+    (row) => !isRemovedSessionRow(row),
+  );
+
+  if (rows.length === 0) {
+    return [];
+  }
+
   const sessionIds = rows.map((row) => row.id);
 
   const [{ data: dateRows }, { data: ticketRows }] = await Promise.all([
@@ -69,11 +85,20 @@ export async function fetchPublicSessionsForProvider(
     (ticketRows ?? []) as TicketRow[],
   );
 
-  return rows.map((row) =>
+  const sessions = rows.map((row) =>
     mapSessionRowsToClubSession(
       row,
       datesBySessionId.get(row.id) ?? [],
       ticketsBySessionId.get(row.id) ?? [],
     ),
   );
+
+  return filterBookableSessions(sessions);
+}
+
+/** @deprecated Use getBookableActivitiesForClub */
+export async function fetchPublicSessionsForProvider(
+  providerId: string,
+): Promise<ClubSession[]> {
+  return getBookableActivitiesForClub(providerId);
 }

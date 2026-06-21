@@ -5,6 +5,7 @@ import { Logo } from "@/components/branding";
 import { BRAND_NAME } from "@/lib/brand";
 import type { ClubWidgetSettings } from "@/lib/club-widget";
 import { getClubProfile } from "@/lib/club-profile";
+import { sessionHasFutureDates } from "@/lib/sessions/bookable";
 import {
   ClubSession,
   formatDay,
@@ -203,12 +204,7 @@ export function filterSessionsForWidget(
   }
 
   if (settings.upcomingOnly) {
-    const today = new Date().toISOString().slice(0, 10);
-    filtered = filtered.filter((session) => {
-      const dates = session.schedule?.dates?.filter((d) => !d.cancelled) ?? [];
-      if (dates.length === 0) return true;
-      return dates.some((d) => d.date >= today);
-    });
+    filtered = filtered.filter((session) => sessionHasFutureDates(session));
   }
 
   return filtered;

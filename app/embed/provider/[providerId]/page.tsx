@@ -12,7 +12,8 @@ import {
   type ClubWidgetSettings,
 } from "@/lib/club-widget";
 import { getClubProfile } from "@/lib/club-profile";
-import { ClubSession, getSessions } from "@/lib/sessions";
+import { fetchBookableActivitiesForClub } from "@/lib/sessions/public-client";
+import type { ClubSession } from "@/lib/sessions";
 
 export default function EmbedProviderPage({
   params,
@@ -30,6 +31,8 @@ export default function EmbedProviderPage({
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
+
     const paramsObj = new URLSearchParams();
     for (const [key, value] of Object.entries(resolvedSearch)) {
       if (typeof value === "string") paramsObj.set(key, value);
@@ -38,10 +41,19 @@ export default function EmbedProviderPage({
     const stored = getWidgetSettingsForProvider(providerId);
     const fromQuery = parseWidgetSettingsFromSearchParams(paramsObj, providerId);
     setSettings({ ...stored, ...fromQuery, providerId });
-    setSessions(
-      getSessions().filter((session) => session.published !== false),
-    );
-    setReady(true);
+
+    void fetchBookableActivitiesForClub(providerId).then((loadedSessions) => {
+      if (cancelled) {
+        return;
+      }
+
+      setSessions(loadedSessions);
+      setReady(true);
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, [providerId, resolvedSearch]);
 
   if (!ready) {

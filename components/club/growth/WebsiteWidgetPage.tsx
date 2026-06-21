@@ -27,8 +27,11 @@ import {
   type WidgetCardStyle,
   type WidgetLayout,
 } from "@/lib/club-widget";
+import { fetchClubProfileFromApi } from "@/lib/club-profile/client";
 import { getClubProfile, getPublicClubPath } from "@/lib/club-profile";
-import { ClubSession, getSessions } from "@/lib/sessions";
+import type { ClubProfile } from "@/lib/club-profile";
+import { fetchBookableActivitiesForClub } from "@/lib/sessions/public-client";
+import type { ClubSession } from "@/lib/sessions";
 
 const inputClass =
   "mt-2 h-11 w-full rounded-xl border border-zinc-200 bg-white px-4 text-sm text-zinc-900 shadow-sm transition-colors focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20";
@@ -128,24 +131,53 @@ export function WebsiteWidgetPage() {
     DEFAULT_WIDGET_SETTINGS,
   );
   const [sessions, setSessions] = useState<ClubSession[]>([]);
+  const [profile, setProfile] = useState<ClubProfile | null>(() => getClubProfile());
+  const [providerId, setProviderId] = useState(DEMO_PROVIDER_ID);
   const [fullscreenPreview, setFullscreenPreview] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [qrLoading, setQrLoading] = useState(false);
-  const profile = getClubProfile();
 
   useEffect(() => {
-    setSettings(getWidgetSettings());
-    setSessions(getSessions().filter((s) => s.published !== false));
-    setLoading(false);
+    let cancelled = false;
+
+    async function loadWidgetData() {
+      setSettings(getWidgetSettings());
+
+      const profileResult = await fetchClubProfileFromApi();
+      const resolvedProfile = profileResult.ok
+        ? profileResult.profile
+        : getClubProfile();
+      const resolvedProviderId =
+        resolvedProfile?.providerId?.trim() || DEMO_PROVIDER_ID;
+
+      const loadedSessions = await fetchBookableActivitiesForClub(
+        resolvedProviderId,
+      );
+
+      if (cancelled) {
+        return;
+      }
+
+      setProfile(resolvedProfile);
+      setProviderId(resolvedProviderId);
+      setSessions(loadedSessions);
+      setLoading(false);
+    }
+
+    void loadWidgetData();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const embedUrl = useMemo(
-    () => getProviderEmbedUrl(DEMO_PROVIDER_ID, settings),
-    [settings],
+    () => getProviderEmbedUrl(providerId, settings),
+    [providerId, settings],
   );
   const embedCode = useMemo(
-    () => getProviderEmbedCode(DEMO_PROVIDER_ID, settings),
-    [settings],
+    () => getProviderEmbedCode(providerId, settings),
+    [providerId, settings],
   );
   const bookingLink = profile
     ? getPublicBookingPageUrl(profile.publicSlug)
@@ -383,7 +415,7 @@ export function WebsiteWidgetPage() {
               <div className="bg-zinc-50/60 p-4 sm:p-6">
                 <div className="overflow-hidden rounded-xl border border-zinc-200/60 bg-white shadow-inner">
                   <EmbedProviderWidget
-                    providerId={DEMO_PROVIDER_ID}
+                    providerId={providerId}
                     settings={settings}
                     sessions={previewSessions}
                     clubName={profile?.clubName}
@@ -402,7 +434,7 @@ export function WebsiteWidgetPage() {
                 Preview widget
               </button>
               <Link
-                href={`/embed/provider/${DEMO_PROVIDER_ID}`}
+                href={`/embed/provider/${providerId}`}
                 target="_blank"
                 className="inline-flex h-11 items-center rounded-xl border border-zinc-200 bg-white px-5 text-sm font-semibold text-zinc-700 transition-colors hover:bg-zinc-50"
               >
@@ -519,7 +551,7 @@ export function WebsiteWidgetPage() {
           <div className="flex-1 overflow-y-auto bg-zinc-50 p-4 sm:p-8">
             <div className="mx-auto max-w-4xl overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-xl">
               <EmbedProviderWidget
-                providerId={DEMO_PROVIDER_ID}
+                providerId={providerId}
                 settings={settings}
                 sessions={previewSessions}
                 clubName={profile?.clubName}

@@ -2,7 +2,7 @@ import { ClubNotFoundPage } from "@/components/club/public/ClubNotFoundPage";
 import { ClubPublicPage } from "@/components/club/public/ClubPublicPage";
 import { ClubPublicPageTracker } from "@/components/club/public/ClubPublicPageTracker";
 import { fetchPublicClubProfileBySlug } from "@/lib/club-profile/server";
-import { fetchPublicSessionsForProvider } from "@/lib/sessions/public-server";
+import { getBookableActivitiesForClub } from "@/lib/sessions/public-server";
 
 export default async function PublicClubPage({
   params,
@@ -16,7 +16,7 @@ export default async function PublicClubPage({
     return <ClubNotFoundPage />;
   }
 
-  const sessions = await fetchPublicSessionsForProvider(profile.providerId);
+  const sessions = await getBookableActivitiesForClub(profile.providerId);
 
   return (
     <>
