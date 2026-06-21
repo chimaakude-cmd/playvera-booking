@@ -12,6 +12,7 @@ import {
 } from "@/lib/club-profile/types";
 import { getClubTeamState } from "@/lib/club-team/storage";
 import { getVatSettings } from "@/lib/club-finance/vat-settings";
+import { shouldShowVatSetupTask } from "@/lib/club-finance/vat-threshold";
 import { isClubPaymentsConfigured } from "@/lib/payment-providers/availability";
 import { formatSessionLocation } from "@/lib/session-location";
 import { getSessions, type ClubSession } from "@/lib/sessions";
@@ -216,10 +217,6 @@ function hasBookingQuestionsConfigured(): boolean {
   }
 }
 
-function hasAccountingConnected(): boolean {
-  return false;
-}
-
 export function isProfileVisibleToParents(
   profile: ClubProfile,
   _sessions: ClubSession[] = [],
@@ -283,6 +280,7 @@ export function buildNewClubChecklist(
   profile: ClubProfile = getClubProfile(),
   sessions: ClubSession[] = getSessions(),
   hasProviderVenues = false,
+  rollingTwelveMonthRevenue = 0,
 ): NewClubChecklistItem[] {
   const activityCount = sessions.length;
   const paymentsConfigured = isClubPaymentsConfigured();
@@ -293,7 +291,7 @@ export function buildNewClubChecklist(
     hasProviderVenues,
   );
 
-  return [
+  const checklistItems: NewClubChecklistItem[] = [
     {
       id: "connect_payments",
       title: "Connect payment provider",
@@ -346,25 +344,21 @@ export function buildNewClubChecklist(
       href: "/club/settings/team",
       completed: hasTeamMembers(),
     },
-    {
+  ];
+
+  if (shouldShowVatSetupTask(rollingTwelveMonthRevenue)) {
+    checklistItems.push({
       id: "add_vat_details",
       title: "Add VAT details",
-      description: "Register VAT details if your club is VAT registered.",
+      description: "Add your VAT registration number if your club is VAT registered.",
       actionLabel: hasVatDetails() ? "Edit" : "Add",
       href: "/club/finance?tab=vat",
       completed: hasVatDetails(),
       optional: true,
-    },
-    {
-      id: "connect_accounting",
-      title: "Connect accounting",
-      description: "Sync bookings and payouts to your bookkeeping software.",
-      actionLabel: hasAccountingConnected() ? "Manage" : "Connect",
-      href: "/club/finance?tab=integrations",
-      completed: hasAccountingConnected(),
-      optional: true,
-    },
-  ];
+    });
+  }
+
+  return checklistItems.filter((item) => item.id !== "connect_accounting");
 }
 
 export function buildLaunchReadiness(
@@ -470,6 +464,7 @@ export function getNewClubModeState(
   profile?: ClubProfile,
   hasProviderVenues = false,
   setupProgress?: SetupProgressResult,
+  rollingTwelveMonthRevenue = 0,
 ): NewClubModeState {
   const resolvedProfile = profile ?? loadClubProfile();
   const publishedActivityCount = getPublishedActivityCount(sessions);
@@ -479,6 +474,7 @@ export function getNewClubModeState(
     resolvedProfile,
     sessions,
     hasProviderVenues,
+    rollingTwelveMonthRevenue,
   );
   const primaryStepsRemaining = getPrimaryStepsRemaining(checklist);
   const resolvedSetupProgress =
@@ -542,11 +538,17 @@ export async function fetchNewClubModeState(): Promise<NewClubModeState> {
   const { fetchClubProfileFromApi } = await import("@/lib/club-profile/client");
   const { loadProviderVenues } = await import("@/lib/data/provider-venues");
 
-  const [sessionsResult, profileResult, setupProgressResult] = await Promise.all([
-    loadSessionsWithMeta(),
-    fetchClubProfileFromApi(),
-    fetchSetupProgressFromApi(),
-  ]);
+  const [sessionsResult, profileResult, setupProgressResult, vatThresholdResult] =
+    await Promise.all([
+      loadSessionsWithMeta(),
+      fetchClubProfileFromApi(),
+      fetchSetupProgressFromApi(),
+      fetch("/api/club/vat-threshold", { cache: "no-store" })
+        .then(async (response) =>
+          response.ok ? ((await response.json()) as { rollingTwelveMonthRevenue?: number }) : null,
+        )
+        .catch(() => null),
+    ]);
   const sessions = sessionsResult.data;
 
   const profile = profileResult.ok ? profileResult.profile : getClubProfile();
@@ -563,11 +565,15 @@ export async function fetchNewClubModeState(): Promise<NewClubModeState> {
     ? setupProgressResult.progress
     : computeSetupProgressFromSessions(sessions, profile);
 
+  const rollingTwelveMonthRevenue =
+    vatThresholdResult?.rollingTwelveMonthRevenue ?? 0;
+
   return getNewClubModeState(
     sessions,
     profile,
     hasProviderVenues,
     setupProgress,
+    rollingTwelveMonthRevenue,
   );
 }
 

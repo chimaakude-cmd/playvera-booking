@@ -2,6 +2,8 @@ export * from "./types";
 export * from "./data";
 export * from "./use-club-finance-data";
 export * from "./vat-settings";
+export * from "./vat-threshold";
+export * from "./rolling-revenue";
 export * from "./vat";
 export * from "./hmrc-links";
 export * from "./accountant";

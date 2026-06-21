@@ -56,8 +56,8 @@ export function FinanceIntegrationsSection() {
       )}
 
       <FinanceSection
-        title="Bookkeeping software integrations"
-        description="Connect QuickBooks, FreeAgent, Xero, or Sage after Stripe Connect is enabled."
+        title="Accounting integrations"
+        description="Optional advanced feature — connect QuickBooks, FreeAgent, Xero, or Sage when you are ready."
       >
         <div className="grid gap-4 sm:grid-cols-2">
           {ACCOUNTING_INTEGRATIONS.map((integration) => (

@@ -11,4 +11,5 @@ export type SetupProgressContext = {
   hasVatDetails: boolean;
   hasBookingQuestionsConfigured: boolean;
   hasPayoutPreferencesConfigured: boolean;
+  rollingTwelveMonthRevenue: number;
 };

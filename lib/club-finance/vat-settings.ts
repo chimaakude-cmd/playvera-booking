@@ -14,8 +14,8 @@ export const VAT_SETTINGS_STORAGE_KEY = "activora-vat-settings";
 export const DEFAULT_VAT_RATE_PERCENT = 20;
 
 export const UK_VAT_REGISTRATION_THRESHOLD = 90_000;
-export const UK_VAT_WARNING_APPROACHING = 70_000;
-export const UK_VAT_WARNING_CLOSE = 85_000;
+/** Show VAT setup guidance from this rolling 12-month taxable volume. */
+export const UK_VAT_WARNING_APPROACHING = 75_000;
 
 export type VatSettings = {
   clubAccountEmail: string;

@@ -15,12 +15,18 @@ const MOCK_PROVIDER_DEFAULTS: Pick<
   | "paymentMethodStripeCard"
   | "paymentMethodGoCardlessDd"
   | "paymentMethodManualInvoice"
+  | "rollingTwelveMonthRevenue"
+  | "vatRegistrationNumber"
+  | "vatFlags"
 > = {
   organisationType: "club",
   clubsCount: 0,
   paymentMethodStripeCard: true,
   paymentMethodGoCardlessDd: false,
   paymentMethodManualInvoice: false,
+  rollingTwelveMonthRevenue: 0,
+  vatRegistrationNumber: "",
+  vatFlags: [],
 };
 
 export const MOCK_OVERVIEW_METRICS: AdminOverviewMetrics = {

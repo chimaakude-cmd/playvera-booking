@@ -17,6 +17,7 @@ import {
 } from "@/lib/stripe-connect/types";
 import type { ClubSession } from "@/lib/sessions";
 import { computeSetupProgress } from "./compute";
+import { computeRollingTwelveMonthTaxableVolume } from "@/lib/club-finance/rolling-revenue";
 import type { SetupProgressContext } from "./context";
 import type { SetupProgressResult } from "./types";
 
@@ -141,9 +142,21 @@ async function loadHasTeamMembers(
   return (count ?? 0) > 0;
 }
 
-async function loadHasVatDetails(): Promise<boolean> {
-  // VAT settings are still stored client-side until provider-scoped DB migration lands.
-  return false;
+async function loadHasVatDetails(
+  supabase: ActivoraSupabaseClient,
+  providerId: string,
+): Promise<boolean> {
+  const { data, error } = await supabase
+    .from("providers")
+    .select("vat_registration_number")
+    .eq("id", providerId)
+    .maybeSingle();
+
+  if (error) {
+    return false;
+  }
+
+  return Boolean(data?.vat_registration_number?.trim());
 }
 
 async function loadHasCustomBookingQuestions(
@@ -191,12 +204,14 @@ export async function buildSetupProgressContextForProvider(
     hasTeamMembers,
     hasVatDetails,
     hasBookingQuestionsConfigured,
+    rollingTwelveMonthRevenue,
   ] = await Promise.all([
     loadClubSessionsForProvider(supabase, providerId),
     loadProviderPaymentFlags(supabase, providerId),
     loadHasTeamMembers(supabase, providerId),
-    loadHasVatDetails(),
+    loadHasVatDetails(supabase, providerId),
     loadHasCustomBookingQuestions(supabase, providerId),
+    computeRollingTwelveMonthTaxableVolume(supabase, providerId),
   ]);
 
   const stripeStatus = paymentFlags.stripeStatus;
@@ -213,6 +228,7 @@ export async function buildSetupProgressContextForProvider(
     hasVatDetails,
     hasBookingQuestionsConfigured,
     hasPayoutPreferencesConfigured: stripePayoutReady,
+    rollingTwelveMonthRevenue,
   };
 }
 

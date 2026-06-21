@@ -9,6 +9,6 @@ export const FINANCE_TABS = [
   { id: "invoices", label: "Invoices" },
   { id: "vat", label: "VAT" },
   { id: "accountant", label: "Accountant" },
-  { id: "integrations", label: "Bookkeeping" },
+  { id: "integrations", label: "Accounting integrations" },
   { id: "reports", label: "Reports" },
 ] as const;

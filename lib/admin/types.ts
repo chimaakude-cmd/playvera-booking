@@ -44,6 +44,7 @@ export type ProviderAccountStatus = "active" | "paused" | "suspended";
 
 import type { ProviderOrganisationType } from "./organisation-types";
 import type { AdminProviderPlanId } from "./provider-plans";
+import type { AdminVatFlag } from "@/lib/club-finance/vat-threshold";
 
 export type { ProviderOrganisationType } from "./organisation-types";
 export type { AdminProviderPlanId } from "./provider-plans";
@@ -91,6 +92,9 @@ export type AdminProvider = {
   subscriptionPlan: string;
   planId: AdminProviderPlanId;
   totalRevenue: number;
+  rollingTwelveMonthRevenue: number;
+  vatRegistrationNumber: string;
+  vatFlags: AdminVatFlag[];
   hasPaymentData: boolean;
   accountStatus: ProviderAccountStatus;
   verified: boolean;
@@ -184,12 +188,28 @@ export type AdminProviderDetail = AdminProvider & {
   paymentMethodManualInvoice: boolean;
 };
 
+import type {
+  ProviderHiddenReason,
+  ProviderLifecycleStatus,
+} from "./provider-status";
+
+export type AdminHiddenProvider = {
+  id: string;
+  name: string;
+  email: string | null;
+  lifecycleStatus: ProviderLifecycleStatus;
+  hiddenReasons: ProviderHiddenReason[];
+  queryError: string | null;
+  createdAt: string;
+};
+
 export type AdminProvidersDiagnostics = {
   totalProviderRows: number;
   totalVisibleRows: number;
   hiddenCount: number;
   hiddenReason: string | null;
   queryClient: "service_role" | "anon";
+  hiddenProviders: AdminHiddenProvider[];
   orphanedClubAuthUsers: Array<{
     authUserId: string;
     email: string;

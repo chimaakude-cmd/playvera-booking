@@ -4,6 +4,8 @@ import {
   storagePlanToAdminPlan,
   type AdminProviderPlanId,
 } from "@/lib/admin/provider-plans";
+import { getAdminVatFlags } from "@/lib/club-finance/vat-threshold";
+import { computeRollingTwelveMonthTaxableVolumeByProvider } from "@/lib/club-finance/rolling-revenue";
 import {
   normalizeOrganisationType,
   type ProviderOrganisationType,
@@ -12,7 +14,6 @@ import type {
   AdminPaymentProviderMode,
   AdminProvider,
   AdminProviderDetail,
-  AdminProvidersDiagnostics,
   AdminProvidersListResult,
   ProviderAccountStatus,
   ProviderStripeStatus,
@@ -21,18 +22,19 @@ import { GOCARDLESS_STATUS_LABELS } from "@/lib/gocardless/types";
 import { STRIPE_CONNECT_STATUS_LABELS } from "@/lib/stripe-connect/types";
 import { adminListDataSource } from "@/lib/admin/data-source";
 import {
-  findOrphanedClubAuthUsers,
-} from "@/lib/admin/provider-repair";
+  buildAdminProvidersDiagnostics,
+  classifyLoadedProvider,
+  loadAllProviderRecords,
+  loadedRecordToProviderRow,
+} from "@/lib/admin/providers-diagnostics";
 import {
   getAdminSupabaseClient,
-  getAdminSupabaseClientMode,
 } from "@/lib/admin/supabase-client";
 import {
   isSupabaseConfigured,
-  createSupabaseServerClient,
 } from "@/lib/supabase";
 
-type ProviderRow = {
+export type ProviderRow = {
   id: string;
   name: string;
   slug: string | null;
@@ -49,6 +51,7 @@ type ProviderRow = {
   payment_method_manual_invoice?: boolean | null;
   organisation_type?: string | null;
   parent_provider_id?: string | null;
+  vat_registration_number?: string | null;
   club_profiles?:
     | {
         verified: boolean;
@@ -193,6 +196,7 @@ function resolveOwnerName(row: ProviderRow): string {
 function mapProviderRow(
   row: ProviderRow,
   revenue: RevenueStats,
+  rollingTwelveMonthRevenue: number,
   clubsCount: number,
 ): AdminProvider {
   const profile = firstRelation(row.club_profiles);
@@ -200,6 +204,7 @@ function mapProviderRow(
   const stripeStatus = normalizeStripeStatus(row.stripe_connect_status);
   const gocardlessStatus = row.gocardless_status ?? "not_connected";
   const planId = storagePlanToAdminPlan(subscription?.plan);
+  const vatRegistrationNumber = row.vat_registration_number?.trim() ?? "";
 
   return {
     id: row.id,
@@ -218,6 +223,12 @@ function mapProviderRow(
     subscriptionPlan: getAdminPlanLabel(planId),
     planId,
     totalRevenue: revenue.totalRevenue,
+    rollingTwelveMonthRevenue,
+    vatRegistrationNumber,
+    vatFlags: getAdminVatFlags(
+      rollingTwelveMonthRevenue,
+      vatRegistrationNumber.length > 0,
+    ),
     hasPaymentData: revenue.hasPaymentData,
     accountStatus: normalizeAccountStatus(row.account_status),
     verified: profile?.verified ?? false,
@@ -228,10 +239,11 @@ function mapProviderRow(
 function mapProviderDetail(
   row: ProviderRow,
   revenue: RevenueStats,
+  rollingTwelveMonthRevenue: number,
   clubsCount: number,
 ): AdminProviderDetail {
   const profile = firstRelation(row.club_profiles);
-  const base = mapProviderRow(row, revenue, clubsCount);
+  const base = mapProviderRow(row, revenue, rollingTwelveMonthRevenue, clubsCount);
 
   return {
     ...base,
@@ -248,57 +260,6 @@ function mapProviderDetail(
     paymentMethodGoCardlessDd: Boolean(row.payment_method_gocardless_dd),
     paymentMethodManualInvoice: Boolean(row.payment_method_manual_invoice),
   };
-}
-
-async function fetchProviderRows(): Promise<ProviderRow[] | null> {
-  const supabase = getAdminSupabaseClient();
-
-  const { data, error } = await supabase
-    .from("providers")
-    .select(
-      `
-        id,
-        name,
-        slug,
-        email,
-        phone,
-        location,
-        created_at,
-        stripe_account_id,
-        stripe_connect_status,
-        gocardless_status,
-        account_status,
-        payment_method_stripe_card,
-        payment_method_gocardless_dd,
-        payment_method_manual_invoice,
-        organisation_type,
-        parent_provider_id,
-        club_profiles (
-          verified,
-          club_name,
-          public_slug,
-          short_description,
-          website
-        ),
-        provider_subscriptions (
-          plan
-        ),
-        club_team_members (
-          first_name,
-          last_name,
-          is_owner,
-          status
-        )
-      `,
-    )
-    .order("created_at", { ascending: false });
-
-  if (error) {
-    console.error("[Admin providers] Failed to load providers:", error.message);
-    return null;
-  }
-
-  return (data ?? []) as unknown as ProviderRow[];
 }
 
 async function fetchRevenueByProvider(): Promise<Map<string, RevenueStats> | null> {
@@ -398,105 +359,10 @@ function emptyRevenueStats(): RevenueStats {
   };
 }
 
-async function fetchTotalProviderRowCount(): Promise<number | null> {
+async function loadClassifiedProviderRecords() {
   const supabase = getAdminSupabaseClient();
-  const { count, error } = await supabase
-    .from("providers")
-    .select("id", { count: "exact", head: true });
-
-  if (error) {
-    console.error(
-      "[Admin providers] Failed to count provider rows:",
-      error.message,
-    );
-    return null;
-  }
-
-  return count ?? 0;
-}
-
-async function fetchAnonVisibleProviderCount(): Promise<number | null> {
-  if (!isSupabaseConfigured()) {
-    return null;
-  }
-
-  const supabase = createSupabaseServerClient();
-  const { count, error } = await supabase
-    .from("providers")
-    .select("id", { count: "exact", head: true });
-
-  if (error) {
-    console.error(
-      "[Admin providers] Failed to count anon-visible providers:",
-      error.message,
-    );
-    return null;
-  }
-
-  return count ?? 0;
-}
-
-function resolveHiddenReason(options: {
-  queryClient: "service_role" | "anon";
-  totalProviderRows: number;
-  totalVisibleRows: number;
-  anonVisibleCount: number | null;
-}): string | null {
-  const hiddenCount = Math.max(
-    0,
-    options.totalProviderRows - options.totalVisibleRows,
-  );
-
-  if (hiddenCount > 0) {
-    return `${hiddenCount} provider row(s) could not be loaded (query error or partial data).`;
-  }
-
-  if (
-    options.queryClient === "service_role" &&
-    options.anonVisibleCount !== null &&
-    options.anonVisibleCount < options.totalProviderRows
-  ) {
-    return `RLS blocked anon reads: ${options.totalProviderRows - options.anonVisibleCount} provider row(s) hidden from the anon key (admin now uses service role).`;
-  }
-
-  if (options.queryClient === "anon" && options.totalProviderRows === 0) {
-    return "Admin queries are using the anon key without service role — club-scoped RLS may hide all providers. Set SUPABASE_SERVICE_ROLE_KEY on the server.";
-  }
-
-  return null;
-}
-
-async function fetchAdminProvidersDiagnostics(
-  totalVisibleRows: number,
-): Promise<AdminProvidersDiagnostics | null> {
-  if (adminListDataSource() === "env_missing") {
-    return null;
-  }
-
-  const queryClient = getAdminSupabaseClientMode();
-  const [totalProviderRows, anonVisibleCount, orphanedClubAuthUsers] =
-    await Promise.all([
-      fetchTotalProviderRowCount(),
-      fetchAnonVisibleProviderCount(),
-      findOrphanedClubAuthUsers(),
-    ]);
-
-  const resolvedTotal = totalProviderRows ?? totalVisibleRows;
-  const hiddenCount = Math.max(0, resolvedTotal - totalVisibleRows);
-
-  return {
-    totalProviderRows: resolvedTotal,
-    totalVisibleRows,
-    hiddenCount,
-    hiddenReason: resolveHiddenReason({
-      queryClient,
-      totalProviderRows: resolvedTotal,
-      totalVisibleRows,
-      anonVisibleCount,
-    }),
-    queryClient,
-    orphanedClubAuthUsers,
-  };
+  const records = await loadAllProviderRecords(supabase);
+  return records.map(classifyLoadedProvider);
 }
 
 export async function fetchAdminProvidersList(): Promise<AdminProvidersListResult> {
@@ -504,19 +370,25 @@ export async function fetchAdminProvidersList(): Promise<AdminProvidersListResul
     return { providers: [], dataSource: "env_missing", diagnostics: null };
   }
 
-  const [rows, revenueMap, childClubCounts] = await Promise.all([
-    fetchProviderRows(),
-    fetchRevenueByProvider(),
-    fetchChildClubCounts(),
-  ]);
+  const [classified, revenueMap, rollingRevenueMap, childClubCounts] =
+    await Promise.all([
+      loadClassifiedProviderRecords(),
+      fetchRevenueByProvider(),
+      computeRollingTwelveMonthTaxableVolumeByProvider(getAdminSupabaseClient()),
+      fetchChildClubCounts(),
+    ]);
 
-  const providers = (rows ?? []).map((row) => {
+  const visibleRecords = classified.filter((record) => record.isVisible);
+  const rows = visibleRecords.map(loadedRecordToProviderRow);
+
+  const providers = rows.map((row) => {
     const revenue = revenueMap?.get(row.id) ?? emptyRevenueStats();
+    const rollingTwelveMonthRevenue = rollingRevenueMap.get(row.id) ?? 0;
     const clubsCount = childClubCounts?.get(row.id) ?? 0;
-    return mapProviderRow(row, revenue, clubsCount);
+    return mapProviderRow(row, revenue, rollingTwelveMonthRevenue, clubsCount);
   });
 
-  const diagnostics = await fetchAdminProvidersDiagnostics(providers.length);
+  const diagnostics = await buildAdminProvidersDiagnostics(classified);
 
   return {
     providers,
@@ -533,60 +405,30 @@ export async function fetchAdminProviderById(
   }
 
   const supabase = getAdminSupabaseClient();
-  const { data, error } = await supabase
-    .from("providers")
-    .select(
-      `
-        id,
-        name,
-        slug,
-        email,
-        phone,
-        location,
-        created_at,
-        stripe_account_id,
-        stripe_connect_status,
-        gocardless_status,
-        account_status,
-        payment_method_stripe_card,
-        payment_method_gocardless_dd,
-        payment_method_manual_invoice,
-        organisation_type,
-        parent_provider_id,
-        club_profiles (
-          verified,
-          club_name,
-          public_slug,
-          short_description,
-          website
-        ),
-        provider_subscriptions (
-          plan
-        ),
-        club_team_members (
-          first_name,
-          last_name,
-          is_owner,
-          status
-        )
-      `,
-    )
-    .eq("id", providerId)
-    .maybeSingle();
+  const records = await loadAllProviderRecords(supabase);
+  const record = records.find((row) => row.id === providerId);
 
-  if (error || !data) {
-    if (error) {
-      console.error("[Admin providers] Failed to load provider:", error.message);
-    }
+  if (!record) {
     return null;
   }
 
+  const data = loadedRecordToProviderRow(classifyLoadedProvider(record));
+
   const revenueMap = await fetchRevenueByProvider();
+  const rollingRevenueMap = await computeRollingTwelveMonthTaxableVolumeByProvider(
+    supabase,
+  );
   const childClubCounts = await fetchChildClubCounts();
   const revenue = revenueMap?.get(providerId) ?? emptyRevenueStats();
+  const rollingTwelveMonthRevenue = rollingRevenueMap.get(providerId) ?? 0;
   const clubsCount = childClubCounts?.get(providerId) ?? 0;
 
-  return mapProviderDetail(data as ProviderRow, revenue, clubsCount);
+  return mapProviderDetail(
+    data as ProviderRow,
+    revenue,
+    rollingTwelveMonthRevenue,
+    clubsCount,
+  );
 }
 
 export function formatProviderRevenue(provider: AdminProvider): string {

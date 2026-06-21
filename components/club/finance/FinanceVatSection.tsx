@@ -28,6 +28,28 @@ export function FinanceVatSection() {
 
   useEffect(() => {
     setSettings(getVatSettings());
+
+    void fetch("/api/club/vat-settings", { cache: "no-store" })
+      .then(async (response) =>
+        response.ok
+          ? ((await response.json()) as { vatRegistrationNumber?: string })
+          : null,
+      )
+      .then((payload) => {
+        if (!payload?.vatRegistrationNumber) {
+          return;
+        }
+
+        setSettings((current) => ({
+          ...current,
+          vatRegistrationNumber: payload.vatRegistrationNumber ?? "",
+          isVatRegistered:
+            current.isVatRegistered || Boolean(payload.vatRegistrationNumber),
+        }));
+      })
+      .catch(() => {
+        // Keep localStorage values when the API is unavailable.
+      });
   }, []);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -57,6 +79,16 @@ export function FinanceVatSection() {
     saveVatSettings(normalized);
     setSettings(normalized);
     setSaved(true);
+
+    void fetch("/api/club/vat-settings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        vatRegistrationNumber: normalized.vatRegistrationNumber,
+      }),
+    }).catch(() => {
+      // Local settings remain saved even if server persistence fails.
+    });
   }
 
   return (

@@ -53,6 +53,10 @@ export type Database = {
           organisation_type: string;
           parent_provider_id: string | null;
           managed_by_franchisor: boolean;
+          vat_registration_number: string | null;
+          lifecycle_status: Database["public"]["Enums"]["provider_lifecycle_status"];
+          onboarding_completed: boolean;
+          deleted_at: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -92,6 +96,10 @@ export type Database = {
           organisation_type?: string;
           parent_provider_id?: string | null;
           managed_by_franchisor?: boolean;
+          vat_registration_number?: string | null;
+          lifecycle_status?: Database["public"]["Enums"]["provider_lifecycle_status"];
+          onboarding_completed?: boolean;
+          deleted_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -131,6 +139,10 @@ export type Database = {
           organisation_type?: string;
           parent_provider_id?: string | null;
           managed_by_franchisor?: boolean;
+          vat_registration_number?: string | null;
+          lifecycle_status?: Database["public"]["Enums"]["provider_lifecycle_status"];
+          onboarding_completed?: boolean;
+          deleted_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -1436,6 +1448,7 @@ export type Database = {
         | "content_admin"
         | "read_only";
       platform_admin_status: "invited" | "active" | "disabled";
+      provider_lifecycle_status: "active" | "incomplete" | "abandoned" | "deleted";
     };
     CompositeTypes: Record<string, never>;
   };

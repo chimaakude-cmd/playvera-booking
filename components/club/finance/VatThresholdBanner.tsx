@@ -1,7 +1,6 @@
 import {
   getThresholdProgress,
   getVatThresholdWarning,
-  TAX_DISCLAIMER,
   UK_VAT_REGISTRATION_THRESHOLD,
 } from "@/lib/club-finance";
 import { formatMoney } from "@/lib/payments";
@@ -44,7 +43,6 @@ export function VatThresholdBanner({
           </div>
           <p className="mt-2 text-xs text-zinc-400">{progress}% of threshold</p>
         </div>
-        <p className="mt-3 text-xs text-zinc-400">{TAX_DISCLAIMER}</p>
       </div>
     );
   }
@@ -52,23 +50,15 @@ export function VatThresholdBanner({
   const styles =
     warning.stage === "reached"
       ? "border-rose-200 bg-rose-50/80"
-      : warning.stage === "close"
-        ? "border-amber-200 bg-amber-50/80"
-        : "border-sky-200 bg-sky-50/80";
+      : "border-sky-200 bg-sky-50/80";
 
   const badgeStyles =
     warning.stage === "reached"
       ? "bg-rose-100 text-rose-800 ring-rose-200"
-      : warning.stage === "close"
-        ? "bg-amber-100 text-amber-800 ring-amber-200"
-        : "bg-sky-100 text-sky-800 ring-sky-200";
+      : "bg-sky-100 text-sky-800 ring-sky-200";
 
   const barColor =
-    warning.stage === "reached"
-      ? "bg-rose-500"
-      : warning.stage === "close"
-        ? "bg-amber-500"
-        : "bg-sky-500";
+    warning.stage === "reached" ? "bg-rose-500" : "bg-sky-500";
 
   return (
     <div className={`rounded-2xl border p-5 shadow-sm ${styles}`}>
@@ -89,9 +79,7 @@ export function VatThresholdBanner({
         >
           {warning.stage === "reached"
             ? "Threshold reached"
-            : warning.stage === "close"
-              ? "Close to threshold"
-              : "Approaching threshold"}
+            : "Approaching threshold"}
         </span>
       </div>
       <div className="mt-4">

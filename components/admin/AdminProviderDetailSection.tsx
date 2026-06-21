@@ -20,6 +20,11 @@ import {
 } from "@/lib/admin";
 import { AdminProviderPaymentControls } from "@/components/admin/AdminProviderPaymentControls";
 import type { AdminProviderDetail } from "@/lib/admin/types";
+import {
+  ADMIN_VAT_FLAG_LABELS,
+  type AdminVatFlag,
+} from "@/lib/club-finance/vat-threshold";
+import { formatMoney } from "@/lib/payments";
 
 type Props = {
   provider: AdminProviderDetail | null;
@@ -358,18 +363,30 @@ export function AdminProviderDetailSection({ provider }: Props) {
               </p>
             </div>
             <div>
-              <p className="text-xs text-zinc-500">Platform fees paid</p>
+              <p className="text-xs text-zinc-500">Rolling 12-month revenue</p>
               <p className="text-lg font-bold text-zinc-900">
-                {activeProvider.hasPaymentData ? "£0" : "No payment data yet"}
+                {formatMoney(activeProvider.rollingTwelveMonthRevenue)}
               </p>
             </div>
             <div>
-              <p className="text-xs text-zinc-500">Pending payout</p>
+              <p className="text-xs text-zinc-500">VAT registration number</p>
               <p className="text-lg font-bold text-zinc-900">
-                {activeProvider.hasPaymentData ? "£0" : "No payment data yet"}
+                {activeProvider.vatRegistrationNumber || "—"}
               </p>
             </div>
           </div>
+          {activeProvider.vatFlags.length > 0 ? (
+            <div className="mt-4 flex flex-wrap gap-2">
+              {activeProvider.vatFlags.map((flag: AdminVatFlag) => (
+                <span
+                  key={flag}
+                  className="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-900"
+                >
+                  {ADMIN_VAT_FLAG_LABELS[flag]}
+                </span>
+              ))}
+            </div>
+          ) : null}
           <p className="mt-3 text-xs text-zinc-400">
             {activeProvider.totalBookings} total bookings · Plan:{" "}
             {activeProvider.subscriptionPlan}

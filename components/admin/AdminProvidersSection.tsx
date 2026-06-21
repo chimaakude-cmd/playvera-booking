@@ -20,8 +20,17 @@ import {
 import type {
   AdminPaymentProviderMode,
   AdminProvider,
+  AdminHiddenProvider,
   AdminProvidersDiagnostics,
 } from "@/lib/admin/types";
+import {
+  PROVIDER_HIDDEN_REASON_LABELS,
+  PROVIDER_LIFECYCLE_STATUS_LABELS,
+} from "@/lib/admin/provider-status";
+import {
+  ADMIN_VAT_FLAG_LABELS,
+  type AdminVatFlag,
+} from "@/lib/club-finance/vat-threshold";
 import { paginateItems } from "@/lib/pagination";
 
 type Props = {
@@ -75,6 +84,31 @@ function VerificationBadge({ verified }: { verified: boolean }) {
   );
 }
 
+const VAT_FLAG_STYLES: Record<AdminVatFlag, string> = {
+  approaching_vat_threshold: "bg-sky-50 text-sky-800",
+  over_vat_threshold: "bg-rose-50 text-rose-800",
+  vat_number_missing: "bg-amber-50 text-amber-900",
+};
+
+function VatFlagsCell({ provider }: { provider: AdminProvider }) {
+  if (provider.vatFlags.length === 0) {
+    return <span className="text-xs text-zinc-400">—</span>;
+  }
+
+  return (
+    <div className="flex max-w-xs flex-wrap gap-1">
+      {provider.vatFlags.map((flag) => (
+        <span
+          key={flag}
+          className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${VAT_FLAG_STYLES[flag]}`}
+        >
+          {ADMIN_VAT_FLAG_LABELS[flag]}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function PaymentSetupCell({ provider }: { provider: AdminProvider }) {
   return (
     <div className="text-xs text-zinc-600">
@@ -123,6 +157,9 @@ function ClubRow({ provider }: { provider: AdminProvider }) {
       <td className="whitespace-nowrap px-4 py-4">
         <VerificationBadge verified={provider.verified} />
       </td>
+      <td className="px-4 py-4">
+        <VatFlagsCell provider={provider} />
+      </td>
       <td className="whitespace-nowrap px-4 py-4">
         <AccountStatusBadge status={provider.accountStatus} />
       </td>
@@ -163,6 +200,9 @@ function FranchiseRow({ provider }: { provider: AdminProvider }) {
       <td className="whitespace-nowrap px-4 py-4">
         <VerificationBadge verified={provider.verified} />
       </td>
+      <td className="px-4 py-4">
+        <VatFlagsCell provider={provider} />
+      </td>
       <td className="whitespace-nowrap px-4 py-4">
         <AccountStatusBadge status={provider.accountStatus} />
       </td>
@@ -200,6 +240,9 @@ function EnterpriseRow({ provider }: { provider: AdminProvider }) {
       <td className="whitespace-nowrap px-4 py-4">
         <VerificationBadge verified={provider.verified} />
       </td>
+      <td className="px-4 py-4">
+        <VatFlagsCell provider={provider} />
+      </td>
       <td className="whitespace-nowrap px-4 py-4">
         <AccountStatusBadge status={provider.accountStatus} />
       </td>
@@ -217,6 +260,7 @@ const TABLE_HEADINGS: Record<ProviderOrganisationType, string[]> = {
     "Plan",
     "Payment setup",
     "Verification",
+    "VAT flags",
     "Status",
     "Created date",
     "Actions",
@@ -228,6 +272,7 @@ const TABLE_HEADINGS: Record<ProviderOrganisationType, string[]> = {
     "Plan",
     "Payment setup",
     "Verification",
+    "VAT flags",
     "Status",
     "Actions",
   ],
@@ -238,10 +283,111 @@ const TABLE_HEADINGS: Record<ProviderOrganisationType, string[]> = {
     "Plan",
     "Payment setup",
     "Verification",
+    "VAT flags",
     "Status",
     "Actions",
   ],
 };
+
+function HiddenProviderRow({
+  provider,
+  onActionComplete,
+}: {
+  provider: AdminHiddenProvider;
+  onActionComplete: () => void;
+}) {
+  const [busyAction, setBusyAction] = useState<
+    "repair" | "abandon" | "delete" | null
+  >(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  async function runLifecycleAction(action: "repair" | "abandon" | "delete") {
+    setBusyAction(action);
+    setActionError(null);
+
+    try {
+      const response = await fetch(
+        `/api/admin/providers/${provider.id}/lifecycle`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action }),
+        },
+      );
+      const payload = (await response.json()) as { error?: string };
+
+      if (!response.ok) {
+        setActionError(payload.error || "Action failed.");
+        return;
+      }
+
+      onActionComplete();
+    } catch {
+      setActionError("Action request failed.");
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  return (
+    <li className="rounded-xl border border-zinc-200 bg-white px-3 py-3">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="font-medium text-zinc-900">{provider.name}</p>
+          <p className="text-xs text-zinc-500">
+            {provider.email || "No email"} · Created {provider.createdAt}
+          </p>
+          <p className="mt-1 text-xs text-zinc-600">
+            Status:{" "}
+            {PROVIDER_LIFECYCLE_STATUS_LABELS[provider.lifecycleStatus]}
+          </p>
+          <div className="mt-2 flex flex-wrap gap-1">
+            {provider.hiddenReasons.map((reason) => (
+              <span
+                key={reason}
+                className="inline-flex rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-900"
+              >
+                {PROVIDER_HIDDEN_REASON_LABELS[reason]}
+              </span>
+            ))}
+          </div>
+          {provider.queryError ? (
+            <p className="mt-2 text-xs text-rose-700">{provider.queryError}</p>
+          ) : null}
+          {actionError ? (
+            <p className="mt-2 text-xs text-rose-700">{actionError}</p>
+          ) : null}
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            disabled={busyAction !== null}
+            onClick={() => void runLifecycleAction("repair")}
+            className="rounded-lg bg-violet-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-800 disabled:opacity-60"
+          >
+            {busyAction === "repair" ? "Repairing…" : "Repair provider"}
+          </button>
+          <button
+            type="button"
+            disabled={busyAction !== null}
+            onClick={() => void runLifecycleAction("abandon")}
+            className="rounded-lg border border-amber-200 px-3 py-1.5 text-xs font-medium text-amber-800 hover:bg-amber-50 disabled:opacity-60"
+          >
+            {busyAction === "abandon" ? "Updating…" : "Mark abandoned"}
+          </button>
+          <button
+            type="button"
+            disabled={busyAction !== null}
+            onClick={() => void runLifecycleAction("delete")}
+            className="rounded-lg border border-rose-200 px-3 py-1.5 text-xs font-medium text-rose-700 hover:bg-rose-50 disabled:opacity-60"
+          >
+            {busyAction === "delete" ? "Deleting…" : "Delete permanently"}
+          </button>
+        </div>
+      </div>
+    </li>
+  );
+}
 
 function ProvidersDiagnosticsPanel({
   diagnostics,
@@ -347,6 +493,23 @@ function ProvidersDiagnosticsPanel({
         <p className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-900">
           {repairError}
         </p>
+      ) : null}
+
+      {diagnostics.hiddenProviders.length > 0 ? (
+        <div className="mt-4 space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+            Hidden providers
+          </p>
+          <ul className="space-y-2">
+            {diagnostics.hiddenProviders.map((provider) => (
+              <HiddenProviderRow
+                key={provider.id}
+                provider={provider}
+                onActionComplete={onRepaired}
+              />
+            ))}
+          </ul>
+        </div>
       ) : null}
 
       {diagnostics.orphanedClubAuthUsers.length > 0 ? (

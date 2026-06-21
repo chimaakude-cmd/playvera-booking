@@ -57,6 +57,7 @@ function buildClientSetupProgressContext(
     hasBookingQuestionsConfigured: hasBookingQuestionsConfiguredFromStorage(),
     hasPayoutPreferencesConfigured:
       isStripePayoutReady(stripeStatus) || Boolean(prefs.nextEstimatedPayout),
+    rollingTwelveMonthRevenue: 0,
   };
 }
 

@@ -1,5 +1,6 @@
 import type { ClubProfile } from "@/lib/club-profile/types";
 import type { ClubSession } from "@/lib/sessions";
+import { shouldShowVatSetupTask } from "@/lib/club-finance/vat-threshold";
 import type { SetupProgressContext } from "./context";
 import {
   SETUP_BASE_PERCENT,
@@ -46,11 +47,21 @@ function isTaskCompleted(
       return hasCoverImage(context.profile);
     case "add_vat":
       return hasVatDetails(context);
-    case "connect_bookkeeping":
-      return false;
     default:
       return false;
   }
+}
+
+function isOnboardingTask(id: SetupTaskId, context: SetupProgressContext): boolean {
+  if (id === "connect_bookkeeping") {
+    return false;
+  }
+
+  if (id === "add_vat") {
+    return shouldShowVatSetupTask(context.rollingTwelveMonthRevenue);
+  }
+
+  return true;
 }
 
 const TASK_DEFINITIONS: Omit<SetupTask, "completed">[] = [
@@ -122,7 +133,10 @@ const TASK_DEFINITIONS: Omit<SetupTask, "completed">[] = [
 export function computeSetupProgress(
   context: SetupProgressContext,
 ): SetupProgressResult {
-  const tasks: SetupTask[] = TASK_DEFINITIONS.map((task) => ({
+  const visibleTasks = TASK_DEFINITIONS.filter((task) =>
+    isOnboardingTask(task.id, context),
+  );
+  const tasks: SetupTask[] = visibleTasks.map((task) => ({
     ...task,
     completed: isTaskCompleted(task.id, context),
   }));
@@ -152,5 +166,6 @@ export function computeSetupProgressFromSessions(
     hasPayoutPreferencesConfigured:
       partial?.hasPayoutPreferencesConfigured ?? false,
     hasVatDetails: partial?.hasVatDetails ?? false,
+    rollingTwelveMonthRevenue: partial?.rollingTwelveMonthRevenue ?? 0,
   });
 }
