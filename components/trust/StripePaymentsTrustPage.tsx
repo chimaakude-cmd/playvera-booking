@@ -6,12 +6,12 @@ import { LazySupportLauncher } from "@/components/support/LazySupportLauncher";
 import { TransparencyHero } from "@/components/transparency/TransparencyHero";
 import { PaymentFeeExample } from "@/components/trust/PaymentFeeExample";
 import { TrustPaymentCTAs } from "@/components/trust/TrustPaymentCTAs";
+import { CommissionTierTable } from "@/components/trust/CommissionTierTable";
 import {
   STRIPE_UK_FEE_ESTIMATES,
   TRUST_FEE_DISCLAIMER,
   stripeTrustExample,
 } from "@/constants/trust-payments";
-import { PLATFORM_FEE_PERCENT } from "@/lib/payments";
 
 export function StripePaymentsTrustPage() {
   return (
@@ -59,11 +59,15 @@ export function StripePaymentsTrustPage() {
                 Platform and processing fees
               </h2>
               <p>
-                Activora charges a {PLATFORM_FEE_PERCENT}% platform fee on the Free
-                plan for successfully processed bookings. Stripe processing fees
-                are separate and set by Stripe — they are not included in the
-                Activora platform fee.
+                Activora charges a platform booking fee on successfully processed
+                payments. The fee depends on your subscription plan — lower tiers
+                on Pro, Franchisor and Enterprise. Stripe processing fees are
+                separate and set by Stripe; they are not included in the Activora
+                platform fee.
               </p>
+              <div className="my-4">
+                <CommissionTierTable />
+              </div>
               <p>
                 UK fee estimates (may vary — check Stripe for current rates):
               </p>

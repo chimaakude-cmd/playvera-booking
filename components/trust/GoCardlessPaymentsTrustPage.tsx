@@ -6,12 +6,12 @@ import { LazySupportLauncher } from "@/components/support/LazySupportLauncher";
 import { TransparencyHero } from "@/components/transparency/TransparencyHero";
 import { PaymentFeeExample } from "@/components/trust/PaymentFeeExample";
 import { TrustPaymentCTAs } from "@/components/trust/TrustPaymentCTAs";
+import { CommissionTierTable } from "@/components/trust/CommissionTierTable";
 import {
   GOCARDLESS_FEE_ESTIMATE,
   TRUST_FEE_DISCLAIMER,
   gocardlessTrustExample,
 } from "@/constants/trust-payments";
-import { PLATFORM_FEE_PERCENT } from "@/lib/payments";
 
 export function GoCardlessPaymentsTrustPage() {
   return (
@@ -62,11 +62,14 @@ export function GoCardlessPaymentsTrustPage() {
                 Platform and processing fees
               </h2>
               <p>
-                Activora charges a {PLATFORM_FEE_PERCENT}% platform fee on the Free
-                plan for successfully processed bookings. GoCardless processing
-                fees are separate and set by GoCardless — they are not included in
-                the Activora platform fee.
+                Activora charges a platform booking fee on successfully processed
+                Direct Debit collections. The fee depends on your subscription plan.
+                GoCardless processing fees are separate and set by GoCardless —
+                they are not included in the Activora platform fee.
               </p>
+              <div className="my-4">
+                <CommissionTierTable />
+              </div>
               <p>{GOCARDLESS_FEE_ESTIMATE}</p>
               <p>
                 Fees may vary by payment type, volume and your GoCardless pricing
