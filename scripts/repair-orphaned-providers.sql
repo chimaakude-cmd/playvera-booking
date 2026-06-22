@@ -85,8 +85,8 @@ set
   onboarding_completed = true,
   deleted_at = null,
   account_status = coalesce(nullif(trim(p.account_status), ''), 'active'),
-  payments_enabled = true,
-  payments_paused = false,
+  preferred_payment_provider = 'stripe',
+  payment_method_stripe_card = true,
   updated_at = now()
 where p.auth_user_id is not null
   and exists (
