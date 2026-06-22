@@ -8,6 +8,11 @@ import {
   isSupabaseServiceRoleConfigured,
 } from "@/lib/supabase";
 import {
+  CLUB_OAUTH_PAYMENT_DEFAULTS,
+  insertProviderRowWithPaymentFallback,
+  isMissingColumnError,
+} from "@/lib/providers/payment-schema";
+import {
   INDEPENDENT_CLUB_ORGANISATION_FIELDS,
 } from "@/lib/organisation/franchise-status";
 import { DEFAULT_PLAN_ID, type PlanId } from "@/src/config/pricing";
@@ -358,9 +363,8 @@ async function ensureProviderForOwner(
   const slug = await resolveUniqueProviderSlug(supabase, clubName);
   const freePlan = getDefaultPlanBySlug(DEFAULT_PLAN_SLUG);
 
-  const { data: provider, error: providerError } = await supabase
-    .from("providers")
-    .insert({
+  const { data: provider, error: providerError } =
+    await insertProviderRowWithPaymentFallback(supabase, {
       name: clubName,
       slug,
       email: owner.email.trim(),
@@ -369,16 +373,11 @@ async function ensureProviderForOwner(
       ...independentFields,
       account_status: "active",
       platform_fee_percent: freePlan.bookingFeePercent,
-      payment_model: "club_oauth",
-      payments_enabled: true,
-      payments_paused: false,
-      payout_schedule: "weekly",
+      ...CLUB_OAUTH_PAYMENT_DEFAULTS,
       gocardless_status: "not_connected",
       payment_method_gocardless_dd: false,
       preferred_payment_provider: "stripe",
-    })
-    .select("id")
-    .single();
+    });
 
   if (providerError || !provider?.id) {
     if (isUniqueViolation(providerError)) {

@@ -1,4 +1,12 @@
+import type { PostgrestError } from "@supabase/supabase-js";
 import type { Database, Json } from "@/lib/database.types";
+import {
+  fetchProviderPaymentStatusRow,
+  isMissingColumnError,
+  normalizeProviderPaymentStatusRow,
+  normalizePayoutSchedule,
+  resolveProviderPaymentModel,
+} from "@/lib/providers/payment-schema";
 import {
   createSupabaseServiceRoleClient,
   isSupabaseConfigured,
@@ -41,7 +49,9 @@ type ProviderPaymentRow = {
   payment_model?: string | null;
 };
 
-function normalizePayoutSchedule(value: string | null | undefined): PayoutSchedule {
+function normalizePayoutScheduleLocal(
+  value: string | null | undefined,
+): PayoutSchedule {
   if (value === "daily" || value === "monthly") {
     return value;
   }
@@ -54,7 +64,7 @@ export function mapProviderPaymentControls(
   return {
     paymentsEnabled: row.payments_enabled !== false,
     paymentsPaused: Boolean(row.payments_paused),
-    payoutSchedule: normalizePayoutSchedule(row.payout_schedule),
+    payoutSchedule: normalizePayoutScheduleLocal(row.payout_schedule),
     platformFeeOverridePercent:
       row.platform_fee_override_percent !== null &&
       row.platform_fee_override_percent !== undefined
@@ -74,19 +84,37 @@ export async function fetchProviderPaymentControls(
   }
 
   const supabase = createSupabaseServiceRoleClient();
-  const { data, error } = await supabase
-    .from("providers")
-    .select(
-      "payments_enabled, payments_paused, payout_schedule, platform_fee_override_percent, payment_internal_notes, payment_model",
-    )
-    .eq("id", providerId)
-    .maybeSingle();
-
-  if (error || !data) {
+  let row;
+  try {
+    row = await fetchProviderPaymentStatusRow(supabase, providerId);
+  } catch (error) {
+    if (
+      isMissingColumnError(
+        error as Pick<PostgrestError, "code" | "message"> | null,
+      )
+    ) {
+      return mapProviderPaymentControls({});
+    }
     return null;
   }
 
-  return mapProviderPaymentControls(data as ProviderPaymentRow);
+  if (!row) {
+    return null;
+  }
+
+  const normalized = normalizeProviderPaymentStatusRow(row);
+  return {
+    paymentsEnabled: normalized.payments_enabled,
+    paymentsPaused: normalized.payments_paused,
+    payoutSchedule: normalizePayoutSchedule(normalized.payout_schedule),
+    platformFeeOverridePercent:
+      normalized.platform_fee_override_percent !== null &&
+      normalized.platform_fee_override_percent !== undefined
+        ? Number(normalized.platform_fee_override_percent)
+        : null,
+    paymentInternalNotes: row.payment_internal_notes?.trim() ?? "",
+    paymentModel: resolveProviderPaymentModel(normalized.payment_model),
+  };
 }
 
 export async function fetchProviderPaymentAuditLog(

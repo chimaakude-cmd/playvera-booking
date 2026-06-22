@@ -129,7 +129,7 @@ function StatusBadge({
 }
 
 export function GoCardlessConnectCard({
-  paymentModel = "platform_managed",
+  paymentModel = "club_oauth",
 }: GoCardlessConnectCardProps) {
   const searchParams = useSearchParams();
   const [connection, setConnection] = useState<GoCardlessConnection | null>(

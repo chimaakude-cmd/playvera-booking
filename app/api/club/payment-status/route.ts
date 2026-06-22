@@ -13,9 +13,14 @@ import {
   PAYOUT_SCHEDULE_LABELS,
   resolveClubPaymentStatus,
   resolveEffectivePlatformFeePercent,
-  type PayoutSchedule,
 } from "@/lib/payments/club-payment-status";
 import { fetchClubPaymentMetrics } from "@/lib/payments/payment-events-data";
+import {
+  fetchProviderPaymentStatusRow,
+  normalizePayoutSchedule,
+  normalizeProviderPaymentStatusRow,
+  resolveProviderPaymentModel,
+} from "@/lib/providers/payment-schema";
 import { createSupabaseCookieClient } from "@/lib/supabase-ssr";
 import {
   createSupabaseServiceRoleClient,
@@ -71,18 +76,15 @@ export async function GET() {
     }
 
     const service = createSupabaseServiceRoleClient();
-    const { data: provider, error: providerError } = await service
-      .from("providers")
-      .select(
-        "payments_enabled, payments_paused, payout_schedule, platform_fee_override_percent, platform_fee_percent, account_status, payment_model",
-      )
-      .eq("id", providerId)
-      .maybeSingle();
-
-    if (providerError) {
+    let providerRow;
+    try {
+      providerRow = await fetchProviderPaymentStatusRow(service, providerId);
+    } catch (providerError) {
       console.error(
         "[club-payment-status] Provider lookup failed:",
-        providerError.message,
+        providerError instanceof Error
+          ? providerError.message
+          : providerError,
       );
       return NextResponse.json(
         buildMissingProviderPaymentStatusResponse(
@@ -91,7 +93,7 @@ export async function GET() {
       );
     }
 
-    if (!provider) {
+    if (!providerRow) {
       return NextResponse.json(
         buildMissingProviderPaymentStatusResponse(
           platformConfig.platformFeePercent,
@@ -99,15 +101,16 @@ export async function GET() {
       );
     }
 
+    const provider = normalizeProviderPaymentStatusRow(providerRow);
     const metrics = await fetchClubPaymentMetrics(providerId);
-    const payoutSchedule = (provider.payout_schedule ?? "weekly") as PayoutSchedule;
+    const payoutSchedule = normalizePayoutSchedule(provider.payout_schedule);
     const payoutScheduleLabel =
       PAYOUT_SCHEDULE_LABELS[payoutSchedule] ?? PAYOUT_SCHEDULE_LABELS.weekly;
 
     const status = resolveClubPaymentStatus({
-      paymentsEnabled: provider.payments_enabled !== false,
-      paymentsPaused: Boolean(provider.payments_paused),
-      accountStatus: String(provider.account_status ?? "active"),
+      paymentsEnabled: provider.payments_enabled,
+      paymentsPaused: provider.payments_paused,
+      accountStatus: String(provider.account_status),
       hasConfirmedPayment: metrics.hasConfirmedPayment,
       hasPendingPayout: metrics.hasPendingPayout,
       platformEnabled: platformConfig.platformEnabled,
@@ -127,7 +130,7 @@ export async function GET() {
 
     return NextResponse.json({
       provider: "GoCardless",
-      paymentModel: provider.payment_model ?? "club_oauth",
+      paymentModel: resolveProviderPaymentModel(provider.payment_model),
       stripeOptional: true,
       gocardlessAvailable: platformConfig.clubConnectAvailable,
       status,

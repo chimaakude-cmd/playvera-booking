@@ -2,6 +2,11 @@ import { slugifyProviderName } from "@/lib/admin/provider-onboarding";
 import { getAdminSupabaseClient } from "@/lib/admin/supabase-client";
 import { buildMinimalClubProfilesRowFromProvider } from "@/lib/club-onboarding/profile-mapper";
 import { INDEPENDENT_CLUB_ORGANISATION_FIELDS } from "@/lib/organisation/franchise-status";
+import {
+  CLUB_OAUTH_PAYMENT_DEFAULTS,
+  insertProviderRowWithPaymentFallback,
+  isMissingColumnError,
+} from "@/lib/providers/payment-schema";
 import { DEFAULT_PLAN_SLUG, getDefaultPlanBySlug } from "@/lib/subscription-plans";
 import {
   createSupabaseServiceRoleClient,
@@ -175,9 +180,8 @@ export async function repairProviderProfileForAuthUser(
   const slug = await resolveUniqueProviderSlug(displayName);
   const freePlan = getDefaultPlanBySlug(DEFAULT_PLAN_SLUG);
 
-  const { data: provider, error: providerError } = await supabase
-    .from("providers")
-    .insert({
+  const { data: provider, error: providerError } =
+    await insertProviderRowWithPaymentFallback(supabase, {
       name: displayName,
       slug,
       email,
@@ -185,18 +189,13 @@ export async function repairProviderProfileForAuthUser(
       ...INDEPENDENT_CLUB_ORGANISATION_FIELDS,
       account_status: "active",
       platform_fee_percent: freePlan.bookingFeePercent,
-      payment_model: "club_oauth",
-      payments_enabled: true,
-      payments_paused: false,
-      payout_schedule: "weekly",
+      ...CLUB_OAUTH_PAYMENT_DEFAULTS,
       gocardless_status: "not_connected",
       stripe_connect_status: "not_connected",
       payment_method_gocardless_dd: false,
       payment_method_stripe_card: false,
       preferred_payment_provider: "none",
-    })
-    .select("id")
-    .single();
+    });
 
   if (providerError || !provider?.id) {
     return {
@@ -441,20 +440,38 @@ export async function repairProviderById(
   }
 
   if (provider.auth_user_id) {
+    const activatePatch = {
+      onboarding_completed: true,
+      lifecycle_status: "active" as const,
+      deleted_at: null,
+      account_status: "active",
+      payments_enabled: true,
+      payments_paused: false,
+    };
+
     const { error: activateError } = await supabase
       .from("providers")
-      .update({
-        onboarding_completed: true,
-        lifecycle_status: "active",
-        deleted_at: null,
-        account_status: "active",
-        payments_enabled: true,
-        payments_paused: false,
-      })
+      .update(activatePatch)
       .eq("id", providerIdTrimmed);
 
-    if (activateError && !activateError.message.includes("lifecycle_status")) {
-      return { ok: false, error: activateError.message };
+    if (activateError) {
+      if (
+        isMissingColumnError(activateError) ||
+        activateError.message.includes("lifecycle_status")
+      ) {
+        const { error: fallbackError } = await supabase
+          .from("providers")
+          .update({
+            account_status: "active",
+          })
+          .eq("id", providerIdTrimmed);
+
+        if (fallbackError) {
+          return { ok: false, error: fallbackError.message };
+        }
+      } else {
+        return { ok: false, error: activateError.message };
+      }
     }
 
     repaired.push("lifecycle status");
