@@ -43,6 +43,23 @@ function isStripeSetupIncomplete(state: StripeConnectState | null): boolean {
   return Boolean(state?.stripeAccountId && !isStripeSetupComplete(state));
 }
 
+function formatConnectedDate(iso: string | null | undefined): string | null {
+  if (!iso?.trim()) {
+    return null;
+  }
+
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  return date.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
 function StatusBadge({ status }: { status: StripeConnectStatus }) {
   const label = getStripeConnectionLabel(status);
   const styles: Record<string, string> = {
@@ -241,11 +258,12 @@ export function StripeConnectCard() {
   const setupComplete = isStripeSetupComplete(state);
   const setupIncomplete = isStripeSetupIncomplete(state);
   const connected = isStripeProviderConnected(status);
+  const connectedDate = formatConnectedDate(state?.updatedAt);
   const serverConfigured = connectConfig?.serverConfigured ?? true;
   const configLoaded = connectConfig !== null;
 
   return (
-    <div className="rounded-xl border border-zinc-200 bg-zinc-50/60 p-5">
+    <div className="rounded-xl border border-orange-100/80 bg-[#FFFBF7] p-5">
       {message ? (
         <div className="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
           {message}
@@ -267,16 +285,21 @@ export function StripeConnectCard() {
             {STRIPE.brandInitial}
           </div>
           <div>
-            <h3 className="font-semibold text-zinc-900">{STRIPE.name}</h3>
+            <h3 className="font-semibold text-[#0F172A]">{STRIPE.name}</h3>
             <p className="text-xs text-zinc-500">{STRIPE.paymentType}</p>
-            <p className="mt-0.5 text-xs font-medium text-teal-700">
+            <p className="mt-0.5 text-xs font-medium text-[#C2410C]">
               {STRIPE.tagline}
             </p>
             {loading ? (
               <p className="mt-1 text-sm text-zinc-500">Loading status…</p>
             ) : (
-              <div className="mt-1">
+              <div className="mt-1 flex flex-wrap items-center gap-2">
                 <StatusBadge status={status} />
+                {actionLoading && !state?.stripeAccountId ? (
+                  <span className="text-xs font-medium text-zinc-500">
+                    Connecting…
+                  </span>
+                ) : null}
               </div>
             )}
           </div>
@@ -288,7 +311,7 @@ export function StripeConnectCard() {
               onClick={() => void handleConnect()}
               disabled={actionLoading || !serverConfigured}
             >
-              Connect Stripe
+              {actionLoading ? "Connecting…" : "Connect Stripe"}
             </FinanceButton>
           ) : null}
 
@@ -334,9 +357,26 @@ export function StripeConnectCard() {
       <p className="mt-3 text-sm text-zinc-600">{STRIPE.description}</p>
 
       {state?.stripeAccountId ? (
-        <p className="mt-2 font-mono text-xs text-zinc-500">
-          Account: {state.stripeAccountId}
-        </p>
+        <dl className="mt-4 grid gap-3 rounded-xl border border-orange-100 bg-white p-4 text-sm sm:grid-cols-2">
+          <StripeDetailField
+            label="Charges enabled"
+            value={state.chargesEnabled ? "Yes" : "No"}
+            positive={state.chargesEnabled}
+          />
+          <StripeDetailField
+            label="Payouts enabled"
+            value={state.payoutsEnabled ? "Yes" : "No"}
+            positive={state.payoutsEnabled}
+          />
+          {connectedDate ? (
+            <StripeDetailField label="Connected" value={connectedDate} />
+          ) : null}
+          <StripeDetailField
+            label="Account"
+            value={state.stripeAccountId}
+            mono
+          />
+        </dl>
       ) : null}
 
       {state?.requirementsDue?.length ? (
@@ -424,6 +464,37 @@ export function StripeConnectCard() {
           </dl>
         </details>
       ) : null}
+    </div>
+  );
+}
+
+function StripeDetailField({
+  label,
+  value,
+  mono = false,
+  positive,
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+  positive?: boolean;
+}) {
+  return (
+    <div>
+      <dt className="text-xs font-medium uppercase tracking-wide text-zinc-400">
+        {label}
+      </dt>
+      <dd
+        className={`mt-1 font-medium ${
+          positive === true
+            ? "text-emerald-700"
+            : positive === false
+              ? "text-amber-700"
+              : "text-[#0F172A]"
+        } ${mono ? "font-mono text-xs" : "text-sm"}`}
+      >
+        {value}
+      </dd>
     </div>
   );
 }

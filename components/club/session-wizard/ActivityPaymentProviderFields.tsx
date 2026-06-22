@@ -1,6 +1,10 @@
 "use client";
 
 import {
+  isGoCardlessPaymentsReady,
+  isStripePaymentsReady,
+} from "@/lib/payment-providers/availability";
+import {
   ACTIVITY_PAYMENT_PROVIDER_OPTIONS,
   getActivityPaymentProviderLabel,
   type ActivityPaymentProvider,
@@ -17,6 +21,25 @@ export function ActivityPaymentProviderFields({
   onChange,
 }: ActivityPaymentProviderFieldsProps) {
   const clubDefault = getPaymentProviderSettings().club_default_provider;
+  const stripeReady = isStripePaymentsReady();
+  const gocardlessReady = isGoCardlessPaymentsReady();
+  const bothReady = stripeReady && gocardlessReady;
+
+  const options = ACTIVITY_PAYMENT_PROVIDER_OPTIONS.filter((option) => {
+    if (option.value === "club_default") {
+      return true;
+    }
+    if (option.value === "stripe") {
+      return stripeReady;
+    }
+    if (option.value === "gocardless") {
+      return gocardlessReady;
+    }
+    if (option.value === "both") {
+      return bothReady;
+    }
+    return false;
+  });
 
   return (
     <div className="space-y-3 rounded-2xl border border-orange-100/80 bg-[#FFFBF7] p-5">
@@ -30,13 +53,20 @@ export function ActivityPaymentProviderFields({
         </p>
         <p className="mt-2 text-xs text-zinc-500">
           Examples — holiday camp → Stripe, monthly subscription → GoCardless,
-          flexible bookings → Accept both.
+          flexible bookings → Accept both (when both are connected).
         </p>
       </div>
 
+      {options.length <= 1 ? (
+        <p className="text-sm text-amber-800">
+          Connect Stripe or GoCardless in Finance to choose how parents pay for
+          this activity.
+        </p>
+      ) : null}
+
       <fieldset className="space-y-2">
         <legend className="sr-only">Activity payment provider</legend>
-        {ACTIVITY_PAYMENT_PROVIDER_OPTIONS.map((option) => {
+        {options.map((option) => {
           const isSelected = value === option.value;
 
           return (

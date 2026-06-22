@@ -20,12 +20,57 @@ import {
   getGoCardlessConnectionLabel,
 } from "@/lib/payment-providers/config";
 import { PLATFORM_FEE_PERCENT, formatMoney } from "@/lib/payments";
+import { getClubProfile } from "@/lib/club-profile";
 import { FinanceButton } from "./shared";
 
 const SAMPLE_PAYMENT = 50;
 const GOCARDLESS = PAYMENT_PROVIDER_DEFINITIONS.gocardless;
 const NOT_CONFIGURED_MESSAGE =
   "GoCardless unavailable. Activora is still configuring Direct Debit.";
+
+type GoCardlessConnectCardProps = {
+  paymentModel?: "platform_managed" | "club_oauth";
+};
+
+function formatConnectedDate(iso: string | null | undefined): string | null {
+  if (!iso?.trim()) {
+    return null;
+  }
+
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  return date.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function resolveMandateStatus(
+  status: GoCardlessConnectionStatus,
+  platformManaged: boolean,
+): string {
+  if (platformManaged) {
+    return "Platform mandates active";
+  }
+
+  if (status === "connected") {
+    return "Mandates active";
+  }
+
+  if (status === "pending_setup") {
+    return "Mandate setup in progress";
+  }
+
+  if (status === "action_required") {
+    return "Mandate action required";
+  }
+
+  return "No mandate configured";
+}
 
 function StatusBadge({
   status,
@@ -53,7 +98,9 @@ function StatusBadge({
   );
 }
 
-export function GoCardlessConnectCard() {
+export function GoCardlessConnectCard({
+  paymentModel = "platform_managed",
+}: GoCardlessConnectCardProps) {
   const searchParams = useSearchParams();
   const [connection, setConnection] = useState<GoCardlessConnection | null>(
     null,
@@ -140,6 +187,8 @@ export function GoCardlessConnectCard() {
   const platformConfigured = platformConfig?.platformConfigured ?? false;
   const platformUnavailable = platformConfig?.platformUnavailable ?? true;
   const configLoaded = platformConfig !== null;
+  const platformManaged = paymentModel === "platform_managed";
+  const clubProfile = getClubProfile();
 
   async function handleConnect() {
     if (!platformConfigured) {
@@ -221,12 +270,22 @@ export function GoCardlessConnectCard() {
 
   const status = connection?.status ?? "not_connected";
   const breakdown = calculateGoCardlessPayoutBreakdown(SAMPLE_PAYMENT);
-  const connected = isGoCardlessConnected(status, connection?.merchant_id);
+  const connected = platformManaged
+    ? platformConfigured && !platformUnavailable
+    : isGoCardlessConnected(status, connection?.merchant_id);
   const needsSetup =
-    status === "pending_setup" || status === "action_required";
+    !platformManaged &&
+    (status === "pending_setup" || status === "action_required");
+  const connectedDate = formatConnectedDate(connection?.connected_at);
+  const mandateStatus = resolveMandateStatus(status, platformManaged);
+  const displayStatus: GoCardlessConnectionStatus = platformManaged
+    ? connected
+      ? "connected"
+      : "not_connected"
+    : status;
 
   return (
-    <div className="rounded-xl border border-zinc-200 bg-zinc-50/60 p-5">
+    <div className="rounded-xl border border-orange-100/80 bg-[#FFFBF7] p-5">
       {message ? (
         <div className="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
           {message}
@@ -248,17 +307,24 @@ export function GoCardlessConnectCard() {
             {GOCARDLESS.brandInitial}
           </div>
           <div>
-            <h3 className="font-semibold text-zinc-900">{GOCARDLESS.name}</h3>
+            <h3 className="font-semibold text-[#0F172A]">{GOCARDLESS.name}</h3>
             <p className="text-xs text-zinc-500">{GOCARDLESS.paymentType}</p>
-            <p className="mt-0.5 text-xs text-zinc-600">{GOCARDLESS.tagline}</p>
+            <p className="mt-0.5 text-xs font-medium text-[#C2410C]">
+              {platformManaged ? "Activora Managed" : GOCARDLESS.tagline}
+            </p>
             {loading ? (
               <p className="mt-1 text-sm text-zinc-500">Loading status…</p>
             ) : (
-              <div className="mt-1">
+              <div className="mt-1 flex flex-wrap items-center gap-2">
                 <StatusBadge
-                  status={status}
+                  status={displayStatus}
                   platformUnavailable={configLoaded && platformUnavailable}
                 />
+                {actionLoading ? (
+                  <span className="text-xs font-medium text-zinc-500">
+                    Connecting…
+                  </span>
+                ) : null}
               </div>
             )}
           </div>
@@ -269,17 +335,18 @@ export function GoCardlessConnectCard() {
             <FinanceButton disabled>Unavailable</FinanceButton>
           ) : null}
 
-          {!platformUnavailable &&
+          {!platformManaged &&
+          !platformUnavailable &&
           (status === "not_connected" || status === "disconnected") ? (
             <FinanceButton
               onClick={() => void handleConnect()}
               disabled={actionLoading || !platformConfigured}
             >
-              Connect GoCardless
+              {actionLoading ? "Connecting…" : "Connect GoCardless"}
             </FinanceButton>
           ) : null}
 
-          {!platformUnavailable && (connected || needsSetup) ? (
+          {!platformManaged && !platformUnavailable && (connected || needsSetup) ? (
             <FinanceButton
               variant="secondary"
               onClick={() => void handleManage()}
@@ -289,7 +356,8 @@ export function GoCardlessConnectCard() {
             </FinanceButton>
           ) : null}
 
-          {!platformUnavailable &&
+          {!platformManaged &&
+          !platformUnavailable &&
           status !== "not_connected" &&
           status !== "disconnected" ? (
             <FinanceButton
@@ -301,7 +369,8 @@ export function GoCardlessConnectCard() {
             </FinanceButton>
           ) : null}
 
-          {!platformUnavailable &&
+          {!platformManaged &&
+          !platformUnavailable &&
           status !== "not_connected" &&
           status !== "disconnected" ? (
             <FinanceButton
@@ -317,13 +386,47 @@ export function GoCardlessConnectCard() {
 
       {configLoaded && platformUnavailable ? (
         <p className="mt-3 text-sm text-zinc-600">{NOT_CONFIGURED_MESSAGE}</p>
+      ) : platformManaged ? (
+        <p className="mt-3 text-sm text-zinc-600">
+          Direct Debit is managed by Activora on your behalf. Enable GoCardless
+          in provider settings below to accept Direct Debit payments.
+        </p>
       ) : (
         <p className="mt-3 text-sm text-zinc-600">{GOCARDLESS.description}</p>
       )}
 
-      {connection?.merchant_id ? (
+      {connected ? (
+        <dl className="mt-4 grid gap-3 rounded-xl border border-orange-100 bg-white p-4 text-sm sm:grid-cols-2">
+          <DetailField label="Mandate status" value={mandateStatus} />
+          <DetailField
+            label="Account"
+            value={
+              clubProfile.clubName?.trim() ||
+              clubProfile.contact?.email?.trim() ||
+              "Your club account"
+            }
+          />
+          {clubProfile.contact?.email?.trim() ? (
+            <DetailField label="Email" value={clubProfile.contact.email} />
+          ) : null}
+          {connectedDate ? (
+            <DetailField label="Connected" value={connectedDate} />
+          ) : null}
+          {connection?.merchant_id && !platformManaged ? (
+            <DetailField label="Merchant ID" value={connection.merchant_id} mono />
+          ) : null}
+        </dl>
+      ) : null}
+
+      {!connected && connection?.merchant_id && !platformManaged ? (
         <p className="mt-2 font-mono text-xs text-zinc-500">
           Merchant ID: {connection.merchant_id}
+        </p>
+      ) : null}
+
+      {!platformManaged && connected ? (
+        <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+          Disconnecting GoCardless disables Direct Debit payments for your club.
         </p>
       ) : null}
 
@@ -378,6 +481,29 @@ export function GoCardlessConnectCard() {
           Activora platform fee is {PLATFORM_FEE_PERCENT}% on all payment methods.
         </p>
       </div>
+    </div>
+  );
+}
+
+function DetailField({
+  label,
+  value,
+  mono = false,
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+}) {
+  return (
+    <div>
+      <dt className="text-xs font-medium uppercase tracking-wide text-zinc-400">
+        {label}
+      </dt>
+      <dd
+        className={`mt-1 font-medium text-[#0F172A] ${mono ? "font-mono text-xs" : "text-sm"}`}
+      >
+        {value}
+      </dd>
     </div>
   );
 }

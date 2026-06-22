@@ -1,11 +1,29 @@
-import { getStripeConnectState } from "@/lib/stripe-connect/storage";
 import { getGoCardlessConnection } from "@/lib/gocardless/storage";
+import { isGoCardlessConnected } from "@/lib/gocardless/types";
+import { getStripeConnectState } from "@/lib/stripe-connect/storage";
 import type {
   ClubDefaultPaymentProvider,
   PaymentMethodId,
   PaymentProviderSettings,
 } from "./types";
 import { PAYMENT_PROVIDERS_STORAGE_KEY } from "./types";
+
+export type ClubPaymentModel = "platform_managed" | "club_oauth";
+
+let cachedClubPaymentModel: ClubPaymentModel = "club_oauth";
+
+export function setClubPaymentModel(model: string | null | undefined): void {
+  cachedClubPaymentModel =
+    model === "club_oauth" ? "club_oauth" : "platform_managed";
+}
+
+export function getClubPaymentModel(): ClubPaymentModel {
+  return cachedClubPaymentModel;
+}
+
+export function isPlatformManagedPayments(): boolean {
+  return cachedClubPaymentModel === "platform_managed";
+}
 
 const DEFAULT_ENABLED_METHODS: PaymentProviderSettings["enabled_methods"] = {
   stripe_card: true,
@@ -143,7 +161,11 @@ export function setClubDefaultPaymentProvider(
 
 export function isGoCardlessCheckoutAvailable(providerId?: string): boolean {
   const settings = getPaymentProviderSettings(providerId);
-  return settings.enabled_methods.gocardless_direct_debit;
+  const gocardless = getGoCardlessConnection(settings.provider_id);
+  return (
+    settings.enabled_methods.gocardless_direct_debit &&
+    isGoCardlessConnected(gocardless.status, gocardless.merchant_id)
+  );
 }
 
 export function isStripeCheckoutAvailable(providerId?: string): boolean {

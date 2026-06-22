@@ -11,6 +11,7 @@ export type ActivityPaymentProvider =
   | "club_default"
   | "stripe"
   | "gocardless"
+  | "activora_managed"
   | "both";
 
 export type PaymentMethodId =
@@ -39,7 +40,7 @@ export const PAYMENT_METHOD_LABELS: Record<PaymentMethodId, string> = {
 export const PAYMENT_METHOD_DESCRIPTIONS: Record<PaymentMethodId, string> = {
   stripe_card: "Instant card payments when Stripe Connect is connected.",
   gocardless_direct_debit:
-    "UK Direct Debit — Activora manages this on your behalf when enabled.",
+    "UK Direct Debit through your connected GoCardless account.",
   manual_invoice: "Send invoices and collect BACS payments outside Activora.",
 };
 
@@ -80,7 +81,7 @@ export const ACTIVITY_PAYMENT_PROVIDER_OPTIONS: Array<{
   {
     value: "gocardless",
     label: "GoCardless",
-    description: "Direct Debit only",
+    description: "Direct Debit through your connected GoCardless account",
     example: "Monthly subscription",
   },
   {
@@ -105,6 +106,10 @@ export function getActivityPaymentProviderLabel(
 ): string {
   if (provider === "club_default") {
     return clubDefault === "gocardless" ? "Club default (GoCardless)" : "Club default (Stripe)";
+  }
+
+  if (provider === "activora_managed") {
+    return "Activora Managed (Direct Debit)";
   }
 
   if (provider === "both") {

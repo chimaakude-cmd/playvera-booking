@@ -1,3 +1,5 @@
+import { getGoCardlessConnection } from "@/lib/gocardless/storage";
+import { isGoCardlessConnected } from "@/lib/gocardless/types";
 import type { ActivityPaymentProvider } from "./types";
 import {
   getPaymentProviderSettings,
@@ -22,10 +24,16 @@ export function isStripePaymentsReady(providerId?: string): boolean {
   return isStripeCheckoutAvailable(providerId);
 }
 
-/** Platform-managed GoCardless — enabled in club settings without club OAuth. */
+/** Club-owned GoCardless — requires OAuth connection and enabled method. */
 export function isGoCardlessPaymentsReady(providerId?: string): boolean {
   const settings = getPaymentProviderSettings(providerId);
-  return settings.enabled_methods.gocardless_direct_debit;
+
+  if (!settings.enabled_methods.gocardless_direct_debit) {
+    return false;
+  }
+
+  const gocardless = getGoCardlessConnection(settings.provider_id);
+  return isGoCardlessConnected(gocardless.status, gocardless.merchant_id);
 }
 
 export function hasAnyPaymentProviderReady(providerId?: string): boolean {
@@ -54,8 +62,15 @@ export function resolveActivityPaymentProvider(
   paymentProvider: ActivityPaymentProvider | undefined,
   providerId?: string,
 ): "stripe" | "gocardless" {
-  if (paymentProvider === "stripe" || paymentProvider === "gocardless") {
-    return paymentProvider;
+  if (
+    paymentProvider === "gocardless" ||
+    paymentProvider === "activora_managed"
+  ) {
+    return "gocardless";
+  }
+
+  if (paymentProvider === "stripe") {
+    return "stripe";
   }
 
   const settings = getPaymentProviderSettings(providerId);
@@ -165,9 +180,9 @@ export function validateActivityPaymentProvider(
   const resolved = resolveWizardPaymentProvider(data);
 
   if (resolved === "both") {
-    if (!isStripePaymentsReady() && !isGoCardlessPaymentsReady()) {
+    if (!isStripePaymentsReady() || !isGoCardlessPaymentsReady()) {
       return [
-        "Enable Stripe and/or GoCardless in Finance before accepting both payment methods.",
+        "Connect and enable both Stripe and GoCardless in Finance before accepting both payment methods.",
       ];
     }
     return [];
@@ -181,7 +196,7 @@ export function validateActivityPaymentProvider(
 
   if (resolved === "gocardless" && !isGoCardlessPaymentsReady()) {
     return [
-      "Direct Debit is not enabled. Enable GoCardless in Finance or choose Stripe.",
+      "GoCardless is not connected. Connect GoCardless in Finance or choose Stripe.",
     ];
   }
 

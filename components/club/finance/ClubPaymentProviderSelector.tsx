@@ -22,7 +22,11 @@ export function ClubPaymentProviderSelector({
   const [selected, setSelected] = useState<ClubDefaultPaymentProvider>("stripe");
 
   useEffect(() => {
-    setSelected(getPaymentProviderSettings().club_default_provider);
+    try {
+      setSelected(getPaymentProviderSettings().club_default_provider);
+    } catch {
+      setSelected("stripe");
+    }
   }, []);
 
   function handleSelect(provider: ClubDefaultPaymentProvider) {
@@ -42,8 +46,8 @@ export function ClubPaymentProviderSelector({
             key={option.value}
             className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition-colors ${
               isSelected
-                ? "border-teal-300 bg-teal-50/60 ring-1 ring-teal-200"
-                : "border-zinc-200 bg-white hover:border-zinc-300"
+                ? "border-[#F87128] bg-orange-50/80 ring-1 ring-[#F87128]/20"
+                : "border-orange-100/80 bg-white hover:border-orange-200"
             }`}
           >
             <input
@@ -51,10 +55,10 @@ export function ClubPaymentProviderSelector({
               name="club-payment-provider"
               checked={isSelected}
               onChange={() => handleSelect(option.value)}
-              className="mt-1 text-teal-600 focus:ring-teal-500"
+              className="mt-1 text-[#F87128] focus:ring-[#F87128]"
             />
             <span className="min-w-0">
-              <span className="block text-sm font-semibold text-zinc-900">
+              <span className="block text-sm font-semibold text-[#0F172A]">
                 {option.label}
               </span>
               <span className="mt-0.5 block text-sm text-zinc-600">
