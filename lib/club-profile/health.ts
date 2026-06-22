@@ -58,7 +58,7 @@ export function isBlockedProviderLifecycle(
 }
 
 export function assessClubProfileReadinessGaps(input: {
-  profile: Pick<
+  profile: (Pick<
     ClubProfile,
     "publicSlug" | "visibility" | "published" | "clubName"
   > &
@@ -71,7 +71,7 @@ export function assessClubProfileReadinessGaps(input: {
         | "categories"
         | "profileDesign"
       >
-    > | null;
+    >) | null;
   providerOnboardingCompleted?: boolean | null;
   publishedActivityCount?: number;
 }): string[] {
@@ -122,7 +122,7 @@ export function assessClubProfileHealth(input: {
   providerOnboardingCompleted?: boolean | null;
   providerDeletedAt?: string | null;
   publishedActivityCount?: number;
-  profile: Pick<
+  profile: (Pick<
     ClubProfile,
     "publicSlug" | "visibility" | "published" | "clubName"
   > &
@@ -135,7 +135,7 @@ export function assessClubProfileHealth(input: {
         | "categories"
         | "profileDesign"
       >
-    > | null;
+    >) | null;
   publiclyResolvable?: boolean;
 }): ClubProfileHealth {
   const reasons: string[] = [];

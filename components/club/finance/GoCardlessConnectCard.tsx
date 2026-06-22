@@ -3,18 +3,20 @@
 import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import type { GoCardlessConnectConfigResponse } from "@/app/api/gocardless/connect/config/route";
+import { calculateGoCardlessPayoutBreakdown } from "@/lib/gocardless/fees";
 import {
-  calculateGoCardlessPayoutBreakdown,
   completeMockGoCardlessOnboarding,
   disconnectGoCardlessRemote,
   fetchGoCardlessConnection,
   resolveGoCardlessProviderId,
   startGoCardlessOnboarding,
   testGoCardlessConnection,
+} from "@/lib/gocardless/storage";
+import {
+  isGoCardlessConnected,
   type GoCardlessConnection,
   type GoCardlessConnectionStatus,
-} from "@/lib/gocardless";
-import { isGoCardlessConnected } from "@/lib/gocardless/types";
+} from "@/lib/gocardless/types";
 import {
   PAYMENT_PROVIDER_DEFINITIONS,
   getGoCardlessConnectionLabel,
@@ -31,6 +33,18 @@ const NOT_CONFIGURED_MESSAGE =
 type GoCardlessConnectCardProps = {
   paymentModel?: "platform_managed" | "club_oauth";
 };
+
+function safeClubProfileSummary(): { clubName: string; email: string } {
+  try {
+    const profile = getClubProfile();
+    return {
+      clubName: profile.clubName?.trim() ?? "",
+      email: profile.contact?.email?.trim() ?? "",
+    };
+  } catch {
+    return { clubName: "", email: "" };
+  }
+}
 
 function formatConnectedDate(iso: string | null | undefined): string | null {
   if (!iso?.trim()) {
@@ -188,7 +202,7 @@ export function GoCardlessConnectCard({
   const platformUnavailable = platformConfig?.platformUnavailable ?? true;
   const configLoaded = platformConfig !== null;
   const platformManaged = paymentModel === "platform_managed";
-  const clubProfile = getClubProfile();
+  const clubProfile = safeClubProfileSummary();
 
   async function handleConnect() {
     if (!platformConfigured) {
@@ -401,13 +415,13 @@ export function GoCardlessConnectCard({
           <DetailField
             label="Account"
             value={
-              clubProfile.clubName?.trim() ||
-              clubProfile.contact?.email?.trim() ||
+              clubProfile.clubName ||
+              clubProfile.email ||
               "Your club account"
             }
           />
-          {clubProfile.contact?.email?.trim() ? (
-            <DetailField label="Email" value={clubProfile.contact.email} />
+          {clubProfile.email ? (
+            <DetailField label="Email" value={clubProfile.email} />
           ) : null}
           {connectedDate ? (
             <DetailField label="Connected" value={connectedDate} />

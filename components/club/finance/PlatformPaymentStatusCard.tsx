@@ -2,7 +2,10 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import type { ClubPaymentStatusApiResponse } from "@/lib/payments/club-payment-status";
+import {
+  buildMissingProviderPaymentStatusResponse,
+  type ClubPaymentStatusApiResponse,
+} from "@/lib/payments/club-payment-status";
 import { FinanceButton, FinanceSection } from "./shared";
 
 const TONE_STYLES = {
@@ -71,13 +74,13 @@ export function PlatformPaymentStatusCard() {
         );
       }
 
-      const normalized = normalizePaymentStatusResponse(
-        payload as Partial<ClubPaymentStatusApiResponse>,
-      );
-
-      if (!normalized) {
-        throw new Error("Could not load payment status.");
-      }
+      const normalized =
+        normalizePaymentStatusResponse(
+          payload as Partial<ClubPaymentStatusApiResponse>,
+        ) ??
+        normalizePaymentStatusResponse(
+          buildMissingProviderPaymentStatusResponse(0),
+        );
 
       setData(normalized);
     } catch (loadError) {

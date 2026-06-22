@@ -69,8 +69,15 @@ export function syncProviderStatuses(
 
   return {
     ...settings,
-    stripe_status: stripe.status,
-    gocardless_status: gocardless.status,
+    stripe_status: stripe.status ?? "not_connected",
+    gocardless_status: gocardless.status ?? "not_connected",
+    enabled_methods: normalizeEnabledMethods(settings.enabled_methods),
+    preferred_payment_provider:
+      settings.preferred_payment_provider === "gocardless"
+        ? "gocardless"
+        : "stripe",
+    club_default_provider:
+      settings.club_default_provider === "gocardless" ? "gocardless" : "stripe",
     updated_at: new Date().toISOString(),
   };
 }
@@ -163,7 +170,7 @@ export function isGoCardlessCheckoutAvailable(providerId?: string): boolean {
   const settings = getPaymentProviderSettings(providerId);
   const gocardless = getGoCardlessConnection(settings.provider_id);
   return (
-    settings.enabled_methods.gocardless_direct_debit &&
+    Boolean(settings.enabled_methods?.gocardless_direct_debit) &&
     isGoCardlessConnected(gocardless.status, gocardless.merchant_id)
   );
 }
@@ -172,7 +179,7 @@ export function isStripeCheckoutAvailable(providerId?: string): boolean {
   const settings = getPaymentProviderSettings(providerId);
   const stripe = getStripeConnectState();
   return (
-    settings.enabled_methods.stripe_card &&
+    Boolean(settings.enabled_methods?.stripe_card) &&
     (stripe.status === "connected" || stripe.status === "payouts_enabled")
   );
 }

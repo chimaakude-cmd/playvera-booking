@@ -28,7 +28,7 @@ export function isStripePaymentsReady(providerId?: string): boolean {
 export function isGoCardlessPaymentsReady(providerId?: string): boolean {
   const settings = getPaymentProviderSettings(providerId);
 
-  if (!settings.enabled_methods.gocardless_direct_debit) {
+  if (!settings.enabled_methods?.gocardless_direct_debit) {
     return false;
   }
 
@@ -44,8 +44,10 @@ export function hasAnyPaymentProviderReady(providerId?: string): boolean {
 
 export function isClubPaymentsConfigured(providerId?: string): boolean {
   const settings = getPaymentProviderSettings(providerId);
-  const stripeEnabled = settings.enabled_methods.stripe_card;
-  const gocardlessEnabled = settings.enabled_methods.gocardless_direct_debit;
+  const stripeEnabled = Boolean(settings.enabled_methods?.stripe_card);
+  const gocardlessEnabled = Boolean(
+    settings.enabled_methods?.gocardless_direct_debit,
+  );
 
   if (stripeEnabled && isStripePaymentsReady(providerId)) {
     return true;

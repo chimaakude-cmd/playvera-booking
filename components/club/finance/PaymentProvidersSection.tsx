@@ -1,7 +1,8 @@
 "use client";
 
 import { Suspense, useCallback, useEffect, useState } from "react";
-import { getGoCardlessConnection, isGoCardlessConnected } from "@/lib/gocardless";
+import { getGoCardlessConnection } from "@/lib/gocardless/storage";
+import { isGoCardlessConnected } from "@/lib/gocardless/types";
 import {
   hasAnyPaymentProviderReady,
   isClubPaymentsConfigured,
@@ -22,11 +23,12 @@ import {
   updateEnabledMethod,
 } from "@/lib/payment-providers/storage";
 import type { ClubPaymentStatusApiResponse } from "@/lib/payments/club-payment-status";
-import { getStripeConnectState } from "@/lib/stripe-connect";
+import { getStripeConnectState } from "@/lib/stripe-connect/storage";
 import { ClubPaymentProviderSelector } from "./ClubPaymentProviderSelector";
 import { FinanceSection } from "./shared";
 import { GoCardlessConnectCard } from "./GoCardlessConnectCard";
 import { PlatformPaymentStatusCard } from "./PlatformPaymentStatusCard";
+import { FinanceSectionErrorBoundary } from "./FinanceSectionErrorBoundary";
 import { StripeConnectCard } from "./StripeConnectCard";
 
 function createSafeSettings(): PaymentProviderSettings {
@@ -55,6 +57,39 @@ function ConnectCardFallback() {
       <p className="text-sm text-zinc-500">Loading provider…</p>
     </div>
   );
+}
+
+function safeReadProviderSnapshot(settings: PaymentProviderSettings) {
+  try {
+    const stripe = getStripeConnectState();
+    const gocardless = getGoCardlessConnection(settings.provider_id);
+    const enabledMethods = settings.enabled_methods ?? {
+      stripe_card: true,
+      gocardless_direct_debit: false,
+      manual_invoice: false,
+    };
+    return {
+      stripe,
+      gocardless,
+      enabledMethods,
+      stripeConnected: isStripeProviderConnected(stripe.status),
+      anyProviderReady: hasAnyPaymentProviderReady(settings.provider_id),
+      paymentsConfigured: isClubPaymentsConfigured(settings.provider_id),
+    };
+  } catch {
+    return {
+      stripe: getStripeConnectState(),
+      gocardless: getGoCardlessConnection(settings.provider_id),
+      enabledMethods: {
+        stripe_card: true,
+        gocardless_direct_debit: false,
+        manual_invoice: false,
+      },
+      stripeConnected: false,
+      anyProviderReady: false,
+      paymentsConfigured: false,
+    };
+  }
 }
 
 export function PaymentProvidersSection() {
@@ -100,10 +135,14 @@ export function PaymentProvidersSection() {
           model === "platform_managed" &&
           payload.gocardlessAvailable !== false
         ) {
-          const current = getPaymentProviderSettings();
-          if (!current.enabled_methods.gocardless_direct_debit) {
-            const next = updateEnabledMethod("gocardless_direct_debit", true);
-            setSettings(next);
+          try {
+            const current = getPaymentProviderSettings();
+            if (!current.enabled_methods?.gocardless_direct_debit) {
+              const next = updateEnabledMethod("gocardless_direct_debit", true);
+              setSettings(next);
+            }
+          } catch {
+            // Keep current settings — never crash the tab.
           }
         }
       } catch {
@@ -114,20 +153,21 @@ export function PaymentProvidersSection() {
     void loadPaymentStatus();
   }, []);
 
-  const stripe = getStripeConnectState();
-  const gocardless = getGoCardlessConnection(settings.provider_id);
-  const enabledMethods = settings.enabled_methods ?? {
-    stripe_card: true,
-    gocardless_direct_debit: false,
-    manual_invoice: false,
-  };
-  const stripeConnected = isStripeProviderConnected(stripe.status);
+  const {
+    stripe,
+    gocardless,
+    enabledMethods,
+    stripeConnected,
+    anyProviderReady,
+    paymentsConfigured,
+  } = safeReadProviderSnapshot(settings);
   const gocardlessConnected =
     paymentModel === "platform_managed"
       ? gocardlessPlatformAvailable && enabledMethods.gocardless_direct_debit
-      : isGoCardlessConnected(settings.gocardless_status, gocardless.merchant_id);
-  const anyProviderReady = hasAnyPaymentProviderReady(settings.provider_id);
-  const paymentsConfigured = isClubPaymentsConfigured(settings.provider_id);
+      : isGoCardlessConnected(
+          settings.gocardless_status ?? gocardless.status,
+          gocardless.merchant_id,
+        );
 
   function toggleMethod(methodId: PaymentMethodId, enabled: boolean) {
     if (methodId === "manual_invoice") {
@@ -161,13 +201,22 @@ export function PaymentProvidersSection() {
       >
         <div className="space-y-6">
           {PAYMENT_PROVIDER_ORDER.map((providerId) => (
-            <Suspense key={providerId} fallback={<ConnectCardFallback />}>
-              {providerId === "stripe" ? (
-                <StripeConnectCard />
-              ) : (
-                <GoCardlessConnectCard paymentModel={paymentModel} />
-              )}
-            </Suspense>
+            <FinanceSectionErrorBoundary
+              key={providerId}
+              title={
+                providerId === "stripe"
+                  ? "Stripe Connect could not load"
+                  : "GoCardless could not load"
+              }
+            >
+              <Suspense fallback={<ConnectCardFallback />}>
+                {providerId === "stripe" ? (
+                  <StripeConnectCard />
+                ) : (
+                  <GoCardlessConnectCard paymentModel={paymentModel} />
+                )}
+              </Suspense>
+            </FinanceSectionErrorBoundary>
           ))}
         </div>
       </FinanceSection>
@@ -266,12 +315,16 @@ export function PaymentProvidersSection() {
             Used when an activity is set to &ldquo;Use club default&rdquo;.
           </p>
           <div className="mt-4">
-            <ClubPaymentProviderSelector onChange={() => refresh()} />
+            <FinanceSectionErrorBoundary title="Default provider selector could not load">
+              <ClubPaymentProviderSelector onChange={() => refresh()} />
+            </FinanceSectionErrorBoundary>
           </div>
         </div>
       </FinanceSection>
 
-      <PlatformPaymentStatusCard />
+      <FinanceSectionErrorBoundary title="Platform payment status could not load">
+        <PlatformPaymentStatusCard />
+      </FinanceSectionErrorBoundary>
     </div>
   );
 }
