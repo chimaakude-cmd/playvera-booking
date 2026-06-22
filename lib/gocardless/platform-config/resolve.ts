@@ -58,19 +58,41 @@ export async function resolveGoCardlessPlatformConfig(
 
   const clientId = pickString(processEnv.clientId, db.clientId);
   const clientSecret = pickString(processEnv.clientSecret, db.clientSecret);
-  const redirectUri = pickString(processEnv.redirectUri, db.redirectUri);
+  const explicitRedirectUri = pickString(processEnv.redirectUri, db.redirectUri);
   const callbackUri =
-    db.callbackUri?.trim() || redirectUri || defaultCallback;
+    db.callbackUri?.trim() || explicitRedirectUri || defaultCallback;
+  const redirectUri = explicitRedirectUri || callbackUri;
   const accessToken = pickString(processEnv.accessToken, db.accessToken);
   const webhookSecret = pickString(processEnv.webhookSecret, db.webhookSecret);
 
-  const oauthReady = Boolean(clientId && clientSecret && redirectUri);
+  const isOAuthConfigured = Boolean(clientId && clientSecret && redirectUri);
   const billingReady = Boolean(accessToken);
   const platformEnabled = db.platformEnabled;
-  const connectionVerified = isPlatformConnectionVerified(
+  const isConnectionVerified = isPlatformConnectionVerified(
     db.connectionStatus,
     environment,
   );
+
+  const clubConnectBlockers: string[] = [];
+  if (!platformEnabled) {
+    clubConnectBlockers.push(
+      "Platform is disabled — enable “Platform enabled” in admin setup.",
+    );
+  }
+  if (!clientId) {
+    clubConnectBlockers.push("OAuth client ID is missing.");
+  }
+  if (!clientSecret) {
+    clubConnectBlockers.push("OAuth client secret is missing.");
+  }
+  if (!redirectUri) {
+    clubConnectBlockers.push("OAuth redirect URI is missing.");
+  }
+  if (!isConnectionVerified) {
+    clubConnectBlockers.push(
+      `Connection test not verified for ${environment} — run Test connection after saving credentials.`,
+    );
+  }
 
   return {
     environment,
@@ -83,9 +105,14 @@ export async function resolveGoCardlessPlatformConfig(
     platformEnabled,
     platformFeePercent: db.platformFeePercent,
     connectionStatus: db.connectionStatus,
-    isPlatformConfigured: oauthReady && billingReady && connectionVerified,
+    isOAuthConfigured,
+    isConnectionVerified,
+    isPlatformConfigured:
+      isOAuthConfigured && billingReady && isConnectionVerified,
     isBillingConfigured: billingReady,
-    isClubConnectAvailable: platformEnabled && oauthReady && connectionVerified,
+    isClubConnectAvailable:
+      platformEnabled && isOAuthConfigured && isConnectionVerified,
+    clubConnectBlockers,
   };
 }
 

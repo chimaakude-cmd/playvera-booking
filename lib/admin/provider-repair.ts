@@ -185,7 +185,7 @@ export async function repairProviderProfileForAuthUser(
       ...INDEPENDENT_CLUB_ORGANISATION_FIELDS,
       account_status: "active",
       platform_fee_percent: freePlan.bookingFeePercent,
-      payment_model: "platform_managed",
+      payment_model: "club_oauth",
       payments_enabled: true,
       payments_paused: false,
       payout_schedule: "weekly",

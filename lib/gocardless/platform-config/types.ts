@@ -105,7 +105,10 @@ export type ResolvedGoCardlessPlatformConfig = {
   platformEnabled: boolean;
   platformFeePercent: number;
   connectionStatus: GoCardlessPlatformConnectionStatus;
+  isOAuthConfigured: boolean;
+  isConnectionVerified: boolean;
   isPlatformConfigured: boolean;
   isBillingConfigured: boolean;
   isClubConnectAvailable: boolean;
+  clubConnectBlockers: string[];
 };

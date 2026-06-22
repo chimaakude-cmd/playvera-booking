@@ -13,6 +13,9 @@ type ConfigResponse = {
   resolved: {
     isClubConnectAvailable: boolean;
     isBillingConfigured: boolean;
+    isOAuthConfigured: boolean;
+    isConnectionVerified: boolean;
+    clubConnectBlockers: string[];
     callbackUri: string;
     webhookUri: string;
   };
@@ -45,7 +48,7 @@ function applyConfigResponse(
     webhookSecret: "",
     clientId: configData.config.clientId ?? "",
     clientSecret: "",
-    redirectUri: configData.config.redirectUri ?? "",
+    redirectUri: configData.config.redirectUri ?? configData.resolved.callbackUri ?? "",
     callbackUri:
       configData.config.callbackUri ?? configData.resolved.callbackUri,
     platformEnabled: configData.config.platformEnabled,
@@ -466,6 +469,14 @@ export function AdminGoCardlessSetupSection({ embedded = false }: Props) {
             value={resolved?.isClubConnectAvailable ? "Available" : "Unavailable"}
           />
           <Metric
+            label="OAuth credentials"
+            value={resolved?.isOAuthConfigured ? "Ready" : "Incomplete"}
+          />
+          <Metric
+            label="Connection verified"
+            value={resolved?.isConnectionVerified ? "Yes" : "No"}
+          />
+          <Metric
             label="Billing API"
             value={resolved?.isBillingConfigured ? "Ready" : "Missing token"}
           />
@@ -475,6 +486,19 @@ export function AdminGoCardlessSetupSection({ embedded = false }: Props) {
           />
           <Metric label="Last checked" value={lastCheckedLabel} />
         </div>
+
+        {resolved && !resolved.isClubConnectAvailable ? (
+          <div className="border-t border-zinc-100 px-6 py-4">
+            <p className="text-sm font-medium text-amber-900">
+              Club connect is unavailable until all checks pass:
+            </p>
+            <ul className="mt-2 list-inside list-disc text-sm text-amber-800">
+              {resolved.clubConnectBlockers.map((blocker) => (
+                <li key={blocker}>{blocker}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
       </article>
 
       <article className="rounded-2xl border border-zinc-200/80 bg-white shadow-sm">

@@ -98,7 +98,7 @@ export function PaymentProvidersSection() {
   );
   const [paymentModel, setPaymentModel] = useState<
     "platform_managed" | "club_oauth"
-  >("platform_managed");
+  >("club_oauth");
   const [gocardlessPlatformAvailable, setGocardlessPlatformAvailable] =
     useState(false);
 

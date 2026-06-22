@@ -172,17 +172,17 @@ export function buildMissingProviderPaymentStatusResponse(
   const nextPayout = estimateNextPayoutDate(payoutSchedule);
 
   return {
-    provider: "Activora (GoCardless)",
-    paymentModel: "platform_managed",
+    provider: "GoCardless",
+    paymentModel: "club_oauth",
     providerRecordMissing: true,
     stripeOptional: true,
-    gocardlessAvailable: true,
+    gocardlessAvailable: false,
     status: {
       status: "awaiting_first_payment",
       tone: "yellow",
       label: CLUB_PAYMENT_STATUS_LABELS.awaiting_first_payment,
       reason:
-        "Payments are managed by Activora. GoCardless Direct Debit is available; Stripe card payments are optional.",
+        "Connect GoCardless in Finance to accept Direct Debit. Stripe card payments are optional.",
     },
     payoutSchedule,
     payoutScheduleLabel: PAYOUT_SCHEDULE_LABELS[payoutSchedule],

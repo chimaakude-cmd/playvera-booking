@@ -3,7 +3,9 @@ import { resolveProviderIdForAuthUser } from "@/lib/club-profile/server";
 import {
   DEFAULT_GOCARDLESS_PLATFORM_CONFIG,
 } from "@/lib/gocardless/platform-config/defaults";
-import { getServerGoCardlessPlatformConfig } from "@/lib/gocardless/platform-config";
+import {
+  resolveGoCardlessPlatformConfig,
+} from "@/lib/gocardless/platform-config";
 import {
   buildMissingProviderPaymentStatusResponse,
   estimateNextPayoutDate,
@@ -22,10 +24,19 @@ import {
 
 async function loadPlatformConfig() {
   try {
-    return await getServerGoCardlessPlatformConfig();
+    const resolved = await resolveGoCardlessPlatformConfig();
+    return {
+      platformEnabled: resolved.platformEnabled,
+      platformFeePercent: resolved.platformFeePercent,
+      clubConnectAvailable: resolved.isClubConnectAvailable,
+    };
   } catch (error) {
     console.error("[club-payment-status] Platform config unavailable:", error);
-    return DEFAULT_GOCARDLESS_PLATFORM_CONFIG;
+    return {
+      platformEnabled: DEFAULT_GOCARDLESS_PLATFORM_CONFIG.platformEnabled,
+      platformFeePercent: DEFAULT_GOCARDLESS_PLATFORM_CONFIG.platformFeePercent,
+      clubConnectAvailable: false,
+    };
   }
 }
 
@@ -116,9 +127,9 @@ export async function GET() {
 
     return NextResponse.json({
       provider: "GoCardless",
-      paymentModel: provider.payment_model ?? "platform_managed",
+      paymentModel: provider.payment_model ?? "club_oauth",
       stripeOptional: true,
-      gocardlessAvailable: platformConfig.platformEnabled,
+      gocardlessAvailable: platformConfig.clubConnectAvailable,
       status,
       payoutSchedule,
       payoutScheduleLabel,

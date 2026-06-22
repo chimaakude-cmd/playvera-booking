@@ -17,6 +17,7 @@ import {
   type GoCardlessConnection,
   type GoCardlessConnectionStatus,
 } from "@/lib/gocardless/types";
+import { updateEnabledMethod } from "@/lib/payment-providers/storage";
 import {
   PAYMENT_PROVIDER_DEFINITIONS,
   getGoCardlessConnectionLabel,
@@ -29,6 +30,21 @@ const SAMPLE_PAYMENT = 50;
 const GOCARDLESS = PAYMENT_PROVIDER_DEFINITIONS.gocardless;
 const NOT_CONFIGURED_MESSAGE =
   "GoCardless unavailable. Activora is still configuring Direct Debit.";
+
+function resolveOAuthErrorMessage(reason: string | null): string {
+  switch (reason) {
+    case "not_configured":
+      return "GoCardless club connect is not available yet. Activora is still finishing platform setup.";
+    case "invalid_state":
+      return "GoCardless connection expired. Please try Connect GoCardless again.";
+    case "missing_code":
+      return "GoCardless did not return an authorization code. Please try again.";
+    case "callback_failed":
+      return "GoCardless connection could not be completed. Check your account and try again.";
+    default:
+      return "GoCardless connection could not be completed. Please try again.";
+  }
+}
 
 type GoCardlessConnectCardProps = {
   paymentModel?: "platform_managed" | "club_oauth";
@@ -179,7 +195,9 @@ export function GoCardlessConnectCard({
     const oauthError = searchParams.get("gocardless") === "error";
 
     if (oauthError) {
-      setError("GoCardless connection could not be completed. Please try again.");
+      setError(
+        resolveOAuthErrorMessage(searchParams.get("reason")),
+      );
       void refresh();
       return;
     }
@@ -189,10 +207,13 @@ export function GoCardlessConnectCard({
         const next = completeMockGoCardlessOnboarding();
         if (next) {
           setConnection(next);
+          updateEnabledMethod("gocardless_direct_debit", true);
           setMessage("GoCardless connected (development mock).");
         }
       } else {
-        void refresh();
+        void refresh().then(() => {
+          updateEnabledMethod("gocardless_direct_debit", true);
+        });
         setMessage("GoCardless connected successfully.");
       }
     }
@@ -428,6 +449,13 @@ export function GoCardlessConnectCard({
           ) : null}
           {connection?.merchant_id && !platformManaged ? (
             <DetailField label="Merchant ID" value={connection.merchant_id} mono />
+          ) : null}
+          {connection?.organisation_id && !platformManaged ? (
+            <DetailField
+              label="Organisation ID"
+              value={connection.organisation_id}
+              mono
+            />
           ) : null}
         </dl>
       ) : null}

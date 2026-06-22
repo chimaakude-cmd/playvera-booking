@@ -71,6 +71,8 @@ export async function persistProviderGoCardlessConnect(params: {
       gocardless_organisation_id: params.organisationId,
       gocardless_merchant_id: params.merchantId,
       gocardless_connected_at: now,
+      payment_method_gocardless_dd: true,
+      preferred_payment_provider: "gocardless",
       updated_at: now,
     })
     .eq("id", params.providerId);

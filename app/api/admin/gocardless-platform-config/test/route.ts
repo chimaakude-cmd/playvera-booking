@@ -47,6 +47,8 @@ export async function POST(request: NextRequest) {
       updatedBy: auth.actor.adminId,
     });
 
+    const updatedResolved = await resolveGoCardlessPlatformConfig(request);
+
     await appendGoCardlessPlatformLog({
       level: result.ok ? "info" : "error",
       eventType: "connection_test",
@@ -60,9 +62,16 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       ok: result.ok,
-      message: result.ok ? "Connection successful" : `Connection failed: ${result.message}`,
+      message: result.ok
+        ? updatedResolved.isClubConnectAvailable
+          ? "Connection successful — club connect is available."
+          : `Connection successful — billing API verified. Club connect still blocked: ${updatedResolved.clubConnectBlockers.join(" ")}`
+        : `Connection failed: ${result.message}`,
       connectionStatus,
       creditorId: result.creditorId ?? null,
+      isClubConnectAvailable: updatedResolved.isClubConnectAvailable,
+      clubConnectBlockers: updatedResolved.clubConnectBlockers,
+      isOAuthConfigured: updatedResolved.isOAuthConfigured,
     });
   } catch (error) {
     if (error instanceof GoCardlessPlatformConfigStoreError) {

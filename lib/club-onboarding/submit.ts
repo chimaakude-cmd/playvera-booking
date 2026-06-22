@@ -369,13 +369,13 @@ async function ensureProviderForOwner(
       ...independentFields,
       account_status: "active",
       platform_fee_percent: freePlan.bookingFeePercent,
-      payment_model: "platform_managed",
+      payment_model: "club_oauth",
       payments_enabled: true,
       payments_paused: false,
       payout_schedule: "weekly",
-      gocardless_status: "connected",
-      payment_method_gocardless_dd: true,
-      preferred_payment_provider: "gocardless",
+      gocardless_status: "not_connected",
+      payment_method_gocardless_dd: false,
+      preferred_payment_provider: "stripe",
     })
     .select("id")
     .single();

@@ -46,6 +46,9 @@ async function buildFullConfigResponse(
     resolved: {
       isClubConnectAvailable: resolved.isClubConnectAvailable,
       isBillingConfigured: resolved.isBillingConfigured,
+      isOAuthConfigured: resolved.isOAuthConfigured,
+      isConnectionVerified: resolved.isConnectionVerified,
+      clubConnectBlockers: resolved.clubConnectBlockers,
       callbackUri: resolved.callbackUri,
       webhookUri: `${baseUrl}/api/webhooks/gocardless`,
     },
