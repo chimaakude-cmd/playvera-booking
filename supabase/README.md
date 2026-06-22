@@ -17,6 +17,14 @@ To verify: **Table Editor** in the left sidebar should list all nine tables.
 
 Session wizard images upload to Supabase Storage when configured. See **[STORAGE_SETUP.md](./STORAGE_SETUP.md)**.
 
+## Auth email branding
+
+Branded Magic Link templates and custom SMTP (Resend → `no-reply@activora.uk`):
+
+- **[templates/README.md](./templates/README.md)** — paste HTML into Dashboard
+- **[AUTH_EMAIL_BRANDING.md](./AUTH_EMAIL_BRANDING.md)** — brand colors and assets
+- **[SMTP_SETUP.md](./SMTP_SETUP.md)** — DNS, Resend, Supabase SMTP settings
+
 ## Session data (Supabase + localStorage fallback)
 
 After applying `00001_activora_schema.sql`, also run:
