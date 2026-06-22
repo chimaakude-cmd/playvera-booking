@@ -5,7 +5,10 @@ export type ClubProfileHealth = {
   isLive: boolean;
   slug: string | null;
   publicPath: string | null;
+  /** Blocking issues that prevent the public page from loading. */
   reasons: string[];
+  /** Non-blocking content gaps — profile may still be live. */
+  readinessGaps: string[];
   providerExists: boolean;
   publicProfileExists: boolean;
   slugSynced: boolean;
@@ -54,14 +57,85 @@ export function isBlockedProviderLifecycle(
   return status === "abandoned" || status === "deleted";
 }
 
+export function assessClubProfileReadinessGaps(input: {
+  profile: Pick<
+    ClubProfile,
+    "publicSlug" | "visibility" | "published" | "clubName"
+  > &
+    Partial<
+      Pick<
+        ClubProfile,
+        | "logoUrl"
+        | "shortDescription"
+        | "longDescription"
+        | "categories"
+        | "profileDesign"
+      >
+    > | null;
+  providerOnboardingCompleted?: boolean | null;
+  publishedActivityCount?: number;
+}): string[] {
+  const gaps: string[] = [];
+  const profile = input.profile;
+
+  if (!profile) {
+    return gaps;
+  }
+
+  const hasLogo = Boolean(
+    profile.logoUrl?.trim() || profile.profileDesign?.logoUrl?.trim(),
+  );
+  if (!hasLogo) {
+    gaps.push("Logo missing");
+  }
+
+  const description =
+    profile.shortDescription?.trim() ||
+    profile.longDescription?.trim() ||
+    profile.profileDesign?.aboutText?.trim();
+  if (!description) {
+    gaps.push("Description missing");
+  }
+
+  if (profile.categories !== undefined && profile.categories.length === 0) {
+    gaps.push("Categories missing");
+  }
+
+  if (
+    typeof input.publishedActivityCount === "number" &&
+    input.publishedActivityCount === 0
+  ) {
+    gaps.push("No published activities");
+  }
+
+  if (input.providerOnboardingCompleted === false) {
+    gaps.push("Onboarding incomplete");
+  }
+
+  return gaps;
+}
+
 export function assessClubProfileHealth(input: {
   providerExists: boolean;
   providerSlug?: string | null;
   providerLifecycleStatus?: string | null;
+  providerOnboardingCompleted?: boolean | null;
+  providerDeletedAt?: string | null;
+  publishedActivityCount?: number;
   profile: Pick<
     ClubProfile,
     "publicSlug" | "visibility" | "published" | "clubName"
-  > | null;
+  > &
+    Partial<
+      Pick<
+        ClubProfile,
+        | "logoUrl"
+        | "shortDescription"
+        | "longDescription"
+        | "categories"
+        | "profileDesign"
+      >
+    > | null;
   publiclyResolvable?: boolean;
 }): ClubProfileHealth {
   const reasons: string[] = [];
@@ -76,6 +150,14 @@ export function assessClubProfileHealth(input: {
     reasons.push(
       `Provider is ${input.providerLifecycleStatus?.trim().toLowerCase()}`,
     );
+  }
+
+  if (input.providerDeletedAt) {
+    reasons.push("Provider is deleted");
+  }
+
+  if (input.providerOnboardingCompleted === false) {
+    reasons.push("Onboarding incomplete");
   }
 
   if (!publicProfileExists) {
@@ -102,11 +184,16 @@ export function assessClubProfileHealth(input: {
     reasons.push("Slug mismatch between provider and profile");
   }
 
-  if (
-    input.profile &&
-    !isPublishedVisibility(input.profile.visibility, input.profile.published)
-  ) {
-    reasons.push("Profile not published");
+  if (input.profile) {
+    if (
+      !isPublishedVisibility(input.profile.visibility, input.profile.published)
+    ) {
+      reasons.push(
+        input.profile.visibility === "draft"
+          ? "Profile visibility is draft"
+          : "Profile not published",
+      );
+    }
   }
 
   const publiclyResolvable =
@@ -116,11 +203,26 @@ export function assessClubProfileHealth(input: {
       Boolean(slug) &&
       slugSynced &&
       !isBlockedProviderLifecycle(input.providerLifecycleStatus) &&
+      !input.providerDeletedAt &&
       (!input.profile ||
         isPublishedVisibility(
           input.profile.visibility,
           input.profile.published,
         )));
+
+  const readinessGaps = assessClubProfileReadinessGaps({
+    profile: input.profile,
+    providerOnboardingCompleted: input.providerOnboardingCompleted,
+    publishedActivityCount: input.publishedActivityCount,
+  }).filter((gap) => {
+    if (gap === "Onboarding incomplete") {
+      return input.providerOnboardingCompleted === false;
+    }
+    if (gap === "No published activities") {
+      return typeof input.publishedActivityCount === "number";
+    }
+    return true;
+  });
 
   const isLive = reasons.length === 0 && publiclyResolvable;
 
@@ -129,6 +231,7 @@ export function assessClubProfileHealth(input: {
     slug,
     publicPath: slug ? getPublicClubPath(slug) : null,
     reasons,
+    readinessGaps,
     providerExists,
     publicProfileExists,
     slugSynced,

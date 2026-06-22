@@ -20,6 +20,12 @@ import {
   resolveCanonicalPublicSlug,
   type ClubProfileHealth,
 } from "./health";
+import {
+  insertMinimalClubProfileRow,
+  isLegacyClubProfileSchemaError,
+  persistClubProfilePublishState,
+  restoreProviderLifecycleForPublicProfile,
+} from "./publish-persist";
 import type { ClubProfile, ClubProfileInput } from "./types";
 import { slugifyClubName } from "./types";
 
@@ -107,8 +113,12 @@ function isProviderIdSlug(slug: string): boolean {
   return UUID_SLUG_PATTERN.test(slug.trim());
 }
 
+function publicAnonLookupClient(): ActivoraSupabaseClient {
+  return createSupabaseServerClient();
+}
+
 function profileLookupClients(): ActivoraSupabaseClient[] {
-  const clients: ActivoraSupabaseClient[] = [createSupabaseServerClient()];
+  const clients: ActivoraSupabaseClient[] = [publicAnonLookupClient()];
   if (isSupabaseServiceRoleConfigured()) {
     clients.push(createSupabaseServiceRoleClient());
   }
@@ -286,19 +296,18 @@ async function upgradeProfileToPublic(
     return profile;
   }
 
-  const publishedAt =
-    profile.profileDesign?.publishedAt ?? new Date().toISOString();
-  const { error } = await supabase
-    .from("club_profiles")
-    .update({
-      published: true,
-      visibility: "published",
-      published_at: publishedAt,
-    })
-    .eq("provider_id", providerId);
+  const publishResult = await persistClubProfilePublishState(
+    supabase,
+    providerId,
+    {
+      publicSlug: profile.publicSlug,
+      publishedAt:
+        profile.profileDesign?.publishedAt ?? new Date().toISOString(),
+    },
+  );
 
-  if (error) {
-    console.error("[club-profile] publish upgrade failed:", error);
+  if (!publishResult.ok) {
+    console.error("[club-profile] publish upgrade failed:", publishResult.error);
     return profile;
   }
 
@@ -362,21 +371,31 @@ export async function ensureMinimalPublicClubProfileForProvider(
     slug: canonicalSlug,
   });
 
-  const { error: insertError } = await supabase.from("club_profiles").insert(row);
+  const insertResult = await insertMinimalClubProfileRow(supabase, row);
 
-  if (insertError) {
-    if (isUniqueProfileViolation(insertError)) {
-      const { error: updateError } = await supabase
-        .from("club_profiles")
-        .update(row)
-        .eq("provider_id", providerId);
+  if (!insertResult.ok) {
+    if (isUniqueProfileViolation(insertResult.error)) {
+      const publishResult = await persistClubProfilePublishState(
+        supabase,
+        providerId,
+        {
+          publicSlug: canonicalSlug,
+          publishedAt: row.published_at,
+        },
+      );
 
-      if (updateError) {
-        console.error("[club-profile] ensure profile update failed:", updateError);
+      if (!publishResult.ok) {
+        console.error(
+          "[club-profile] ensure profile update failed:",
+          publishResult.error,
+        );
         return null;
       }
     } else {
-      console.error("[club-profile] ensure profile insert failed:", insertError);
+      console.error(
+        "[club-profile] ensure profile insert failed:",
+        insertResult.error.message,
+      );
       return null;
     }
   }
@@ -394,10 +413,13 @@ export async function ensureMinimalPublicClubProfileForProvider(
 export async function getClubProfileHealthForProvider(
   supabase: ActivoraSupabaseClient,
   providerId: string,
+  options?: { publishedActivityCount?: number },
 ): Promise<ClubProfileHealth | null> {
   const { data: provider, error: providerError } = await supabase
     .from("providers")
-    .select("id, name, slug, lifecycle_status")
+    .select(
+      "id, name, slug, lifecycle_status, onboarding_completed, deleted_at",
+    )
     .eq("id", providerId)
     .maybeSingle();
 
@@ -422,6 +444,9 @@ export async function getClubProfileHealthForProvider(
     providerExists: true,
     providerSlug: provider.slug,
     providerLifecycleStatus: provider.lifecycle_status,
+    providerOnboardingCompleted: provider.onboarding_completed,
+    providerDeletedAt: provider.deleted_at,
+    publishedActivityCount: options?.publishedActivityCount,
     profile,
     publiclyResolvable,
   });
@@ -435,6 +460,9 @@ export async function repairPublicClubProfileForProvider(
   | { ok: false; error: string }
 > {
   const repairClient = serviceRoleClientOrNull() ?? supabase;
+
+  await restoreProviderLifecycleForPublicProfile(repairClient, providerId);
+
   const profile = await ensureMinimalPublicClubProfileForProvider(
     repairClient,
     providerId,
@@ -447,6 +475,15 @@ export async function repairPublicClubProfileForProvider(
   const health = await getClubProfileHealthForProvider(repairClient, providerId);
   if (!health) {
     return { ok: false, error: "Could not verify club profile health." };
+  }
+
+  if (!health.publiclyResolvable) {
+    return {
+      ok: false,
+      error:
+        health.reasons.join("; ") ||
+        "Profile repaired but public page is still not visible.",
+    };
   }
 
   return { ok: true, profile, health };
@@ -487,25 +524,20 @@ async function canResolvePublicClubProfileSlug(slug: string): Promise<boolean> {
     return false;
   }
 
-  for (const supabase of profileLookupClients()) {
-    const byPublicSlug = await queryPublicClubProfile(supabase, (query) =>
-      query.eq("public_slug", normalizedSlug),
-    );
-    if (byPublicSlug) {
-      return true;
-    }
+  const supabase = publicAnonLookupClient();
 
-    const byProviderSlug = await fetchPublicClubProfileByProviderSlug(
-      supabase,
-      normalizedSlug,
-      { allowRepair: false },
-    );
-    if (byProviderSlug) {
-      return true;
-    }
+  const byPublicSlug = await queryPublicClubProfile(supabase, (query) =>
+    query.eq("public_slug", normalizedSlug),
+  );
+  if (byPublicSlug) {
+    return true;
   }
 
-  return false;
+  return Boolean(
+    await fetchPublicClubProfileByProviderSlug(supabase, normalizedSlug, {
+      allowRepair: false,
+    }),
+  );
 }
 
 async function syncClubProfileLocations(
@@ -535,25 +567,6 @@ async function syncClubProfileLocations(
     .insert(rows);
 
   return insertError;
-}
-
-const LEGACY_CLUB_PROFILE_COLUMNS = [
-  "social_links",
-  "contact",
-  "verification_status",
-  "visibility",
-  "published_at",
-] as const;
-
-function isLegacyClubProfileSchemaError(error: PostgrestError): boolean {
-  const message = error.message.toLowerCase();
-  if (!message.includes("schema cache")) {
-    return false;
-  }
-
-  return LEGACY_CLUB_PROFILE_COLUMNS.some((column) =>
-    message.includes(column),
-  );
 }
 
 function normalizePublishInput(

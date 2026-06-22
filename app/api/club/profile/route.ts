@@ -8,6 +8,7 @@ import {
   resolveProviderIdForAuthUser,
   saveClubProfileForProvider,
 } from "@/lib/club-profile/server";
+import { restoreProviderLifecycleForPublicProfile } from "@/lib/club-profile/publish-persist";
 import type { ClubProfileInput } from "@/lib/club-profile/types";
 import { validateClubProfileInput } from "@/lib/club-profile/storage";
 
@@ -39,17 +40,33 @@ export async function GET() {
     }
 
     const repairClient = supabase;
-    const repaired = await repairPublicClubProfileForProvider(
+    await restoreProviderLifecycleForPublicProfile(repairClient, providerId);
+
+    const profile = await ensureMinimalPublicClubProfileForProvider(
       repairClient,
       providerId,
     );
-    if (!repaired.ok) {
-      return NextResponse.json({ error: repaired.error }, { status: 404 });
+    if (!profile) {
+      return NextResponse.json(
+        { error: "Could not load club profile." },
+        { status: 404 },
+      );
+    }
+
+    const health = await getClubProfileHealthForProvider(
+      repairClient,
+      providerId,
+    );
+    if (!health) {
+      return NextResponse.json(
+        { error: "Could not verify club profile health." },
+        { status: 500 },
+      );
     }
 
     return NextResponse.json({
-      profile: repaired.profile,
-      health: repaired.health,
+      profile,
+      health,
     });
   } catch (error) {
     console.error("[club-profile] GET failed:", error);

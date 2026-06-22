@@ -42,24 +42,37 @@ export function ClubProfileHealthBadge({
 
   if (health.isLive) {
     return (
-      <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-200">
-        Profile live
-        <span
-          aria-hidden
-          className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500"
-        />
-      </span>
+      <div className={compact ? "space-y-2" : "space-y-3"}>
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-200">
+          Profile live
+          <span
+            aria-hidden
+            className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500"
+          />
+        </span>
+        {!compact && health.readinessGaps.length > 0 ? (
+          <ul className="list-inside list-disc text-xs text-zinc-600">
+            {health.readinessGaps.map((gap) => (
+              <li key={gap}>{gap}</li>
+            ))}
+          </ul>
+        ) : null}
+      </div>
     );
   }
+
+  const issueItems = [...health.reasons, ...health.readinessGaps.filter(
+    (gap) => !health.reasons.includes(gap),
+  )];
 
   return (
     <div className={compact ? "space-y-2" : "space-y-3"}>
       <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-800 ring-1 ring-amber-200">
         Profile needs repair
       </span>
-      {!compact && health.reasons.length > 0 ? (
+      {!compact && issueItems.length > 0 ? (
         <ul className="list-inside list-disc text-xs text-amber-900/90">
-          {health.reasons.map((reason) => (
+          {issueItems.map((reason) => (
             <li key={reason}>{reason}</li>
           ))}
         </ul>
@@ -74,7 +87,7 @@ export function ClubProfileHealthBadge({
           >
             {repairing ? "Repairing…" : "Repair profile"}
           </button>
-          {health.publicPath ? (
+          {health.publiclyResolvable && health.publicPath ? (
             <Link
               href={getPublicClubPath(health.slug ?? "")}
               target="_blank"
