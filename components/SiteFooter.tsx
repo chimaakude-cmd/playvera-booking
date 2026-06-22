@@ -95,20 +95,21 @@ function SocialLinks({ className = "" }: { className?: string }) {
 }
 
 function TrustBadges() {
-  const icons = [ShieldCheck, Shield, MapPin] as const;
+  const icons = [ShieldCheck, Shield, ShieldCheck, MapPin] as const;
 
   return (
     <div className="flex flex-wrap gap-2">
       {FOOTER_TRUST_BADGES.map((badge, index) => {
         const Icon = icons[index] ?? ShieldCheck;
         return (
-          <span
-            key={badge}
-            className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] font-medium text-white/80"
+          <Link
+            key={badge.label}
+            href={badge.href}
+            className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] font-medium text-white/80 transition-colors hover:border-white/20 hover:bg-white/10 hover:text-white"
           >
             <Icon className="h-3 w-3" style={{ color: ACTIVORA_ACCENT }} aria-hidden />
-            {badge}
-          </span>
+            {badge.label}
+          </Link>
         );
       })}
     </div>

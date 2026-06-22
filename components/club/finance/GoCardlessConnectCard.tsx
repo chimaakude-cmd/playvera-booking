@@ -24,6 +24,7 @@ import {
 } from "@/lib/payment-providers/config";
 import { PLATFORM_FEE_PERCENT, formatMoney } from "@/lib/payments";
 import { getClubProfile } from "@/lib/club-profile";
+import { PaymentFeesExplainedLink } from "@/components/trust/PaymentFeesExplainedLink";
 import { FinanceButton } from "./shared";
 
 const SAMPLE_PAYMENT = 50;
@@ -446,6 +447,10 @@ export function GoCardlessConnectCard({
         </p>
       ) : null}
 
+      <p className="mt-3">
+        <PaymentFeesExplainedLink provider="gocardless" />
+      </p>
+
       {connected ? (
         <dl className="mt-4 grid gap-3 rounded-xl border border-orange-100 bg-white p-4 text-sm sm:grid-cols-2">
           <DetailField label="Mandate status" value={mandateStatus} />
@@ -514,7 +519,7 @@ export function GoCardlessConnectCard({
 
       <div className="mt-4 max-w-lg rounded-xl border border-zinc-100 bg-white p-4 text-sm">
         <p className="font-medium text-zinc-900">
-          Fee breakdown (example £{SAMPLE_PAYMENT} payment)
+          Fee breakdown (example £{SAMPLE_PAYMENT} payment — estimates only)
         </p>
         <dl className="mt-3 space-y-2">
           <BreakdownRow label="Customer payment" value={breakdown.customerPayment} />

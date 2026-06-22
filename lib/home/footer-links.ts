@@ -41,6 +41,7 @@ export const FOOTER_PLATFORM_LINKS: FooterLinkItem[] = [
   { label: "What's new", href: "/updates" },
   { label: "Status", href: "/status" },
   { label: "Security", href: "/security" },
+  { label: "Privacy Policy", href: "/privacy" },
   { label: "Accessibility", href: "/accessibility" },
 ];
 
@@ -63,6 +64,7 @@ export const FOOTER_COMPANY_LINKS: FooterLinkItem[] = [
   { label: "Partner with us", href: "/partnerships" },
   { label: "Status", href: "/status" },
   { label: "Security", href: "/security" },
+  { label: "Privacy Policy", href: "/privacy" },
   { label: "Accessibility", href: "/accessibility" },
   { label: "Updates", href: "/updates" },
 ];
@@ -75,10 +77,23 @@ export const FOOTER_SUPPORT_LINKS: FooterLinkItem[] = [
 ];
 
 export const FOOTER_TRUST_LINKS: FooterLinkItem[] = [
-  { label: "GDPR", href: "/security" },
-  { label: "Stripe payments", href: "/security" },
+  { label: "GDPR", href: "/privacy" },
+  { label: "Stripe payments", href: "/trust/stripe-payments" },
+  { label: "GoCardless payments", href: "/trust/gocardless-payments" },
   { label: "Built in UK", href: "/built-in-uk" },
   { label: "Support hours", href: "/support-hours" },
+];
+
+export type FooterTrustBadge = {
+  label: string;
+  href: string;
+};
+
+export const FOOTER_TRUST_BADGES: FooterTrustBadge[] = [
+  { label: "GDPR ready", href: "/privacy" },
+  { label: "Stripe payments", href: "/trust/stripe-payments" },
+  { label: "GoCardless payments", href: "/trust/gocardless-payments" },
+  { label: "Built in UK", href: "/built-in-uk" },
 ];
 
 export const FOOTER_LINK_COLUMNS: FooterColumnConfig[] = [
@@ -90,16 +105,14 @@ export const FOOTER_LINK_COLUMNS: FooterColumnConfig[] = [
   { id: "trust", title: "Trust", links: FOOTER_TRUST_LINKS },
 ];
 
-export const FOOTER_TRUST_BADGES = [
-  "GDPR ready",
-  "Stripe payments",
-  "Built in UK",
-] as const;
-
 export type FooterBottomLink = {
   label: string;
   href: string;
   ariaLabel?: string;
 };
 
-export const FOOTER_BOTTOM_LINKS: FooterBottomLink[] = [];
+export const FOOTER_BOTTOM_LINKS: FooterBottomLink[] = [
+  { label: "Privacy Policy", href: "/privacy" },
+  { label: "Security", href: "/security" },
+  { label: "Accessibility", href: "/accessibility" },
+];

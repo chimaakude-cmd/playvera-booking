@@ -30,6 +30,7 @@ import { GoCardlessConnectCard } from "./GoCardlessConnectCard";
 import { PlatformPaymentStatusCard } from "./PlatformPaymentStatusCard";
 import { FinanceSectionErrorBoundary } from "./FinanceSectionErrorBoundary";
 import { StripeConnectCard } from "./StripeConnectCard";
+import { TRUST_PLATFORM_FEE_NOTE } from "@/constants/trust-payments";
 
 function createSafeSettings(): PaymentProviderSettings {
   try {
@@ -178,6 +179,9 @@ export function PaymentProvidersSection() {
         title="Payment providers"
         description="Connect Stripe and/or GoCardless to accept payments. Enable at least one provider for paid activities."
       >
+        <p className="mb-4 rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-600">
+          {TRUST_PLATFORM_FEE_NOTE}
+        </p>
         <div className="space-y-6">
           {PAYMENT_PROVIDER_ORDER.map((providerId) => (
             <FinanceSectionErrorBoundary

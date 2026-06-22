@@ -34,15 +34,15 @@ export function ProviderPayoutBreakdown({
       {!compact ? (
         <>
           <h3 className="text-base font-semibold text-zinc-900">
-            Provider payout estimate
+            Estimated provider payout
           </h3>
           <p className="mt-1 text-sm text-zinc-500">
-            Estimated split before Stripe Connect is enabled.
+            Illustrative split — actual fees may vary once payments are live.
           </p>
         </>
       ) : (
         <h4 className="text-sm font-semibold text-zinc-900">
-          Payout estimate
+          Estimated payout
         </h4>
       )}
       <PayoutRows breakdown={breakdown} className={compact ? "mt-3" : "mt-4"} />
@@ -58,9 +58,9 @@ type PayoutRowsProps = {
 export function PayoutRows({ breakdown, className = "" }: PayoutRowsProps) {
   return (
     <dl className={`space-y-2 text-sm ${className}`}>
-      <Row label="Customer price" value={breakdown.customerPrice} />
+      <Row label="Booking price" value={breakdown.listPrice} />
       <Row
-        label={`Activora platform fee (${breakdown.platformFeePercent}%)`}
+        label={`Estimated Activora platform fee (around ${breakdown.platformFeePercent}%)`}
         value={breakdown.platformFee}
       />
       <Row
@@ -69,11 +69,14 @@ export function PayoutRows({ breakdown, className = "" }: PayoutRowsProps) {
       />
       <div className="border-t border-zinc-200 pt-2">
         <Row
-          label="Estimated provider payout"
+          label="Estimated provider receives"
           value={breakdown.estimatedProviderPayout}
           emphasis
         />
       </div>
+      <p className="pt-1 text-xs text-zinc-500">
+        Fees are estimates and may vary by card type, plan and payment method.
+      </p>
     </dl>
   );
 }

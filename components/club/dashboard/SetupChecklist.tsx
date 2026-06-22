@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ClubPaymentProviderSelector } from "@/components/club/finance/ClubPaymentProviderSelector";
+import { PaymentFeesExplainedLink } from "@/components/trust/PaymentFeesExplainedLink";
 import { isClubPaymentsConfigured } from "@/lib/payment-providers/availability";
 import {
   isSetupChecklistCollapsed,
@@ -122,12 +123,16 @@ function ChecklistRow({ item }: { item: NewClubChecklistItem }) {
               onChange={() => setPaymentsReady(isClubPaymentsConfigured())}
             />
 
-            <Link
-              href={item.href}
-              className="inline-flex items-center rounded-xl border border-zinc-200 px-4 py-2 text-sm font-semibold text-zinc-700 transition-colors hover:bg-zinc-50"
-            >
-              Open payment settings
-            </Link>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+              <Link
+                href={item.href}
+                className="inline-flex items-center rounded-xl border border-zinc-200 px-4 py-2 text-sm font-semibold text-zinc-700 transition-colors hover:bg-zinc-50"
+              >
+                Open payment settings
+              </Link>
+              <PaymentFeesExplainedLink provider="stripe" />
+              <PaymentFeesExplainedLink provider="gocardless" />
+            </div>
           </div>
         </div>
       </li>

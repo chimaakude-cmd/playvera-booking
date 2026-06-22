@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { VatBreakdownPanel } from "@/components/club/finance/VatBreakdownPanel";
+import { PaymentFeeExample } from "@/components/trust/PaymentFeeExample";
 import { calculateVatBreakdown } from "@/lib/club-finance/vat";
 import { getFeeSettings } from "@/lib/fee-settings";
 import { calculatePaymentBreakdown, formatMoney } from "@/lib/payments";
@@ -161,11 +162,22 @@ export function BookingCheckoutStep({
         <div className="mt-4">
           <VatBreakdownPanel breakdown={vatBreakdown} compact />
         </div>
+        <div className="mt-4">
+          <PaymentFeeExample
+            compact
+            paymentMethod="Stripe"
+            bookingAmount={payment.listPrice}
+            activoraFeePercent={payment.platformFeePercent}
+            estimatedProcessorFeeLabel="Estimated Stripe processing fee"
+            estimatedProcessorFeeAmount={payment.estimatedStripeFee}
+            providerReceivesLabel="Estimated provider receives"
+          />
+        </div>
       </div>
 
       <p className="text-xs text-slate-500">
-        Your booking is only confirmed after successful payment. Payment processor
-        fees may apply separately.
+        Your booking is only confirmed after successful payment. Platform and
+        processor fees shown above are estimates and may vary.
       </p>
 
       {error ? (

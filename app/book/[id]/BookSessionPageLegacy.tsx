@@ -9,6 +9,7 @@ import { SessionNotFoundPage } from "@/components/booking/SessionNotFoundPage";
 import { PoweredByActivoraFooter } from "@/components/PoweredByActivoraFooter";
 import { Logo } from "@/components/branding";
 import { VatBreakdownPanel } from "@/components/club/finance/VatBreakdownPanel";
+import { PaymentFeeExample } from "@/components/trust/PaymentFeeExample";
 import { saveBooking } from "@/lib/bookings";
 import {
   buildBookingAnswersFromForm,
@@ -19,6 +20,7 @@ import { calculateVatBreakdown } from "@/lib/club-finance/vat";
 import { getFeeSettings } from "@/lib/fee-settings";
 import {
   calculatePaymentBreakdown,
+  calculateStripeConnectPayoutBreakdown,
   formatMoney,
   PLATFORM_FEE_PERCENT,
 } from "@/lib/payments";
@@ -274,13 +276,6 @@ export default function BookSessionPageLegacy({
     feeSettings.feeHandling,
   );
   const totalPrice = paymentBreakdown.customerPrice;
-  const gcFeePreview =
-    paymentMethod === "gocardless_direct_debit"
-      ? calculateGoCardlessPayoutBreakdown(
-          totalPrice,
-          session.platformFeePercent ?? PLATFORM_FEE_PERCENT,
-        )
-      : null;
   const isPaidSession = sessionIsPaid(session);
   const showPaymentSection =
     checkoutLoaded &&
@@ -291,6 +286,20 @@ export default function BookSessionPageLegacy({
     checkoutMethods?.parentPicksMethod &&
     checkoutMethods.stripe &&
     checkoutMethods.gocardless;
+  const gcFeePreview =
+    paymentMethod === "gocardless_direct_debit"
+      ? calculateGoCardlessPayoutBreakdown(
+          totalPrice,
+          session.platformFeePercent ?? PLATFORM_FEE_PERCENT,
+        )
+      : null;
+  const stripeFeePreview =
+    paymentMethod !== "gocardless_direct_debit"
+      ? calculateStripeConnectPayoutBreakdown(
+          paymentBreakdown.listPrice,
+          session.platformFeePercent ?? PLATFORM_FEE_PERCENT,
+        )
+      : null;
   const { mainImageId, galleryImageIds } = getSessionImages(session);
 
   return (
@@ -444,34 +453,32 @@ export default function BookSessionPageLegacy({
                   )}
 
                   {gcFeePreview ? (
-                    <div className="mt-4 rounded-lg border border-zinc-100 bg-zinc-50 p-3 text-xs text-zinc-600">
-                      <p className="font-medium text-zinc-900">
-                        Direct Debit fee breakdown
-                      </p>
-                      <dl className="mt-2 space-y-1">
-                        <div className="flex justify-between">
-                          <dt>Customer payment</dt>
-                          <dd>{formatMoney(gcFeePreview.customerPayment)}</dd>
-                        </div>
-                        <div className="flex justify-between">
-                          <dt>GoCardless fee</dt>
-                          <dd>
-                            −{formatMoney(gcFeePreview.gocardlessProcessingFee)}
-                          </dd>
-                        </div>
-                        <div className="flex justify-between">
-                          <dt>
-                            Activora fee ({gcFeePreview.platformFeePercent}%)
-                          </dt>
-                          <dd>
-                            −{formatMoney(gcFeePreview.activoraPlatformFee)}
-                          </dd>
-                        </div>
-                        <div className="flex justify-between font-medium text-zinc-900">
-                          <dt>Provider receives</dt>
-                          <dd>{formatMoney(gcFeePreview.providerPayout)}</dd>
-                        </div>
-                      </dl>
+                    <div className="mt-4">
+                      <PaymentFeeExample
+                        compact
+                        paymentMethod="GoCardless"
+                        bookingAmount={gcFeePreview.customerPayment}
+                        activoraFeePercent={gcFeePreview.platformFeePercent}
+                        estimatedProcessorFeeLabel="Estimated GoCardless processing fee"
+                        estimatedProcessorFeeAmount={
+                          gcFeePreview.gocardlessProcessingFee
+                        }
+                        providerReceivesLabel="Estimated provider receives"
+                      />
+                    </div>
+                  ) : stripeFeePreview ? (
+                    <div className="mt-4">
+                      <PaymentFeeExample
+                        compact
+                        paymentMethod="Stripe"
+                        bookingAmount={stripeFeePreview.customerPayment}
+                        activoraFeePercent={stripeFeePreview.platformFeePercent}
+                        estimatedProcessorFeeLabel="Estimated Stripe processing fee"
+                        estimatedProcessorFeeAmount={
+                          stripeFeePreview.stripeProcessingFee
+                        }
+                        providerReceivesLabel="Estimated provider receives"
+                      />
                     </div>
                   ) : null}
                 </div>

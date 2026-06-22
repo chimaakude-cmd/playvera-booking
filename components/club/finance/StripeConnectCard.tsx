@@ -25,6 +25,7 @@ import {
 } from "@/lib/stripe-connect";
 import { STRIPE_CONNECT_CLUB_MESSAGES, STRIPE_CONNECT_LOG_PREFIX } from "@/lib/stripe/errors";
 import { invalidateStripeConnectStatusCache } from "@/lib/stripe-connect/use-stripe-connect-status";
+import { PaymentFeesExplainedLink } from "@/components/trust/PaymentFeesExplainedLink";
 import { FinanceButton } from "./shared";
 
 const SAMPLE_PAYMENT = 50;
@@ -355,6 +356,9 @@ export function StripeConnectCard() {
       </div>
 
       <p className="mt-3 text-sm text-zinc-600">{STRIPE.description}</p>
+      <p className="mt-2">
+        <PaymentFeesExplainedLink provider="stripe" />
+      </p>
 
       {state?.stripeAccountId ? (
         <dl className="mt-4 grid gap-3 rounded-xl border border-orange-100 bg-white p-4 text-sm sm:grid-cols-2">
@@ -404,7 +408,7 @@ export function StripeConnectCard() {
 
       <div className="mt-4 max-w-lg rounded-xl border border-zinc-100 bg-white p-4 text-sm">
         <p className="font-medium text-zinc-900">
-          Fee breakdown (example £{SAMPLE_PAYMENT} payment)
+          Fee breakdown (example £{SAMPLE_PAYMENT} payment — estimates only)
         </p>
         <dl className="mt-3 space-y-2">
           <BreakdownRow label="Customer payment" value={breakdown.customerPayment} />
