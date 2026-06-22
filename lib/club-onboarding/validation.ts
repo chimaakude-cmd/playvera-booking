@@ -37,6 +37,7 @@ export function createInitialOnboardingState(): ClubOnboardingState {
     },
     completedAt: null,
     updatedAt: new Date().toISOString(),
+    privacyPolicyAccepted: false,
   };
 }
 
@@ -60,6 +61,9 @@ export function validateOnboardingStep(
       errors.push(...validateOwnerAccount(state.owner));
       if (!state.club.businessType) {
         errors.push(stepBlockMessage("business type"));
+      }
+      if (!state.privacyPolicyAccepted) {
+        errors.push("Please accept the Privacy Policy to continue.");
       }
       break;
     }
@@ -124,6 +128,9 @@ export function validateOnboardingForCompletion(
   if (!state.owner.password.trim()) {
     errors.push("Password is required.");
   }
+  if (!state.privacyPolicyAccepted) {
+    errors.push("Please accept the Privacy Policy to continue.");
+  }
   if (!slugifyClubName(state.club.name)) {
     errors.push(
       "Please complete a valid club name before continuing.",
@@ -133,7 +140,7 @@ export function validateOnboardingForCompletion(
 }
 
 const ERROR_STEP_HINTS: Array<{ step: OnboardingStep; pattern: RegExp }> = [
-  { step: 1, pattern: /password|confirm your password|passwords do not match|email|first name|last name|phone|business type|account/i },
+  { step: 1, pattern: /password|confirm your password|passwords do not match|email|first name|last name|phone|business type|account|privacy policy/i },
   { step: 2, pattern: /club name|category|activit|age range|valid club name/i },
   { step: 3, pattern: /profile|logo|cover|tagline/i },
 ];

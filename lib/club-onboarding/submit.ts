@@ -40,6 +40,7 @@ export type ClubOnboardingSubmitInput = {
   /** Ignored on submit — full profile is edited in club dashboard settings. */
   profile?: OnboardingProfile;
   planId?: PlanId;
+  privacyPolicyAccepted?: boolean;
 };
 
 export type ClubOnboardingSubmitStep =
@@ -622,6 +623,7 @@ export async function submitClubOnboardingToSupabase(
     profile: rawInput.profile ?? createInitialOnboardingState().profile,
     completedAt: null,
     updatedAt: new Date().toISOString(),
+    privacyPolicyAccepted: rawInput.privacyPolicyAccepted ?? false,
   });
 
   const validationErrors = validateOnboardingForCompletion(state);
@@ -825,5 +827,6 @@ export function toClubOnboardingSubmitInput(
     club: synced.club,
     profile: synced.profile,
     planId: DEFAULT_PLAN_ID,
+    privacyPolicyAccepted: synced.privacyPolicyAccepted,
   };
 }

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { Logo } from "@/components/branding";
+import { PrivacyAcceptanceCheckbox } from "@/components/privacy/PrivacyAcceptanceCheckbox";
 import { login, writeAuthSession, type AuthUser, type UserRole } from "@/lib/auth";
 import { resolveSafeReturnPath } from "@/lib/booking-flow/redirect";
 
@@ -32,6 +33,7 @@ export function SignupPage({
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [privacyAccepted, setPrivacyAccepted] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   function handleSubmit(event: React.FormEvent) {
@@ -51,6 +53,10 @@ export function SignupPage({
     }
     if (password.length < 8) {
       setError("Password must be at least 8 characters.");
+      return;
+    }
+    if (!privacyAccepted) {
+      setError("Please accept the Privacy Policy to continue.");
       return;
     }
 
@@ -127,6 +133,13 @@ export function SignupPage({
               required
             />
           </label>
+
+          <PrivacyAcceptanceCheckbox
+            id={`${role}-signup-privacy`}
+            checked={privacyAccepted}
+            onChange={setPrivacyAccepted}
+            className="mt-4"
+          />
 
           {error ? (
             <p className="mt-4 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">

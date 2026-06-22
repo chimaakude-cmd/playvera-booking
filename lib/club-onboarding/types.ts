@@ -94,6 +94,7 @@ export type ClubOnboardingState = {
   profile: OnboardingProfile;
   completedAt: string | null;
   updatedAt: string;
+  privacyPolicyAccepted: boolean;
 };
 
 export { DEFAULT_PLAN_ID };

@@ -33,6 +33,7 @@ export async function POST(request: NextRequest) {
     const input: ClubOnboardingSubmitInput = {
       owner: body.owner,
       club: body.club,
+      privacyPolicyAccepted: body.privacyPolicyAccepted,
     };
 
     console.info("[club-onboarding] Received onboarding submit request:", {

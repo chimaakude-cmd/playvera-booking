@@ -349,3 +349,23 @@ body {
     animation: none;
   }
 }
+
+@media print {
+  header,
+  footer,
+  nav,
+  [data-support-launcher] {
+    display: none !important;
+  }
+
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+
+  a[href^="http"]::after,
+  a[href^="mailto:"]::after {
+    content: " (" attr(href) ")";
+    font-size: 0.85em;
+  }
+}

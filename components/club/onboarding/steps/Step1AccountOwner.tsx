@@ -6,6 +6,7 @@ import {
   type ClubOnboardingState,
 } from "@/lib/club-onboarding";
 import { OwnerAccountFields } from "@/components/onboarding/OwnerAccountFields";
+import { PrivacyAcceptanceCheckbox } from "@/components/privacy/PrivacyAcceptanceCheckbox";
 import { OnboardingField, OnboardingStepIntro } from "../shared";
 
 type StepProps = {
@@ -77,6 +78,13 @@ export function Step1AccountOwner({
           )}
         </div>
       </OnboardingField>
+
+      <PrivacyAcceptanceCheckbox
+        id="club-onboarding-privacy"
+        checked={state.privacyPolicyAccepted}
+        onChange={(privacyPolicyAccepted) => onChange({ privacyPolicyAccepted })}
+        className="pt-2"
+      />
     </div>
   );
 }

@@ -105,6 +105,7 @@ function sanitizeLoadedDraft(state: ClubOnboardingState): ClubOnboardingState {
     ...state,
     owner: stripSensitiveOwnerFields(state.owner),
     profile: stripImageDataUrls(state.profile),
+    privacyPolicyAccepted: state.privacyPolicyAccepted ?? false,
   });
 }
 
