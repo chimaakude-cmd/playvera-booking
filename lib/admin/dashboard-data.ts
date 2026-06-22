@@ -98,7 +98,7 @@ async function countRows(
 
 async function countActiveClubs(): Promise<number | null> {
   const supabase = getAdminSupabaseClient();
-  const records = await loadAllProviderRecords(supabase);
+  const { records } = await loadAllProviderRecords(supabase);
   const activeCount = records
     .map(classifyLoadedProvider)
     .filter(
@@ -113,7 +113,7 @@ async function countActiveClubs(): Promise<number | null> {
 
 async function fetchRecentSignups(): Promise<AdminDashboardSignup[] | null> {
   const supabase = getAdminSupabaseClient();
-  const records = await loadAllProviderRecords(supabase);
+  const { records } = await loadAllProviderRecords(supabase);
 
   const activeProviders = records
     .map(classifyLoadedProvider)

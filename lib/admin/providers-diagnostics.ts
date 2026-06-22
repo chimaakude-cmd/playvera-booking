@@ -4,9 +4,12 @@ import type {
   OrphanedClubProfile,
   ProviderAuditCounts,
   ProviderDiagnosticRow,
+  ProviderRecordsLoadDiagnostics,
 } from "@/lib/admin/types";
 import {
   classifyProvider,
+  PROVIDER_HIDDEN_REASON_LABELS,
+  PROVIDER_LIFECYCLE_TAB_LABELS,
   type ProviderHiddenReason,
   type ProviderLifecycleStatus,
 } from "@/lib/admin/provider-status";
@@ -96,8 +99,189 @@ const EXTENDED_PROVIDER_SELECT = `${BASE_PROVIDER_SELECT},
   onboarding_completed,
   deleted_at`;
 
-function isMissingColumnError(message: string, column: string): boolean {
-  return message.toLowerCase().includes(column.toLowerCase());
+const EXTENDED_CLUB_PROFILE_SELECT =
+  "id, provider_id, verified, club_name, public_slug, short_description, website, visibility, published";
+
+const BASE_CLUB_PROFILE_SELECT =
+  "id, provider_id, verified, club_name, public_slug, short_description, website";
+
+const EMPTY_LOAD_DIAGNOSTICS: ProviderRecordsLoadDiagnostics = {
+  extendedSelectError: null,
+  baseSelectError: null,
+  usedBaseFallback: false,
+  usedRelatedTablesRecovery: false,
+  usedAuditMismatchFallback: false,
+  auditProviderCount: null,
+};
+
+export type LoadAllProviderRecordsResult = {
+  records: LoadedProviderRecord[];
+  loadDiagnostics: ProviderRecordsLoadDiagnostics;
+};
+
+function shouldFallbackToBaseProviderSelect(errorMessage: string): boolean {
+  const lower = errorMessage.toLowerCase();
+
+  if (lower.includes("does not exist") || lower.includes("schema cache")) {
+    return true;
+  }
+
+  if (lower.includes("column") && lower.includes("provider")) {
+    return true;
+  }
+
+  return [
+    "vat_registration_number",
+    "lifecycle_status",
+    "onboarding_completed",
+    "deleted_at",
+  ].some((column) => lower.includes(column));
+}
+
+function shouldFallbackToBaseClubProfileSelect(errorMessage: string): boolean {
+  const lower = errorMessage.toLowerCase();
+
+  if (lower.includes("does not exist") || lower.includes("schema cache")) {
+    return true;
+  }
+
+  return lower.includes("visibility") || lower.includes("published");
+}
+
+async function queryProviderRows(
+  supabase: ReturnType<
+    typeof import("@/lib/admin/supabase-client").getAdminSupabaseClient
+  >,
+  select: string,
+  options?: { providerIds?: string[] },
+): Promise<{
+  data: Array<Record<string, unknown>> | null;
+  error: { message: string } | null;
+}> {
+  let query = supabase
+    .from("providers")
+    .select(select)
+    .order("created_at", { ascending: false });
+
+  if (options?.providerIds?.length) {
+    query = query.in("id", options.providerIds);
+  }
+
+  const result = await query;
+
+  return {
+    data: (result.data ?? null) as Array<Record<string, unknown>> | null,
+    error: result.error,
+  };
+}
+
+async function loadProviderBaseRows(
+  supabase: ReturnType<
+    typeof import("@/lib/admin/supabase-client").getAdminSupabaseClient
+  >,
+  options?: { providerIds?: string[] },
+): Promise<{
+  rows: Array<Record<string, unknown>>;
+  loadDiagnostics: ProviderRecordsLoadDiagnostics;
+}> {
+  const extended = await queryProviderRows(
+    supabase,
+    EXTENDED_PROVIDER_SELECT,
+    options,
+  );
+
+  if (!extended.error) {
+    return {
+      rows: extended.data ?? [],
+      loadDiagnostics: { ...EMPTY_LOAD_DIAGNOSTICS },
+    };
+  }
+
+  console.error(
+    "[Admin providers] Extended provider select failed:",
+    extended.error.message,
+  );
+
+  if (!shouldFallbackToBaseProviderSelect(extended.error.message)) {
+    console.warn(
+      "[Admin providers] Retrying provider list with base select after unexpected error.",
+    );
+  }
+
+  const base = await queryProviderRows(supabase, BASE_PROVIDER_SELECT, options);
+
+  if (base.error) {
+    console.error(
+      "[Admin providers] Base provider select failed:",
+      base.error.message,
+    );
+
+    return {
+      rows: [],
+      loadDiagnostics: {
+        ...EMPTY_LOAD_DIAGNOSTICS,
+        extendedSelectError: extended.error.message,
+        baseSelectError: base.error.message,
+        usedBaseFallback: true,
+      },
+    };
+  }
+
+  return {
+    rows: base.data ?? [],
+    loadDiagnostics: {
+      ...EMPTY_LOAD_DIAGNOSTICS,
+      extendedSelectError: extended.error.message,
+      usedBaseFallback: true,
+    },
+  };
+}
+
+async function loadProvidersAuditMismatchFallback(
+  supabase: ReturnType<
+    typeof import("@/lib/admin/supabase-client").getAdminSupabaseClient
+  >,
+): Promise<{
+  rows: Array<Record<string, unknown>>;
+  auditProviderCount: number | null;
+}> {
+  const { count, error: countError } = await supabase
+    .from("providers")
+    .select("id", { count: "exact", head: true });
+
+  if (countError) {
+    console.error(
+      "[Admin providers] Failed to count providers for audit fallback:",
+      countError.message,
+    );
+    return { rows: [], auditProviderCount: null };
+  }
+
+  const auditProviderCount = count ?? 0;
+  if (auditProviderCount === 0) {
+    return { rows: [], auditProviderCount: 0 };
+  }
+
+  const base = await queryProviderRows(supabase, BASE_PROVIDER_SELECT);
+
+  if (base.error) {
+    console.error(
+      "[Admin providers] Audit mismatch fallback failed:",
+      base.error.message,
+    );
+    return { rows: [], auditProviderCount };
+  }
+
+  if ((base.data ?? []).length > 0) {
+    console.warn(
+      `[Admin providers] Audit mismatch fallback recovered ${base.data?.length ?? 0} of ${auditProviderCount} provider row(s).`,
+    );
+  }
+
+  return {
+    rows: base.data ?? [],
+    auditProviderCount,
+  };
 }
 
 function mapBaseRow(row: Record<string, unknown>): Omit<
@@ -138,59 +322,90 @@ export async function loadAllProviderRecords(
   supabase: ReturnType<
     typeof import("@/lib/admin/supabase-client").getAdminSupabaseClient
   >,
-): Promise<LoadedProviderRecord[]> {
-  let baseRows: Array<Record<string, unknown>> | null = null;
-  let baseError: { message: string } | null = null;
+): Promise<LoadAllProviderRecordsResult> {
+  let { rows: baseRows, loadDiagnostics } = await loadProviderBaseRows(supabase);
 
-  const primary = await supabase
-    .from("providers")
-    .select(EXTENDED_PROVIDER_SELECT)
-    .order("created_at", { ascending: false });
-
-  baseRows = (primary.data ?? null) as Array<Record<string, unknown>> | null;
-  baseError = primary.error;
-
-  if (
-    baseError &&
-    (isMissingColumnError(baseError.message, "lifecycle_status") ||
-      isMissingColumnError(baseError.message, "onboarding_completed") ||
-      isMissingColumnError(baseError.message, "vat_registration_number"))
-  ) {
-    const fallback = await supabase
-      .from("providers")
-      .select(BASE_PROVIDER_SELECT)
-      .order("created_at", { ascending: false });
-    baseRows = (fallback.data ?? null) as Array<Record<string, unknown>> | null;
-    baseError = fallback.error;
-  }
-
-  if (baseError) {
-    console.error(
-      "[Admin providers] Failed to load provider rows:",
-      baseError.message,
-    );
-    return [];
-  }
-
-  if ((baseRows ?? []).length === 0) {
+  if (baseRows.length === 0) {
     const recovered = await loadProvidersFromRelatedTables(supabase);
-    if (recovered.length > 0) {
-      baseRows = recovered as Array<Record<string, unknown>>;
+    if (recovered.rows.length > 0) {
+      baseRows = recovered.rows;
+      loadDiagnostics = {
+        ...loadDiagnostics,
+        ...recovered.loadDiagnostics,
+        usedRelatedTablesRecovery: true,
+      };
     }
   }
 
-  const providerIds = (baseRows ?? []).map((row) => String(row.id));
-  if (providerIds.length === 0) {
-    return [];
+  if (baseRows.length === 0) {
+    const auditFallback = await loadProvidersAuditMismatchFallback(supabase);
+    loadDiagnostics = {
+      ...loadDiagnostics,
+      auditProviderCount: auditFallback.auditProviderCount,
+    };
+
+    if (auditFallback.rows.length > 0) {
+      baseRows = auditFallback.rows;
+      loadDiagnostics = {
+        ...loadDiagnostics,
+        usedAuditMismatchFallback: true,
+      };
+    } else if (
+      auditFallback.auditProviderCount &&
+      auditFallback.auditProviderCount > 0
+    ) {
+      console.error(
+        `[Admin providers] Audit count shows ${auditFallback.auditProviderCount} provider(s) but all list queries returned 0 rows.`,
+      );
+    }
   }
 
-  const [profilesResult, subscriptionsResult, teamResult] = await Promise.all([
-    supabase
+  const providerIds = baseRows.map((row) => String(row.id));
+  if (providerIds.length === 0) {
+    return { records: [], loadDiagnostics };
+  }
+
+  type ClubProfileQueryRow = {
+    id: string;
+    provider_id: string;
+    verified: boolean;
+    club_name: string;
+    public_slug: string | null;
+    short_description: string;
+    website: string;
+    visibility?: string | null;
+    published?: boolean | null;
+  };
+
+  const extendedProfilesResult = await supabase
+    .from("club_profiles")
+    .select(EXTENDED_CLUB_PROFILE_SELECT)
+    .in("provider_id", providerIds);
+
+  let profileRows = (extendedProfilesResult.data ?? null) as
+    | ClubProfileQueryRow[]
+    | null;
+  let profileQueryError = extendedProfilesResult.error;
+
+  if (
+    profileQueryError &&
+    shouldFallbackToBaseClubProfileSelect(profileQueryError.message)
+  ) {
+    console.error(
+      "[Admin providers] Extended club profile select failed:",
+      profileQueryError.message,
+    );
+    const fallbackProfilesResult = await supabase
       .from("club_profiles")
-      .select(
-        "id, provider_id, verified, club_name, public_slug, short_description, website, visibility, published",
-      )
-      .in("provider_id", providerIds),
+      .select(BASE_CLUB_PROFILE_SELECT)
+      .in("provider_id", providerIds);
+    profileRows = (fallbackProfilesResult.data ?? null) as
+      | ClubProfileQueryRow[]
+      | null;
+    profileQueryError = fallbackProfilesResult.error;
+  }
+
+  const [subscriptionsResult, teamResult] = await Promise.all([
     supabase
       .from("provider_subscriptions")
       .select("provider_id, plan")
@@ -205,11 +420,11 @@ export async function loadAllProviderRecords(
   const subscriptionErrors: string[] = [];
   const teamErrors: string[] = [];
 
-  if (profilesResult.error) {
-    profileErrors.push(profilesResult.error.message);
+  if (profileQueryError) {
+    profileErrors.push(profileQueryError.message);
     console.error(
       "[Admin providers] Failed to load club profiles:",
-      profilesResult.error.message,
+      profileQueryError.message,
     );
   }
 
@@ -233,7 +448,7 @@ export async function loadAllProviderRecords(
     string,
     LoadedProviderRecord["club_profiles"]
   >();
-  for (const row of profilesResult.data ?? []) {
+  for (const row of profileRows ?? []) {
     const providerId = String(row.provider_id);
     const current = profilesByProvider.get(providerId) ?? [];
     current.push({
@@ -243,8 +458,8 @@ export async function loadAllProviderRecords(
       public_slug: (row.public_slug as string | null) ?? null,
       short_description: String(row.short_description ?? ""),
       website: String(row.website ?? ""),
-      visibility: (row.visibility as string | null) ?? null,
-      published: (row.published as boolean | null) ?? null,
+      visibility: row.visibility ?? null,
+      published: row.published ?? null,
     });
     profilesByProvider.set(providerId, current);
   }
@@ -277,7 +492,7 @@ export async function loadAllProviderRecords(
     teamByProvider.set(providerId, current);
   }
 
-  return (baseRows ?? []).map((row) => {
+  const records = baseRows.map((row) => {
     const base = mapBaseRow(row);
     const providerId = base.id;
     const relationErrors = [
@@ -294,13 +509,21 @@ export async function loadAllProviderRecords(
       loadError: relationErrors.length > 0 ? relationErrors.join("; ") : null,
     };
   });
+
+  return { records, loadDiagnostics };
 }
 
 async function loadProvidersFromRelatedTables(
   supabase: ReturnType<
     typeof import("@/lib/admin/supabase-client").getAdminSupabaseClient
   >,
-): Promise<Array<Record<string, unknown>>> {
+): Promise<{
+  rows: Array<Record<string, unknown>>;
+  loadDiagnostics: Pick<
+    ProviderRecordsLoadDiagnostics,
+    "extendedSelectError" | "baseSelectError" | "usedBaseFallback"
+  >;
+}> {
   const [profilesResult, sessionsResult] = await Promise.all([
     supabase.from("club_profiles").select("provider_id"),
     supabase.from("sessions").select("provider_id"),
@@ -315,26 +538,26 @@ async function loadProvidersFromRelatedTables(
   ];
 
   if (providerIds.length === 0) {
-    return [];
+    return {
+      rows: [],
+      loadDiagnostics: {
+        extendedSelectError: null,
+        baseSelectError: null,
+        usedBaseFallback: false,
+      },
+    };
   }
 
-  const primary = await supabase
-    .from("providers")
-    .select(EXTENDED_PROVIDER_SELECT)
-    .in("id", providerIds)
-    .order("created_at", { ascending: false });
+  const loaded = await loadProviderBaseRows(supabase, { providerIds });
 
-  if (primary.error) {
-    const fallback = await supabase
-      .from("providers")
-      .select(BASE_PROVIDER_SELECT)
-      .in("id", providerIds)
-      .order("created_at", { ascending: false });
-
-    return (fallback.data ?? []) as Array<Record<string, unknown>>;
-  }
-
-  return (primary.data ?? []) as Array<Record<string, unknown>>;
+  return {
+    rows: loaded.rows,
+    loadDiagnostics: {
+      extendedSelectError: loaded.loadDiagnostics.extendedSelectError,
+      baseSelectError: loaded.loadDiagnostics.baseSelectError,
+      usedBaseFallback: loaded.loadDiagnostics.usedBaseFallback,
+    },
+  };
 }
 
 export async function fetchProviderAuditCounts(): Promise<ProviderAuditCounts | null> {
@@ -436,6 +659,16 @@ export function buildProviderDiagnosticRows(
 ): ProviderDiagnosticRow[] {
   return classified.map((record) => {
     const profile = record.club_profiles[0] ?? null;
+    const hiddenReasonLabels = record.hiddenReasons.map(
+      (reason) => PROVIDER_HIDDEN_REASON_LABELS[reason],
+    );
+    const exclusionReason = record.loadError
+      ? `Query error: ${record.loadError}`
+      : record.lifecycleTab === "active"
+        ? "Active — shown in Active tab"
+        : `${PROVIDER_LIFECYCLE_TAB_LABELS[record.lifecycleTab]}: ${
+            hiddenReasonLabels.join(", ") || record.lifecycleStatus
+          }`;
 
     return {
       providerId: record.id,
@@ -448,6 +681,10 @@ export function buildProviderDiagnosticRows(
       onboardingComplete: record.onboardingComplete,
       publicProfileExists: Boolean(profile),
       lifecycleStatus: record.lifecycleStatus,
+      lifecycleTab: record.lifecycleTab,
+      hiddenReasons: record.hiddenReasons,
+      loadError: record.loadError,
+      exclusionReason,
     };
   });
 }
@@ -532,6 +769,7 @@ async function fetchAnonVisibleProviderCount(): Promise<number | null> {
 export async function buildAdminProvidersDiagnostics(
   classified: ClassifiedProviderRecord[],
   linkCounts?: Map<string, { activitiesCount: number; bookingsCount: number }>,
+  loadDiagnostics?: ProviderRecordsLoadDiagnostics | null,
 ): Promise<AdminProvidersDiagnostics | null> {
   if (adminListDataSource() === "env_missing") {
     return null;
@@ -566,7 +804,15 @@ export async function buildAdminProvidersDiagnostics(
 
   let hiddenReason: string | null = null;
 
-  if (hiddenProviders.length > 0) {
+  if (loadDiagnostics?.extendedSelectError && totalProviderRows === 0) {
+    hiddenReason = `Provider list query failed on extended columns (${loadDiagnostics.extendedSelectError}). Base fallback ${
+      loadDiagnostics.baseSelectError
+        ? `also failed (${loadDiagnostics.baseSelectError}).`
+        : loadDiagnostics.usedBaseFallback
+          ? "was attempted."
+          : "was not attempted."
+    }`;
+  } else if (hiddenProviders.length > 0) {
     hiddenReason = `${hiddenProviders.length} provider row(s) hidden from the default admin view. See details below.`;
   } else if (
     queryClient === "service_role" &&
@@ -582,7 +828,13 @@ export async function buildAdminProvidersDiagnostics(
     auditCounts.clubProfiles > 0 &&
     totalProviderRows === 0
   ) {
-    hiddenReason = `${auditCounts.clubProfiles} club profile(s) exist but no provider rows are visible to admin — run repair or check service role / lifecycle status.`;
+    hiddenReason = `${auditCounts.clubProfiles} club profile(s) exist but no provider rows are visible to admin — check service role / lifecycle columns / PostgREST schema cache.`;
+  } else if (
+    loadDiagnostics?.auditProviderCount &&
+    loadDiagnostics.auditProviderCount > 0 &&
+    totalProviderRows === 0
+  ) {
+    hiddenReason = `DB count shows ${loadDiagnostics.auditProviderCount} provider(s) but admin listing loaded 0 rows after all fallbacks.`;
   }
 
   return {
@@ -591,6 +843,7 @@ export async function buildAdminProvidersDiagnostics(
     hiddenCount: hiddenProviders.length,
     hiddenReason,
     queryClient,
+    loadDiagnostics: loadDiagnostics ?? null,
     hiddenProviders,
     orphanedClubAuthUsers,
     auditCounts,

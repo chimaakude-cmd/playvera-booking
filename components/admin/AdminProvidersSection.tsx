@@ -540,6 +540,35 @@ function ProvidersDiagnosticsPanel({
         </div>
       </dl>
 
+      {diagnostics.loadDiagnostics ? (
+        <dl className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+          <div>
+            <dt className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+              List query fallback
+            </dt>
+            <dd className="mt-0.5 text-base font-medium text-zinc-900">
+              {diagnostics.loadDiagnostics.usedBaseFallback
+                ? "Base select"
+                : diagnostics.loadDiagnostics.usedAuditMismatchFallback
+                  ? "Audit mismatch"
+                  : diagnostics.loadDiagnostics.usedRelatedTablesRecovery
+                    ? "Related tables"
+                    : "None"}
+            </dd>
+          </div>
+          {diagnostics.loadDiagnostics.extendedSelectError ? (
+            <div className="sm:col-span-3">
+              <dt className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                Extended select error
+              </dt>
+              <dd className="mt-0.5 text-xs font-medium text-rose-700">
+                {diagnostics.loadDiagnostics.extendedSelectError}
+              </dd>
+            </div>
+          ) : null}
+        </dl>
+      ) : null}
+
       {diagnostics.auditCounts ? (
         <dl className="mt-4 grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
           <div>
@@ -602,10 +631,12 @@ function ProvidersDiagnosticsPanel({
                   "Provider",
                   "Owner",
                   "Slug",
+                  "Tab",
                   "Deleted",
                   "Hidden",
                   "Onboarding",
                   "Public profile",
+                  "Exclusion reason",
                 ].map((heading) => (
                   <th
                     key={heading}
@@ -626,6 +657,9 @@ function ProvidersDiagnosticsPanel({
                     {row.ownerUserId ? `${row.ownerUserId.slice(0, 8)}…` : "—"}
                   </td>
                   <td className="px-3 py-2 text-zinc-700">{row.slug || "—"}</td>
+                  <td className="px-3 py-2 text-zinc-700">
+                    {PROVIDER_LIFECYCLE_TAB_LABELS[row.lifecycleTab]}
+                  </td>
                   <td className="px-3 py-2">{row.isDeleted ? "Yes" : "No"}</td>
                   <td className="px-3 py-2">{row.isHidden ? "Yes" : "No"}</td>
                   <td className="px-3 py-2">
@@ -633,6 +667,9 @@ function ProvidersDiagnosticsPanel({
                   </td>
                   <td className="px-3 py-2">
                     {row.publicProfileExists ? "Yes" : "No"}
+                  </td>
+                  <td className="px-3 py-2 text-zinc-700">
+                    {row.exclusionReason}
                   </td>
                 </tr>
               ))}

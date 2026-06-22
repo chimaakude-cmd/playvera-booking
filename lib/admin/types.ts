@@ -233,6 +233,7 @@ export type AdminProvidersDiagnostics = {
   hiddenCount: number;
   hiddenReason: string | null;
   queryClient: "service_role" | "anon";
+  loadDiagnostics: ProviderRecordsLoadDiagnostics | null;
   hiddenProviders: AdminHiddenProvider[];
   orphanedClubAuthUsers: Array<{
     authUserId: string;
@@ -253,6 +254,15 @@ export type ProviderAuditCounts = {
   orphanedClubProfiles: number;
 };
 
+export type ProviderRecordsLoadDiagnostics = {
+  extendedSelectError: string | null;
+  baseSelectError: string | null;
+  usedBaseFallback: boolean;
+  usedRelatedTablesRecovery: boolean;
+  usedAuditMismatchFallback: boolean;
+  auditProviderCount: number | null;
+};
+
 export type ProviderDiagnosticRow = {
   providerId: string;
   clubProfileId: string | null;
@@ -263,6 +273,10 @@ export type ProviderDiagnosticRow = {
   onboardingComplete: boolean;
   publicProfileExists: boolean;
   lifecycleStatus: ProviderLifecycleStatus;
+  lifecycleTab: ProviderLifecycleTab;
+  hiddenReasons: ProviderHiddenReason[];
+  loadError: string | null;
+  exclusionReason: string;
 };
 
 export type OrphanedClubProfile = {

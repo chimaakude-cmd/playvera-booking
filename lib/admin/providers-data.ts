@@ -481,7 +481,7 @@ function emptyLinkCounts() {
 }
 
 function buildProvidersByTab(input: {
-  classified: Awaited<ReturnType<typeof loadClassifiedProviderRecords>>;
+  classified: Awaited<ReturnType<typeof loadClassifiedProviderRecords>>["classified"];
   revenueMap: Map<string, RevenueStats> | null;
   rollingRevenueMap: Map<string, number>;
   childClubCounts: Map<string, number> | null;
@@ -531,8 +531,29 @@ function buildProvidersByTab(input: {
 
 async function loadClassifiedProviderRecords() {
   const supabase = getAdminSupabaseClient();
-  const records = await loadAllProviderRecords(supabase);
-  return records.map(classifyLoadedProvider);
+  const { records, loadDiagnostics } = await loadAllProviderRecords(supabase);
+  const classified = records.map(classifyLoadedProvider);
+
+  if (loadDiagnostics.extendedSelectError) {
+    console.warn("[Admin providers] Loaded with base select fallback:", {
+      extendedSelectError: loadDiagnostics.extendedSelectError,
+      usedBaseFallback: loadDiagnostics.usedBaseFallback,
+      usedRelatedTablesRecovery: loadDiagnostics.usedRelatedTablesRecovery,
+      usedAuditMismatchFallback: loadDiagnostics.usedAuditMismatchFallback,
+      auditProviderCount: loadDiagnostics.auditProviderCount,
+      loadedRows: classified.length,
+    });
+  }
+
+  for (const record of classified) {
+    if (record.lifecycleTab !== "active" || record.loadError) {
+      console.info(
+        `[Admin providers] ${record.id} → tab=${record.lifecycleTab}, visible=${record.isVisible}, reasons=${record.hiddenReasons.join(",") || "none"}${record.loadError ? `, loadError=${record.loadError}` : ""}`,
+      );
+    }
+  }
+
+  return { classified, loadDiagnostics };
 }
 
 export async function fetchAdminProvidersList(): Promise<AdminProvidersListResult> {
@@ -545,7 +566,7 @@ export async function fetchAdminProvidersList(): Promise<AdminProvidersListResul
     };
   }
 
-  const [classified, revenueMap, rollingRevenueMap, childClubCounts, linkCounts] =
+  const [loaded, revenueMap, rollingRevenueMap, childClubCounts, linkCounts] =
     await Promise.all([
       loadClassifiedProviderRecords(),
       fetchRevenueByProvider(),
@@ -553,6 +574,8 @@ export async function fetchAdminProvidersList(): Promise<AdminProvidersListResul
       fetchChildClubCounts(),
       fetchProviderLinkCounts(),
     ]);
+
+  const { classified, loadDiagnostics } = loaded;
 
   const byTab = buildProvidersByTab({
     classified,
@@ -562,7 +585,11 @@ export async function fetchAdminProvidersList(): Promise<AdminProvidersListResul
     linkCounts,
   });
 
-  const diagnostics = await buildAdminProvidersDiagnostics(classified, linkCounts);
+  const diagnostics = await buildAdminProvidersDiagnostics(
+    classified,
+    linkCounts,
+    loadDiagnostics,
+  );
 
   return {
     providers: byTab.active,
@@ -580,7 +607,7 @@ export async function fetchAdminProviderById(
   }
 
   const supabase = getAdminSupabaseClient();
-  const records = await loadAllProviderRecords(supabase);
+  const { records } = await loadAllProviderRecords(supabase);
   const record = records.find((row) => row.id === providerId);
 
   if (!record) {
