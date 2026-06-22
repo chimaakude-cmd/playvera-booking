@@ -199,7 +199,7 @@ export function PlatformPaymentStatusCard() {
           <div className="flex flex-wrap gap-3">
             {!data.gocardlessConnected ? (
               <Link
-                href="/club/finance?tab=providers"
+                href="/api/gocardless/connect/start"
                 className="inline-flex items-center rounded-xl bg-teal-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-teal-800"
               >
                 Connect GoCardless

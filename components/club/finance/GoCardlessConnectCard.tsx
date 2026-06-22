@@ -35,6 +35,10 @@ function resolveOAuthErrorMessage(reason: string | null): string {
   switch (reason) {
     case "not_configured":
       return "GoCardless club connect is not available yet. Activora is still finishing platform setup.";
+    case "missing_provider":
+      return "Could not identify your club account. Sign in and try Connect GoCardless again.";
+    case "start_failed":
+      return "GoCardless connection could not be started. Please try again.";
     case "invalid_state":
       return "GoCardless connection expired. Please try Connect GoCardless again.";
     case "missing_code":
@@ -191,6 +195,7 @@ export function GoCardlessConnectCard({
 
   useEffect(() => {
     const connected = searchParams.get("gocardless");
+    const connectedAlias = searchParams.get("connected");
     const mock = searchParams.get("mock") === "1";
     const oauthError = searchParams.get("gocardless") === "error";
 
@@ -202,7 +207,7 @@ export function GoCardlessConnectCard({
       return;
     }
 
-    if (connected === "connected") {
+    if (connected === "connected" || connectedAlias === "gocardless") {
       if (mock && isDev) {
         const next = completeMockGoCardlessOnboarding();
         if (next) {
@@ -225,7 +230,7 @@ export function GoCardlessConnectCard({
   const platformManaged = paymentModel === "platform_managed";
   const clubProfile = safeClubProfileSummary();
 
-  async function handleConnect() {
+  function handleConnect() {
     if (!platformConfigured) {
       setError(NOT_CONFIGURED_MESSAGE);
       return;
@@ -236,8 +241,8 @@ export function GoCardlessConnectCard({
     setMessage(null);
 
     try {
-      const { url } = await startGoCardlessOnboarding();
-      window.location.assign(url);
+      const { url } = startGoCardlessOnboarding();
+      window.location.href = url;
     } catch (connectError) {
       setError(
         connectError instanceof Error
@@ -374,7 +379,7 @@ export function GoCardlessConnectCard({
           !platformUnavailable &&
           (status === "not_connected" || status === "disconnected") ? (
             <FinanceButton
-              onClick={() => void handleConnect()}
+              onClick={handleConnect}
               disabled={actionLoading || !platformConfigured}
             >
               {actionLoading ? "Connecting…" : "Connect GoCardless"}

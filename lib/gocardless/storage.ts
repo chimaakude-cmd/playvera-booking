@@ -1,4 +1,5 @@
 import { isDevelopmentEnvironment } from "@/lib/admin-users/production-gates";
+import { buildGoCardlessConnectStartPath } from "@/lib/gocardless/connect-start-path";
 import { getClubProfile } from "@/lib/club-profile";
 import { getDefaultProviderIdFromEnv } from "@/lib/data/providers/supabase/default-provider";
 import { DEMO_PROVIDER_ID } from "@/lib/stripe-connect/types";
@@ -256,27 +257,12 @@ export async function fetchGoCardlessConnection(
   return getGoCardlessConnection(id);
 }
 
-export async function startGoCardlessOnboarding(
+export function startGoCardlessOnboarding(
   providerId?: string,
-): Promise<{ url: string }> {
+): { url: string } {
   const id = providerId ?? resolveGoCardlessProviderId();
-
-  const response = await fetch("/api/gocardless/connect/onboard", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ providerId: id }),
-  });
-
-  if (!response.ok) {
-    const payload = (await response.json().catch(() => ({}))) as {
-      error?: string;
-    };
-    throw new Error(payload.error ?? "Could not start GoCardless connect.");
-  }
-
-  const data = (await response.json()) as { url: string };
   updateGoCardlessStatus("pending_setup", id);
-  return { url: data.url };
+  return { url: buildGoCardlessConnectStartPath(id) };
 }
 
 export async function testGoCardlessConnection(

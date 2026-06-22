@@ -110,8 +110,7 @@ export async function resolveGoCardlessPlatformConfig(
     isPlatformConfigured:
       isOAuthConfigured && billingReady && isConnectionVerified,
     isBillingConfigured: billingReady,
-    isClubConnectAvailable:
-      platformEnabled && isOAuthConfigured && isConnectionVerified,
+    isClubConnectAvailable: platformEnabled && isOAuthConfigured,
     clubConnectBlockers,
   };
 }

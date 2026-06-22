@@ -1,31 +1,16 @@
 import { NextResponse } from "next/server";
-import { getAppBaseUrl } from "@/lib/app-url";
 import {
   exchangeGoCardlessAuthCode,
   fetchGoCardlessMerchantId,
   verifyOAuthState,
 } from "@/lib/gocardless/oauth";
+import { buildGoCardlessFinanceRedirectUrl } from "@/lib/gocardless/connect-start";
 import { persistProviderGoCardlessConnect } from "@/lib/gocardless/provider-persistence";
 import {
   appendGoCardlessPlatformLog,
   getResolvedGoCardlessEnv,
   resolveGoCardlessPlatformConfig,
 } from "@/lib/gocardless/platform-config";
-
-function financeRedirectUrl(
-  request: Request,
-  params: Record<string, string>,
-): string {
-  const baseUrl = getAppBaseUrl(request);
-  const url = new URL(`${baseUrl}/club/finance`);
-  url.searchParams.set("tab", "payment-providers");
-
-  for (const [key, value] of Object.entries(params)) {
-    url.searchParams.set(key, value);
-  }
-
-  return url.toString();
-}
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -35,7 +20,7 @@ export async function GET(request: Request) {
 
   if (oauthError) {
     return NextResponse.redirect(
-      financeRedirectUrl(request, {
+      buildGoCardlessFinanceRedirectUrl(request, {
         gocardless: "error",
         reason: oauthError,
       }),
@@ -44,7 +29,7 @@ export async function GET(request: Request) {
 
   if (!code || !stateParam) {
     return NextResponse.redirect(
-      financeRedirectUrl(request, {
+      buildGoCardlessFinanceRedirectUrl(request, {
         gocardless: "error",
         reason: "missing_code",
       }),
@@ -55,7 +40,7 @@ export async function GET(request: Request) {
   const state = verifyOAuthState(stateParam, config);
   if (!state) {
     return NextResponse.redirect(
-      financeRedirectUrl(request, {
+      buildGoCardlessFinanceRedirectUrl(request, {
         gocardless: "error",
         reason: "invalid_state",
       }),
@@ -65,7 +50,7 @@ export async function GET(request: Request) {
   const resolved = await resolveGoCardlessPlatformConfig(request);
   if (!resolved.isClubConnectAvailable) {
     return NextResponse.redirect(
-      financeRedirectUrl(request, {
+      buildGoCardlessFinanceRedirectUrl(request, {
         gocardless: "error",
         reason: "not_configured",
       }),
@@ -100,7 +85,10 @@ export async function GET(request: Request) {
     });
 
     return NextResponse.redirect(
-      financeRedirectUrl(request, { gocardless: "connected" }),
+      buildGoCardlessFinanceRedirectUrl(request, {
+        connected: "gocardless",
+        gocardless: "connected",
+      }),
     );
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -117,7 +105,7 @@ export async function GET(request: Request) {
     });
 
     return NextResponse.redirect(
-      financeRedirectUrl(request, {
+      buildGoCardlessFinanceRedirectUrl(request, {
         gocardless: "error",
         reason: "callback_failed",
       }),
