@@ -7,6 +7,7 @@ export type ClubPaymentStatusTone = "green" | "yellow" | "orange" | "red";
 export type ClubPaymentStatusId =
   | "connected"
   | "awaiting_first_payment"
+  | "setup_required"
   | "payout_pending"
   | "payments_paused";
 
@@ -26,11 +27,14 @@ export type ResolveClubPaymentStatusInput = {
   hasConfirmedPayment: boolean;
   hasPendingPayout: boolean;
   platformEnabled: boolean;
+  /** True when GoCardless OAuth or Stripe Connect is connected. */
+  hasPaymentProviderConnected: boolean;
 };
 
 export const CLUB_PAYMENT_STATUS_LABELS: Record<ClubPaymentStatusId, string> = {
   connected: "Connected",
-  awaiting_first_payment: "Awaiting first payment",
+  awaiting_first_payment: "Connected — awaiting bookings",
+  setup_required: "Not connected",
   payout_pending: "Payout pending",
   payments_paused: "Payments paused",
 };
@@ -73,6 +77,16 @@ export function resolveClubPaymentStatus(
     };
   }
 
+  if (!input.hasPaymentProviderConnected) {
+    return {
+      status: "setup_required",
+      tone: "yellow",
+      label: CLUB_PAYMENT_STATUS_LABELS.setup_required,
+      reason:
+        "Connect your GoCardless account to receive payouts directly. Stripe card payments are optional.",
+    };
+  }
+
   if (input.hasPendingPayout) {
     return {
       status: "payout_pending",
@@ -89,7 +103,7 @@ export function resolveClubPaymentStatus(
       tone: "yellow",
       label: CLUB_PAYMENT_STATUS_LABELS.awaiting_first_payment,
       reason:
-        "Your club is ready to accept payments. Status will update after the first successful booking payment.",
+        "Connected to GoCardless. Payouts are sent directly to your bank account. Status will update after your first paid booking.",
     };
   }
 
@@ -97,7 +111,8 @@ export function resolveClubPaymentStatus(
     status: "connected",
     tone: "green",
     label: CLUB_PAYMENT_STATUS_LABELS.connected,
-    reason: "Payments are active and payouts follow your schedule.",
+    reason:
+      "Connected to GoCardless. Payouts are sent directly to your bank account.",
   };
 }
 
@@ -162,6 +177,8 @@ export type ClubPaymentStatusApiResponse = {
   providerRecordMissing?: boolean;
   stripeOptional?: boolean;
   gocardlessAvailable?: boolean;
+  gocardlessConnected?: boolean;
+  stripeConnected?: boolean;
 };
 
 export function buildMissingProviderPaymentStatusResponse(
@@ -177,12 +194,14 @@ export function buildMissingProviderPaymentStatusResponse(
     providerRecordMissing: true,
     stripeOptional: true,
     gocardlessAvailable: false,
+    gocardlessConnected: false,
+    stripeConnected: false,
     status: {
-      status: "awaiting_first_payment",
+      status: "setup_required",
       tone: "yellow",
-      label: CLUB_PAYMENT_STATUS_LABELS.awaiting_first_payment,
+      label: CLUB_PAYMENT_STATUS_LABELS.setup_required,
       reason:
-        "Connect GoCardless in Finance to accept Direct Debit. Stripe card payments are optional.",
+        "Connect your GoCardless account to receive payouts directly. Stripe card payments are optional.",
     },
     payoutSchedule,
     payoutScheduleLabel: PAYOUT_SCHEDULE_LABELS[payoutSchedule],

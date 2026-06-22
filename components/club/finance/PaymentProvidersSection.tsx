@@ -99,8 +99,6 @@ export function PaymentProvidersSection() {
   const [paymentModel, setPaymentModel] = useState<
     "platform_managed" | "club_oauth"
   >("club_oauth");
-  const [gocardlessPlatformAvailable, setGocardlessPlatformAvailable] =
-    useState(false);
 
   const refresh = useCallback(() => {
     try {
@@ -124,27 +122,11 @@ export function PaymentProvidersSection() {
 
         const payload = (await response.json()) as ClubPaymentStatusApiResponse;
         const model =
-          payload.paymentModel === "club_oauth"
-            ? "club_oauth"
-            : "platform_managed";
+          payload.paymentModel === "platform_managed"
+            ? "platform_managed"
+            : "club_oauth";
         setPaymentModel(model);
         setClubPaymentModel(model);
-        setGocardlessPlatformAvailable(payload.gocardlessAvailable !== false);
-
-        if (
-          model === "platform_managed" &&
-          payload.gocardlessAvailable !== false
-        ) {
-          try {
-            const current = getPaymentProviderSettings();
-            if (!current.enabled_methods?.gocardless_direct_debit) {
-              const next = updateEnabledMethod("gocardless_direct_debit", true);
-              setSettings(next);
-            }
-          } catch {
-            // Keep current settings — never crash the tab.
-          }
-        }
       } catch {
         // Keep defaults — page must remain usable without a provider row.
       }
@@ -161,13 +143,10 @@ export function PaymentProvidersSection() {
     anyProviderReady,
     paymentsConfigured,
   } = safeReadProviderSnapshot(settings);
-  const gocardlessConnected =
-    paymentModel === "platform_managed"
-      ? gocardlessPlatformAvailable && enabledMethods.gocardless_direct_debit
-      : isGoCardlessConnected(
-          settings.gocardless_status ?? gocardless.status,
-          gocardless.merchant_id,
-        );
+  const gocardlessConnected = isGoCardlessConnected(
+    settings.gocardless_status ?? gocardless.status,
+    gocardless.merchant_id,
+  );
 
   function toggleMethod(methodId: PaymentMethodId, enabled: boolean) {
     if (methodId === "manual_invoice") {
@@ -244,9 +223,7 @@ export function PaymentProvidersSection() {
                 (isStripeMethod
                   ? stripeConnected
                   : isGoCardlessMethod
-                    ? paymentModel === "platform_managed"
-                      ? gocardlessPlatformAvailable
-                      : gocardlessConnected
+                    ? gocardlessConnected
                     : true);
 
               return (
@@ -262,13 +239,6 @@ export function PaymentProvidersSection() {
                           Coming soon
                         </span>
                       ) : null}
-                      {isGoCardlessMethod &&
-                      paymentModel === "platform_managed" &&
-                      gocardlessPlatformAvailable ? (
-                        <span className="ml-2 rounded-full bg-orange-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#C2410C]">
-                          Activora Managed
-                        </span>
-                      ) : null}
                     </p>
                     <p className="mt-0.5 text-xs text-zinc-500">
                       {PAYMENT_METHOD_DESCRIPTIONS[methodId]}
@@ -280,7 +250,6 @@ export function PaymentProvidersSection() {
                     ) : null}
                     {!isManual &&
                     isGoCardlessMethod &&
-                    paymentModel === "club_oauth" &&
                     !gocardlessConnected ? (
                       <p className="mt-1 text-xs text-zinc-500">
                         Connect GoCardless above to enable Direct Debit.

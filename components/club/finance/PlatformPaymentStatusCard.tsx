@@ -27,24 +27,26 @@ function normalizePaymentStatusResponse(
   const safeTone = tone in TONE_STYLES ? tone : "yellow";
 
   return {
-    provider: payload.provider?.trim() || "Activora (GoCardless)",
-    paymentModel: payload.paymentModel?.trim() || "platform_managed",
+    provider: payload.provider?.trim() || "GoCardless",
+    paymentModel: payload.paymentModel?.trim() || "club_oauth",
     providerRecordMissing: Boolean(payload.providerRecordMissing),
     stripeOptional: payload.stripeOptional !== false,
     gocardlessAvailable: payload.gocardlessAvailable !== false,
+    gocardlessConnected: Boolean(payload.gocardlessConnected),
+    stripeConnected: Boolean(payload.stripeConnected),
     status: {
-      status: payload.status.status ?? "awaiting_first_payment",
+      status: payload.status.status ?? "setup_required",
       tone: safeTone,
       label: payload.status.label,
       reason:
         payload.status.reason?.trim() ||
-        "Payments are managed by Activora. GoCardless Direct Debit is available; Stripe card payments are optional.",
+        "Connect your GoCardless account to receive payouts directly.",
     },
     payoutSchedule: payload.payoutSchedule ?? "weekly",
     payoutScheduleLabel:
       payload.payoutScheduleLabel?.trim() || "Weekly",
     estimatedNextPayout:
-      payload.estimatedNextPayout?.trim() || "Pending first payment",
+      payload.estimatedNextPayout?.trim() || "After first booking",
     platformFeePercent: Number.isFinite(platformFeePercent)
       ? platformFeePercent
       : 0,
@@ -106,7 +108,7 @@ export function PlatformPaymentStatusCard() {
   return (
     <FinanceSection
       title="Payment provider"
-      description="Activora manages Direct Debit payments on your behalf — no separate GoCardless account required."
+      description="Connect your GoCardless account to receive payouts directly."
       action={
         <FinanceButton variant="secondary" onClick={() => void load()}>
           Refresh
@@ -130,6 +132,15 @@ export function PlatformPaymentStatusCard() {
         <div className="space-y-5">
           {data.providerRecordMissing ? (
             <MissingProviderFallback />
+          ) : null}
+
+          {data.gocardlessConnected ? (
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+              <p className="font-semibold">Connected to GoCardless</p>
+              <p className="mt-1">
+                Payouts sent directly to your bank account
+              </p>
+            </div>
           ) : null}
 
           <dl className="grid gap-4 sm:grid-cols-2">
@@ -186,9 +197,17 @@ export function PlatformPaymentStatusCard() {
           </p>
 
           <div className="flex flex-wrap gap-3">
+            {!data.gocardlessConnected ? (
+              <Link
+                href="/club/finance?tab=providers"
+                className="inline-flex items-center rounded-xl bg-teal-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-teal-800"
+              >
+                Connect GoCardless
+              </Link>
+            ) : null}
             <Link
               href="/club/finance?tab=payouts"
-              className="inline-flex items-center rounded-xl bg-teal-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-teal-800"
+              className="inline-flex items-center rounded-xl border border-zinc-200 px-4 py-2.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
             >
               View payout history
             </Link>
@@ -212,14 +231,31 @@ function ProviderAvailabilitySummary({
 }) {
   return (
     <ul className="grid gap-3 sm:grid-cols-3">
-      <AvailabilityPill label="Payments are managed by Activora" tone="teal" />
       <AvailabilityPill
-        label={data.gocardlessAvailable ? "GoCardless available" : "GoCardless pending setup"}
-        tone={data.gocardlessAvailable ? "green" : "amber"}
+        label={
+          data.gocardlessConnected
+            ? "GoCardless connected"
+            : data.gocardlessAvailable
+              ? "GoCardless — connect required"
+              : "GoCardless pending setup"
+        }
+        tone={
+          data.gocardlessConnected
+            ? "green"
+            : data.gocardlessAvailable
+              ? "amber"
+              : "amber"
+        }
       />
       <AvailabilityPill
-        label={data.stripeOptional ? "Stripe optional" : "Stripe unavailable"}
-        tone={data.stripeOptional ? "slate" : "amber"}
+        label={
+          data.stripeConnected ? "Stripe connected" : "Stripe optional"
+        }
+        tone={data.stripeConnected ? "green" : "slate"}
+      />
+      <AvailabilityPill
+        label={`${data.platformFeePercent.toFixed(1)}% Activora fee`}
+        tone="slate"
       />
     </ul>
   );
@@ -230,10 +266,9 @@ function AvailabilityPill({
   tone,
 }: {
   label: string;
-  tone: "teal" | "green" | "slate" | "amber";
+  tone: "green" | "slate" | "amber";
 }) {
   const styles = {
-    teal: "border-teal-200 bg-teal-50 text-teal-900",
     green: "border-emerald-200 bg-emerald-50 text-emerald-900",
     slate: "border-zinc-200 bg-zinc-50 text-zinc-800",
     amber: "border-amber-200 bg-amber-50 text-amber-900",
@@ -251,14 +286,12 @@ function AvailabilityPill({
 function MissingProviderFallback() {
   return (
     <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-950">
-      <p className="font-semibold">Payments are managed by Activora</p>
-      <p className="mt-2 text-amber-900">
-        GoCardless Direct Debit is available through Activora. Stripe card
-        payments are optional if you want instant checkout.
+      <p className="font-semibold">
+        Connect your GoCardless account to receive payouts directly
       </p>
       <p className="mt-2 text-amber-900">
-        Your club account is still syncing payment settings. You can continue
-        using the club dashboard safely while Activora completes setup.
+        Use the Connect GoCardless button above to link your club account.
+        Stripe card payments are optional if you want instant checkout.
       </p>
     </div>
   );

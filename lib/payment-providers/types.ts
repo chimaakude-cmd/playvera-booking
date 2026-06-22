@@ -109,7 +109,7 @@ export function getActivityPaymentProviderLabel(
   }
 
   if (provider === "activora_managed") {
-    return "Activora Managed (Direct Debit)";
+    return "GoCardless (Direct Debit)";
   }
 
   if (provider === "both") {

@@ -42,7 +42,7 @@ export const PAYMENT_PROVIDER_DEFINITIONS: Record<
     paymentType: "Direct Debit",
     tagline: "Useful for subscriptions, recurring payments, and clubs preferring DD",
     description:
-      "Collect UK Direct Debit for memberships, term fees, and recurring plans. Ideal when parents prefer bank debit over cards.",
+      "Connect your GoCardless account to receive payouts directly. Collect UK Direct Debit for memberships, term fees, and recurring plans.",
     bestFor: [
       "Membership subscriptions",
       "Recurring monthly fees",

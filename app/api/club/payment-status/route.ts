@@ -17,6 +17,9 @@ import {
 import { fetchClubPaymentMetrics } from "@/lib/payments/payment-events-data";
 import {
   fetchProviderPaymentStatusRow,
+  hasAnyPaymentProviderConnected,
+  isGoCardlessProviderConnected,
+  isStripeProviderConnectedFromRow,
   normalizePayoutSchedule,
   normalizeProviderPaymentStatusRow,
   resolveProviderPaymentModel,
@@ -114,6 +117,7 @@ export async function GET() {
       hasConfirmedPayment: metrics.hasConfirmedPayment,
       hasPendingPayout: metrics.hasPendingPayout,
       platformEnabled: platformConfig.platformEnabled,
+      hasPaymentProviderConnected: hasAnyPaymentProviderConnected(providerRow),
     });
 
     const platformFeePercent = resolveEffectivePlatformFeePercent(
@@ -133,6 +137,8 @@ export async function GET() {
       paymentModel: resolveProviderPaymentModel(provider.payment_model),
       stripeOptional: true,
       gocardlessAvailable: platformConfig.clubConnectAvailable,
+      gocardlessConnected: isGoCardlessProviderConnected(providerRow),
+      stripeConnected: isStripeProviderConnectedFromRow(providerRow),
       status,
       payoutSchedule,
       payoutScheduleLabel,

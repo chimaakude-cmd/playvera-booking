@@ -419,6 +419,19 @@ export function GoCardlessConnectCard({
         </div>
       </div>
 
+      {connected ? (
+        <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+          <p className="font-semibold">Connected to GoCardless</p>
+          <p className="mt-1">
+            Payouts sent directly to your bank account
+          </p>
+        </div>
+      ) : !platformManaged ? (
+        <p className="mt-3 text-sm text-zinc-600">
+          Connect your GoCardless account to receive payouts directly.
+        </p>
+      ) : null}
+
       {configLoaded && platformUnavailable ? (
         <p className="mt-3 text-sm text-zinc-600">{NOT_CONFIGURED_MESSAGE}</p>
       ) : platformManaged ? (
@@ -426,9 +439,7 @@ export function GoCardlessConnectCard({
           Direct Debit is managed by Activora on your behalf. Enable GoCardless
           in provider settings below to accept Direct Debit payments.
         </p>
-      ) : (
-        <p className="mt-3 text-sm text-zinc-600">{GOCARDLESS.description}</p>
-      )}
+      ) : null}
 
       {connected ? (
         <dl className="mt-4 grid gap-3 rounded-xl border border-orange-100 bg-white p-4 text-sm sm:grid-cols-2">

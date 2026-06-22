@@ -13,7 +13,7 @@ export const CLUB_OAUTH_PAYMENT_DEFAULTS = {
 } as const;
 
 export const PROVIDER_PAYMENT_STATUS_SELECT =
-  "payments_enabled, payments_paused, payout_schedule, platform_fee_override_percent, platform_fee_percent, account_status, payment_model, payment_internal_notes";
+  "payments_enabled, payments_paused, payout_schedule, platform_fee_override_percent, platform_fee_percent, account_status, payment_model, payment_internal_notes, gocardless_status, gocardless_merchant_id, stripe_connect_status, stripe_payouts_enabled, stripe_charges_enabled, preferred_payment_provider";
 
 export const PROVIDER_PAYMENT_STATUS_FALLBACK_SELECT =
   "platform_fee_percent, account_status";
@@ -27,6 +27,12 @@ export type ProviderPaymentStatusRow = {
   account_status?: string | null;
   payment_model?: string | null;
   payment_internal_notes?: string | null;
+  gocardless_status?: string | null;
+  gocardless_merchant_id?: string | null;
+  stripe_connect_status?: string | null;
+  stripe_payouts_enabled?: boolean | null;
+  stripe_charges_enabled?: boolean | null;
+  preferred_payment_provider?: string | null;
 };
 
 export function isMissingColumnError(
@@ -178,4 +184,34 @@ export function resolveStripeConnectStatus(row: {
   }
 
   return "not_connected";
+}
+
+export function isGoCardlessProviderConnected(
+  row: Pick<
+    ProviderPaymentStatusRow,
+    "gocardless_status" | "gocardless_merchant_id"
+  > | null | undefined,
+): boolean {
+  return (
+    row?.gocardless_status === "connected" &&
+    Boolean(row.gocardless_merchant_id?.trim())
+  );
+}
+
+export function isStripeProviderConnectedFromRow(
+  row: Pick<
+    ProviderPaymentStatusRow,
+    "stripe_connect_status" | "stripe_payouts_enabled" | "stripe_charges_enabled"
+  > | null | undefined,
+): boolean {
+  const status = resolveStripeConnectStatus(row);
+  return status === "connected" || status === "payouts_enabled";
+}
+
+export function hasAnyPaymentProviderConnected(
+  row: ProviderPaymentStatusRow | null | undefined,
+): boolean {
+  return (
+    isGoCardlessProviderConnected(row) || isStripeProviderConnectedFromRow(row)
+  );
 }

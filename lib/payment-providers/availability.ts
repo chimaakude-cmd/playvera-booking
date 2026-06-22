@@ -1,5 +1,7 @@
 import { getGoCardlessConnection } from "@/lib/gocardless/storage";
 import { isGoCardlessConnected } from "@/lib/gocardless/types";
+import { getStripeConnectState } from "@/lib/stripe-connect/storage";
+import { isStripeProviderConnected } from "@/lib/payment-providers/config";
 import type { ActivityPaymentProvider } from "./types";
 import {
   getPaymentProviderSettings,
@@ -19,6 +21,18 @@ export type SessionCheckoutMethods = {
   /** True when the activity accepts both and more than one method is shown. */
   parentPicksMethod: boolean;
 };
+
+/** True when GoCardless OAuth or Stripe Connect is connected (regardless of enabled methods). */
+export function hasPaymentProviderConnected(providerId?: string): boolean {
+  const settings = getPaymentProviderSettings(providerId);
+  const gocardless = getGoCardlessConnection(settings.provider_id);
+  const stripe = getStripeConnectState();
+
+  return (
+    isGoCardlessConnected(gocardless.status, gocardless.merchant_id) ||
+    isStripeProviderConnected(stripe.status)
+  );
+}
 
 export function isStripePaymentsReady(providerId?: string): boolean {
   return isStripeCheckoutAvailable(providerId);
@@ -171,6 +185,12 @@ export function validateActivityPaymentProvider(
 ): string[] {
   if (!isPaid) {
     return [];
+  }
+
+  if (!hasPaymentProviderConnected()) {
+    return [
+      "Connect GoCardless or Stripe in Finance before publishing paid activities.",
+    ];
   }
 
   if (!hasAnyPaymentProviderReady()) {

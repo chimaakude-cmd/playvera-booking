@@ -14,7 +14,7 @@ let cachedClubPaymentModel: ClubPaymentModel = "club_oauth";
 
 export function setClubPaymentModel(model: string | null | undefined): void {
   cachedClubPaymentModel =
-    model === "club_oauth" ? "club_oauth" : "platform_managed";
+    model === "platform_managed" ? "platform_managed" : "club_oauth";
 }
 
 export function getClubPaymentModel(): ClubPaymentModel {
