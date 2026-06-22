@@ -154,16 +154,53 @@ where cp.provider_id = p.id
 
 -- ---------------------------------------------------------------------------
 -- 5. Republish activities for restored active providers
+-- (backward compatible: moderation_status from 00037 may not exist on production)
 -- ---------------------------------------------------------------------------
-update public.sessions s
-set
-  published = true,
-  updated_at = now()
-from public.providers p
-where s.provider_id = p.id
-  and p.lifecycle_status = 'active'::public.provider_lifecycle_status
-  and coalesce(s.moderation_status, 'active') <> 'removed'
-  and s.published = false;
+do $republish$
+begin
+  if exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'sessions'
+      and column_name = 'moderation_status'
+  ) then
+    update public.sessions s
+    set
+      published = true,
+      updated_at = now()
+    from public.providers p
+    where s.provider_id = p.id
+      and p.lifecycle_status = 'active'::public.provider_lifecycle_status
+      and s.moderation_status <> 'removed'::public.session_moderation_status
+      and s.published = false;
+  elsif exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'sessions'
+      and column_name = 'removed_at'
+  ) then
+    update public.sessions s
+    set
+      published = true,
+      updated_at = now()
+    from public.providers p
+    where s.provider_id = p.id
+      and p.lifecycle_status = 'active'::public.provider_lifecycle_status
+      and s.removed_at is null
+      and s.published = false;
+  else
+    update public.sessions s
+    set
+      published = true,
+      updated_at = now()
+    from public.providers p
+    where s.provider_id = p.id
+      and p.lifecycle_status = 'active'::public.provider_lifecycle_status
+      and s.published = false;
+  end if;
+end $republish$;
 
 -- ---------------------------------------------------------------------------
 -- 6. Post-repair verification (expect CA Sport active with sessions visible)
