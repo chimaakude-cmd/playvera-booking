@@ -1016,6 +1016,63 @@ export type Database = {
         };
         Relationships: [];
       };
+      stripe_platform_state: {
+        Row: {
+          id: number;
+          connection_status: string;
+          last_tested_at: string | null;
+          last_error: string | null;
+          last_webhook_received_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: number;
+          connection_status?: string;
+          last_tested_at?: string | null;
+          last_error?: string | null;
+          last_webhook_received_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: number;
+          connection_status?: string;
+          last_tested_at?: string | null;
+          last_error?: string | null;
+          last_webhook_received_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      stripe_platform_logs: {
+        Row: {
+          id: string;
+          level: string;
+          event_type: string;
+          message: string;
+          metadata: Json;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          level?: string;
+          event_type: string;
+          message: string;
+          metadata?: Json;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          level?: string;
+          event_type?: string;
+          message?: string;
+          metadata?: Json;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       provider_payment_audit_log: {
         Row: {
           id: string;

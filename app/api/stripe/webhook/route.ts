@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { mapStripeAccountToState } from "@/lib/stripe/connect";
+import { recordStripeWebhookReceived } from "@/lib/stripe/platform-admin";
 import { getStripe, isStripeConfigured } from "@/lib/stripe/server";
 
 export async function POST(request: Request) {
@@ -29,6 +30,8 @@ export async function POST(request: Request) {
       signature,
       webhookSecret,
     );
+
+    await recordStripeWebhookReceived();
 
     if (event.type === "account.updated") {
       const account = event.data.object;

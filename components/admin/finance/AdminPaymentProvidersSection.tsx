@@ -140,6 +140,7 @@ export function AdminPaymentProvidersSection() {
       </article>
 
       <ProviderTable
+        id="payment-providers-stripe"
         title="Stripe providers"
         description="Clubs with Stripe Connect accounts."
         rows={stripeProviders}
@@ -202,6 +203,7 @@ function SummaryCard({
 }
 
 function ProviderTable({
+  id,
   title,
   description,
   rows,
@@ -210,6 +212,7 @@ function ProviderTable({
   showGocardless = false,
   showFailed = false,
 }: {
+  id?: string;
   title: string;
   description: string;
   rows: ProviderRow[];
@@ -219,7 +222,10 @@ function ProviderTable({
   showFailed?: boolean;
 }) {
   return (
-    <article className="overflow-hidden rounded-2xl border border-zinc-200/80 bg-white shadow-sm">
+    <article
+      id={id}
+      className="overflow-hidden rounded-2xl border border-zinc-200/80 bg-white shadow-sm"
+    >
       <div className="border-b border-zinc-100 px-6 py-5">
         <h3 className="text-base font-semibold text-zinc-900">{title}</h3>
         <p className="mt-1 text-sm text-zinc-500">{description}</p>

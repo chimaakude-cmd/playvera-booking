@@ -9,7 +9,7 @@ import {
 } from "@/lib/admin/data-source";
 import type { AdminFinanceData } from "@/lib/admin/finance-data";
 import dynamic from "next/dynamic";
-import { AdminStripePlatformCard } from "./AdminStripePlatformCard";
+import { AdminStripeSetupSection } from "./finance/AdminStripeSetupSection";
 import { AdminGoCardlessSetupSection } from "./finance/AdminGoCardlessSetupSection";
 import { AdminPaymentEventLogSection } from "./finance/AdminPaymentEventLogSection";
 import { AdminPaymentModeBanner } from "./finance/AdminPaymentModeBanner";
@@ -91,7 +91,7 @@ export function AdminFinanceSection({ data }: Props) {
         summary={platformRevenue}
         supabaseConfigured={dataSource !== "env_missing"}
       />
-      <AdminStripePlatformCard />
+      <AdminStripeSetupSection embedded />
       <AdminGoCardlessSetupSection embedded />
       <AdminPaymentProvidersSection />
       <AdminPaymentEventLogSection embedded />
