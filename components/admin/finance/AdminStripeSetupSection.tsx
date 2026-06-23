@@ -23,6 +23,9 @@ type ConfigResponse = {
     webhookUri: string;
     environment: "test" | "live";
     environmentLabel: string;
+    resolvedKeyMode: "test" | "live" | null;
+    resolvedKeyModeLabel: string;
+    environmentKeyMismatch: boolean;
   };
   message?: string;
 };
@@ -118,10 +121,16 @@ function connectionTone(
   return "warn";
 }
 
-function environmentBadgeTone(
-  environment: "test" | "live",
-): "sandbox" | "live" {
-  return environment === "live" ? "live" : "sandbox";
+function resolvedModeBadgeTone(
+  mode: "test" | "live" | null,
+): "sandbox" | "live" | "neutral" {
+  if (mode === "live") {
+    return "live";
+  }
+  if (mode === "test") {
+    return "sandbox";
+  }
+  return "neutral";
 }
 
 function webhookHealthTone(params: {
@@ -485,6 +494,22 @@ export function AdminStripeSetupSection({ embedded = false }: Props) {
         </div>
       ) : null}
 
+      {config?.environmentKeyMismatch ? (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <p className="font-medium">Environment and API key mode mismatch</p>
+          <p className="mt-1">
+            Environment is set to{" "}
+            <span className="font-semibold">{config.environmentLabel}</span> but
+            the active secret key resolves to{" "}
+            <span className="font-semibold">
+              {config.resolvedKeyMode === "live" ? "Live" : "Test mode"}
+            </span>
+            . Stripe API calls use the key mode — update Environment or replace
+            your API keys so they match.
+          </p>
+        </div>
+      ) : null}
+
       <article className="rounded-2xl border border-zinc-200/80 bg-white shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-100 px-6 py-5">
           <div>
@@ -497,23 +522,18 @@ export function AdminStripeSetupSection({ embedded = false }: Props) {
             <div className="flex flex-col items-end gap-2">
               <div className="flex flex-wrap items-center justify-end gap-2">
                 <StatusPill
-                  label={config.environmentLabel}
-                  tone={environmentBadgeTone(config.environment)}
+                  label={config.resolvedKeyModeLabel}
+                  tone={resolvedModeBadgeTone(config.resolvedKeyMode)}
                 />
                 <StatusPill
-                  label={
-                    config.connectionStatus === "live_connected" ||
-                    config.connectionStatus === "test_connected"
-                      ? "Connected"
-                      : config.connectionStatusLabel
-                  }
+                  label={config.connectionStatusLabel}
                   tone={connectionTone(config.connectionStatus)}
                 />
               </div>
               {config.connectionStatus === "live_connected" ||
               config.connectionStatus === "test_connected" ? (
                 <span className="text-xs text-zinc-500">
-                  {config.connectionStatusLabel}
+                  Configured environment: {config.environmentLabel}
                 </span>
               ) : null}
             </div>
@@ -605,6 +625,9 @@ export function AdminStripeSetupSection({ embedded = false }: Props) {
                 ) : null}
                 {config?.keysModeMatch === false ? (
                   <StatusPill label="Key mode mismatch" tone="error" />
+                ) : null}
+                {config?.environmentKeyMismatch ? (
+                  <StatusPill label="Environment / key mismatch" tone="warn" />
                 ) : null}
               </div>
             </Field>
@@ -926,7 +949,17 @@ export function AdminStripeSetupSection({ embedded = false }: Props) {
             value={resolved?.webhookUri ? "Registered URL" : "Unknown"}
           />
           <Metric
-            label="Environment"
+            label="Stripe mode (from key)"
+            value={
+              config?.resolvedKeyMode === "live"
+                ? "Live"
+                : config?.resolvedKeyMode === "test"
+                  ? "Test"
+                  : "Unknown"
+            }
+          />
+          <Metric
+            label="Configured environment"
             value={config?.environmentLabel ?? "Unknown"}
           />
         </div>

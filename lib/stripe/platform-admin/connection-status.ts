@@ -1,3 +1,4 @@
+import type { StripeMode } from "@/lib/stripe/env";
 import type { StripePlatformConnectionStatus } from "./types";
 
 const STATUS_LABELS: Record<StripePlatformConnectionStatus, string> = {
@@ -13,9 +14,17 @@ export function stripeConnectionStatusLabel(
   return STATUS_LABELS[status];
 }
 
+/** Connection test passed for the active secret key mode. */
 export function isStripePlatformConnectionVerified(
   status: StripePlatformConnectionStatus,
+  keyMode: StripeMode | null = null,
 ): boolean {
+  if (keyMode === "live") {
+    return status === "live_connected";
+  }
+  if (keyMode === "test") {
+    return status === "test_connected";
+  }
   return status === "test_connected" || status === "live_connected";
 }
 

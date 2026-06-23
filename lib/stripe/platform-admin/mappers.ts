@@ -76,6 +76,9 @@ export function payloadToPublic(
   return {
     environment: payload.environment,
     environmentLabel: environmentLabel(payload.environment),
+    resolvedKeyMode: null,
+    resolvedKeyModeLabel: "Stripe: Not configured",
+    environmentKeyMismatch: false,
     hasSecretKey: Boolean(payload.secretKey?.trim()),
     hasPublishableKey: Boolean(payload.publishableKey?.trim()),
     hasWebhookSecret: Boolean(payload.webhookSecret?.trim()),

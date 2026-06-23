@@ -13,14 +13,16 @@ import {
 } from "@/lib/stripe/env";
 import {
   isStripePlatformConnectionVerified,
-  stripeConnectionStatusLabel,
+  resolveStripeConnectionStatusFromProbe,
 } from "./connection-status";
 import { payloadToPublic } from "./mappers";
 import { getServerStripePlatformConfig } from "./server-store";
 import type {
+  ResolvedStripeCredentials,
   ResolvedStripePlatformConfig,
   StripePlatformConfigPayload,
   StripePlatformConfigPublic,
+  StripePlatformEnvironment,
 } from "./types";
 
 function pickString(
@@ -43,6 +45,39 @@ function pickEnvironment(
 
 function environmentLabel(mode: "test" | "live"): string {
   return mode === "live" ? "Live" : "Test mode";
+}
+
+function resolvedKeyModeLabel(mode: StripePlatformEnvironment | null): string {
+  if (mode === "live") {
+    return "Stripe: Live";
+  }
+  if (mode === "test") {
+    return "Stripe: Test";
+  }
+  return "Stripe: Not configured";
+}
+
+function resolveKeyModeMismatch(
+  environment: StripePlatformEnvironment,
+  keyMode: StripePlatformEnvironment | null,
+): boolean {
+  return Boolean(keyMode && keyMode !== environment);
+}
+
+export async function getResolvedStripeCredentials(
+  cachedPayload?: StripePlatformConfigPayload,
+): Promise<ResolvedStripeCredentials> {
+  const resolved = await getResolvedStripeEnv(cachedPayload);
+  const keyMode = resolveStripeModeFromSecretKey(resolved.secretKey);
+
+  return {
+    secretKey: resolved.secretKey,
+    publishableKey: resolved.publishableKey,
+    webhookSecret: resolved.webhookSecret,
+    environment: resolved.environment,
+    keyMode,
+    environmentKeyMismatch: resolveKeyModeMismatch(resolved.environment, keyMode),
+  };
 }
 
 export function getEnvOverrideFlags(processEnv: StripeEnvConfig) {
@@ -141,10 +176,14 @@ export async function resolveStripePlatformConfig(
 
   const secretMode = resolveStripeModeFromSecretKey(resolved.secretKey);
   const publishableMode = resolveStripeModeFromPublishableKey(resolved.publishableKey);
+  const environmentKeyMismatch = resolveKeyModeMismatch(
+    resolved.environment,
+    secretMode,
+  );
 
   if (secretMode && secretMode !== resolved.environment) {
     clubConnectBlockers.push(
-      `Secret key is ${secretMode} mode but environment is set to ${resolved.environment}.`,
+      `Secret key is ${secretMode} mode but environment is set to ${resolved.environment}. Update Environment or use matching API keys.`,
     );
   }
   if (publishableMode && publishableMode !== resolved.environment) {
@@ -154,16 +193,21 @@ export async function resolveStripePlatformConfig(
   }
 
   let connectionStatus = resolved.connectionStatus;
+
   if (
     secretValidation.valid &&
     publishableValidation.valid &&
     modeMatch.valid &&
-    !isStripePlatformConnectionVerified(connectionStatus)
+    !isStripePlatformConnectionVerified(connectionStatus, secretMode)
   ) {
     const probe = await probeStripeConnectEnabled(resolved.secretKey);
     if (probe.connectEnabled && secretMode) {
-      connectionStatus =
-        secretMode === "live" ? "live_connected" : "test_connected";
+      connectionStatus = resolveStripeConnectionStatusFromProbe({
+        secretKeyValid: probe.secretKeyValid,
+        connectEnabled: probe.connectEnabled,
+        mode: secretMode,
+        existingStatus: connectionStatus,
+      });
     } else if (probe.platformMisconfigured) {
       connectionStatus = "error";
       clubConnectBlockers.push(
@@ -175,12 +219,16 @@ export async function resolveStripePlatformConfig(
   const isPlatformConfigured =
     secretValidation.valid && publishableValidation.valid;
   const isWebhookConfigured = webhookValidation.valid;
-  const isConnectionVerified = isStripePlatformConnectionVerified(connectionStatus);
+  const isConnectionVerified = isStripePlatformConnectionVerified(
+    connectionStatus,
+    secretMode,
+  );
   const isClubConnectAvailable =
     resolved.platformEnabled &&
     isPlatformConfigured &&
     modeMatch.valid &&
     isConnectionVerified &&
+    !environmentKeyMismatch &&
     !clubConnectBlockers.some((blocker) =>
       blocker.includes("Enable Stripe Connect"),
     );
@@ -207,11 +255,17 @@ export async function resolveStripePlatformConfig(
     hasWebhookSecret: webhookValidation.valid,
     environment: resolved.environment,
     environmentLabel: environmentLabel(resolved.environment),
+    resolvedKeyMode: secretMode,
+    resolvedKeyModeLabel: resolvedKeyModeLabel(secretMode),
+    environmentKeyMismatch,
   };
 
   return {
     environment: resolved.environment,
     environmentLabel: environmentLabel(resolved.environment),
+    resolvedKeyMode: secretMode,
+    resolvedKeyModeLabel: resolvedKeyModeLabel(secretMode),
+    environmentKeyMismatch,
     secretKey: resolved.secretKey,
     publishableKey: resolved.publishableKey,
     webhookSecret: resolved.webhookSecret,

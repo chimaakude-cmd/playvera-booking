@@ -34,6 +34,13 @@ export function resolveStripeModeFromSecretKey(
   return null;
 }
 
+/** Active Stripe mode from a secret key prefix — source of truth for API calls. */
+export function detectStripeKeyMode(
+  secretKey: string | null | undefined,
+): StripeMode | null {
+  return resolveStripeModeFromSecretKey(secretKey);
+}
+
 export function resolveStripeModeFromPublishableKey(
   value: string | null | undefined,
 ): StripeMode | null {

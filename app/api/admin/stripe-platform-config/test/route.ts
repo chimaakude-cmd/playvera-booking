@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requirePlatformSettingsWriteActor } from "@/lib/admin-users/api-auth";
 import { probeStripeConnectEnabled } from "@/lib/stripe/connect-probe";
-import { resolveStripeModeFromSecretKey } from "@/lib/stripe/env";
 import {
   appendStripePlatformLog,
-  getResolvedStripeEnv,
+  getResolvedStripeCredentials,
   resolveStripePlatformConfig,
+  resolveStripeConnectionStatusFromProbe,
   setStripeConnectionStatus,
   StripePlatformAdminStoreError,
 } from "@/lib/stripe/platform-admin";
@@ -32,19 +32,35 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const runtime = await getResolvedStripeEnv();
-    const probe = await probeStripeConnectEnabled(runtime.secretKey);
-    const mode = resolveStripeModeFromSecretKey(runtime.secretKey);
+    const credentials = await getResolvedStripeCredentials();
+    const probe = await probeStripeConnectEnabled(credentials.secretKey);
+    const keyMode = credentials.keyMode;
 
-    const connectionStatus = !probe.secretKeyValid
-      ? "not_configured"
-      : probe.connectEnabled && mode === "live"
-        ? "live_connected"
-        : probe.connectEnabled && mode === "test"
-          ? "test_connected"
-          : probe.platformMisconfigured
-            ? "error"
-            : "error";
+    if (credentials.environmentKeyMismatch && keyMode) {
+      const mismatchMessage = `Environment is set to ${credentials.environment} but the resolved secret key is ${keyMode} mode. Align Environment with your API keys before testing connection.`;
+
+      await setStripeConnectionStatus({
+        status: "error",
+        lastError: mismatchMessage,
+        updatedBy: auth.actor.adminId,
+      });
+
+      return NextResponse.json(
+        {
+          ok: false,
+          message: mismatchMessage,
+          connectionStatus: "error",
+        },
+        { status: 400 },
+      );
+    }
+
+    const connectionStatus = resolveStripeConnectionStatusFromProbe({
+      secretKeyValid: probe.secretKeyValid,
+      connectEnabled: probe.connectEnabled,
+      mode: keyMode,
+      existingStatus: resolved.connectionStatus,
+    });
 
     await setStripeConnectionStatus({
       status: connectionStatus,
@@ -60,7 +76,9 @@ export async function POST(request: NextRequest) {
       message: probe.message,
       metadata: {
         adminId: auth.actor.adminId,
-        environment: mode,
+        keyMode,
+        environment: credentials.environment,
+        connectionStatus,
         connectEnabled: probe.connectEnabled,
         platformMisconfigured: probe.platformMisconfigured,
       },
@@ -71,7 +89,7 @@ export async function POST(request: NextRequest) {
       message: probe.connectEnabled
         ? updatedResolved.isClubConnectAvailable
           ? "Connection successful — club connect is available."
-          : `Connection successful — Stripe API verified. Club connect still blocked: ${updatedResolved.clubConnectBlockers.join(" ")}`
+          : `Connection successful — Stripe API verified (${connectionStatus === "live_connected" ? "live" : "test"} mode). Club connect still blocked: ${updatedResolved.clubConnectBlockers.join(" ")}`
         : `Connection failed: ${probe.message}`,
       connectionStatus,
       isClubConnectAvailable: updatedResolved.isClubConnectAvailable,

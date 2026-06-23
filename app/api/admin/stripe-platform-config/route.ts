@@ -8,18 +8,17 @@ import {
   MAX_PLATFORM_FEE_PERCENT,
   MIN_PLATFORM_FEE_PERCENT,
 } from "@/lib/fee-settings";
-import { getStripeEnvFromProcessEnv } from "@/lib/stripe/env";
 import {
+  getResolvedStripeEnv,
+  resolveStripePlatformConfig,
   appendStripePlatformLog,
   getServerStripePlatformConfig,
-  resolveStripePlatformConfig,
   StripePlatformAdminStoreError,
   updateServerStripePlatformConfig,
 } from "@/lib/stripe/platform-admin";
 import type {
   StripePlatformConfigPayload,
   StripePlatformConfigUpdate,
-  StripePlatformEnvironment,
 } from "@/lib/stripe/platform-admin/types";
 import {
   resolveStripeModeFromPublishableKey,
@@ -29,6 +28,30 @@ import {
   validateStripeSecretKey,
   validateStripeWebhookSecret,
 } from "@/lib/stripe/env";
+
+function mergePayload(
+  existing: StripePlatformConfigPayload,
+  body: StripePlatformConfigUpdate,
+): StripePlatformConfigPayload {
+  return {
+    ...existing,
+    environment: body.environment ?? existing.environment,
+    secretKey:
+      body.secretKey !== undefined
+        ? body.secretKey?.trim() || null
+        : existing.secretKey,
+    publishableKey:
+      body.publishableKey !== undefined
+        ? body.publishableKey?.trim() || null
+        : existing.publishableKey,
+    webhookSecret:
+      body.webhookSecret !== undefined
+        ? body.webhookSecret?.trim() || null
+        : existing.webhookSecret,
+    platformEnabled: body.platformEnabled ?? existing.platformEnabled,
+    platformFeePercent: body.platformFeePercent ?? existing.platformFeePercent,
+  };
+}
 
 function storeErrorResponse(error: unknown, fallback: string) {
   if (error instanceof StripePlatformAdminStoreError) {
@@ -45,7 +68,7 @@ function storeErrorResponse(error: unknown, fallback: string) {
 
 function assertKeyMatchesEnvironment(
   keyMode: "test" | "live" | null,
-  environment: StripePlatformEnvironment,
+  environment: "test" | "live",
   fieldLabel: string,
 ): string | null {
   if (!keyMode) {
@@ -53,52 +76,36 @@ function assertKeyMatchesEnvironment(
   }
 
   if (environment === "live" && keyMode === "test") {
-    return `${fieldLabel} uses test mode keys — not allowed when Environment is Live.`;
+    return `${fieldLabel} uses test mode keys — not allowed when Environment is Live. Use sk_live_ / pk_live_ keys or switch Environment to Test mode.`;
   }
 
   if (environment === "test" && keyMode === "live") {
-    return `${fieldLabel} uses live mode keys — not allowed when Environment is Test.`;
+    return `${fieldLabel} uses live mode keys — not allowed when Environment is Test. Use sk_test_ / pk_test_ keys or switch Environment to Live.`;
   }
 
   return null;
 }
 
-function validateSavePayload(
+async function validateSavePayload(
   body: StripePlatformConfigUpdate,
   existing: StripePlatformConfigPayload,
-): string | null {
-  const nextEnvironment = body.environment ?? existing.environment;
-  const nextSecretKey =
-    body.secretKey !== undefined
-      ? body.secretKey?.trim() || null
-      : existing.secretKey;
-  const nextPublishableKey =
-    body.publishableKey !== undefined
-      ? body.publishableKey?.trim() || null
-      : existing.publishableKey;
-  const nextWebhookSecret =
-    body.webhookSecret !== undefined
-      ? body.webhookSecret?.trim() || null
-      : existing.webhookSecret;
+): Promise<string | null> {
+  const merged = mergePayload(existing, body);
+  const resolved = await getResolvedStripeEnv(merged);
+  const keyMode = resolveStripeModeFromSecretKey(resolved.secretKey);
+  const publishableMode = resolveStripeModeFromPublishableKey(
+    resolved.publishableKey,
+  );
 
-  if (body.secretKey?.trim()) {
-    const validation = validateStripeSecretKey(body.secretKey);
+  if (resolved.secretKey) {
+    const validation = validateStripeSecretKey(resolved.secretKey);
     if (!validation.valid) {
       return validation.error ?? "Invalid STRIPE_SECRET_KEY.";
     }
 
     const modeError = assertKeyMatchesEnvironment(
       validation.mode ?? null,
-      nextEnvironment,
-      "STRIPE_SECRET_KEY",
-    );
-    if (modeError) {
-      return modeError;
-    }
-  } else if (nextSecretKey) {
-    const modeError = assertKeyMatchesEnvironment(
-      resolveStripeModeFromSecretKey(nextSecretKey),
-      nextEnvironment,
+      resolved.environment,
       "STRIPE_SECRET_KEY",
     );
     if (modeError) {
@@ -106,24 +113,15 @@ function validateSavePayload(
     }
   }
 
-  if (body.publishableKey?.trim()) {
-    const validation = validateStripePublishableKey(body.publishableKey);
+  if (resolved.publishableKey) {
+    const validation = validateStripePublishableKey(resolved.publishableKey);
     if (!validation.valid) {
       return validation.error ?? "Invalid publishable key.";
     }
 
     const modeError = assertKeyMatchesEnvironment(
       validation.mode ?? null,
-      nextEnvironment,
-      "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY",
-    );
-    if (modeError) {
-      return modeError;
-    }
-  } else if (nextPublishableKey) {
-    const modeError = assertKeyMatchesEnvironment(
-      resolveStripeModeFromPublishableKey(nextPublishableKey),
-      nextEnvironment,
+      resolved.environment,
       "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY",
     );
     if (modeError) {
@@ -136,14 +134,27 @@ function validateSavePayload(
     if (!validation.valid) {
       return validation.error ?? "Invalid STRIPE_WEBHOOK_SECRET.";
     }
+  } else if (resolved.webhookSecret) {
+    const validation = validateStripeWebhookSecret(resolved.webhookSecret);
+    if (!validation.valid) {
+      return validation.error ?? "Invalid STRIPE_WEBHOOK_SECRET.";
+    }
   }
 
   const modeMatch = validateStripeKeyModeMatch(
-    nextSecretKey ?? undefined,
-    nextPublishableKey ?? undefined,
+    resolved.secretKey ?? undefined,
+    resolved.publishableKey ?? undefined,
   );
   if (!modeMatch.valid && modeMatch.error) {
     return modeMatch.error;
+  }
+
+  if (keyMode && keyMode !== resolved.environment) {
+    return `Environment is set to ${resolved.environment} but the resolved secret key is ${keyMode} mode. Align Environment with your API keys.`;
+  }
+
+  if (publishableMode && publishableMode !== resolved.environment) {
+    return `Environment is set to ${resolved.environment} but the resolved publishable key is ${publishableMode} mode. Align Environment with your API keys.`;
   }
 
   return null;
@@ -166,6 +177,9 @@ async function buildFullConfigResponse(
       webhookUri: `${resolveServerAppBaseUrl(request)}/api/stripe/webhook`,
       environment: resolved.environment,
       environmentLabel: resolved.environmentLabel,
+      resolvedKeyMode: resolved.resolvedKeyMode,
+      resolvedKeyModeLabel: resolved.resolvedKeyModeLabel,
+      environmentKeyMismatch: resolved.environmentKeyMismatch,
     },
   };
 }
@@ -207,7 +221,7 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const validationError = validateSavePayload(body, existing);
+    const validationError = await validateSavePayload(body, existing);
     if (validationError) {
       return NextResponse.json({ error: validationError }, { status: 400 });
     }

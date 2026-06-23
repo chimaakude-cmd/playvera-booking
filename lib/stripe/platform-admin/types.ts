@@ -41,6 +41,11 @@ export type StripePlatformConfigPayload = {
 export type StripePlatformConfigPublic = {
   environment: StripePlatformEnvironment;
   environmentLabel: string;
+  /** Mode inferred from the resolved STRIPE_SECRET_KEY (env overrides DB). */
+  resolvedKeyMode: StripePlatformEnvironment | null;
+  resolvedKeyModeLabel: string;
+  /** True when the environment dropdown/env var disagrees with the secret key mode. */
+  environmentKeyMismatch: boolean;
   hasSecretKey: boolean;
   hasPublishableKey: boolean;
   hasWebhookSecret: boolean;
@@ -84,9 +89,21 @@ export type StripePlatformLogRow = {
   created_at: string;
 };
 
+export type ResolvedStripeCredentials = {
+  secretKey: string | null;
+  publishableKey: string | null;
+  webhookSecret: string | null;
+  environment: StripePlatformEnvironment;
+  keyMode: StripePlatformEnvironment | null;
+  environmentKeyMismatch: boolean;
+};
+
 export type ResolvedStripePlatformConfig = {
   environment: StripePlatformEnvironment;
   environmentLabel: string;
+  resolvedKeyMode: StripePlatformEnvironment | null;
+  resolvedKeyModeLabel: string;
+  environmentKeyMismatch: boolean;
   secretKey: string | null;
   publishableKey: string | null;
   webhookSecret: string | null;
