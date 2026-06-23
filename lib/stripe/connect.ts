@@ -232,9 +232,13 @@ export async function createExpressConnectAccount(
 ): Promise<Stripe.Account> {
   try {
     const account = await stripe.accounts.create({
-      type: "express",
       country: STRIPE_CONNECT_COUNTRY,
       email,
+      controller: {
+        stripe_dashboard: { type: "express" },
+        fees: { payer: "application" },
+        losses: { payments: "stripe" },
+      },
       business_profile: {
         name: STRIPE_PLATFORM_NAME,
       },
