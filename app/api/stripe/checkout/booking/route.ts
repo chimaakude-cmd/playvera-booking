@@ -88,7 +88,7 @@ export async function POST(request: Request) {
     });
   }
 
-  const stripe = getStripe();
+  const stripe = await getStripe();
   const connectedAccountId = body.session.providerStripeAccountId?.trim();
 
   const successUrl = `${baseUrl}/book/confirmation?checkout=success&pending_id=${pending.id}&session_id={CHECKOUT_SESSION_ID}`;

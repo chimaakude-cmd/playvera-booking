@@ -1,9 +1,34 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requirePlatformSettingsReadActor } from "@/lib/admin-users/api-auth";
+import { resolveServerAppBaseUrl } from "@/lib/app-url";
 import {
+  requirePlatformSettingsReadActor,
+  requirePlatformSettingsWriteActor,
+} from "@/lib/admin-users/api-auth";
+import {
+  MAX_PLATFORM_FEE_PERCENT,
+  MIN_PLATFORM_FEE_PERCENT,
+} from "@/lib/fee-settings";
+import { getStripeEnvFromProcessEnv } from "@/lib/stripe/env";
+import {
+  appendStripePlatformLog,
+  getServerStripePlatformConfig,
   resolveStripePlatformConfig,
   StripePlatformAdminStoreError,
+  updateServerStripePlatformConfig,
 } from "@/lib/stripe/platform-admin";
+import type {
+  StripePlatformConfigPayload,
+  StripePlatformConfigUpdate,
+  StripePlatformEnvironment,
+} from "@/lib/stripe/platform-admin/types";
+import {
+  resolveStripeModeFromPublishableKey,
+  resolveStripeModeFromSecretKey,
+  validateStripeKeyModeMatch,
+  validateStripePublishableKey,
+  validateStripeSecretKey,
+  validateStripeWebhookSecret,
+} from "@/lib/stripe/env";
 
 function storeErrorResponse(error: unknown, fallback: string) {
   if (error instanceof StripePlatformAdminStoreError) {
@@ -18,6 +43,133 @@ function storeErrorResponse(error: unknown, fallback: string) {
   return NextResponse.json({ error: fallback }, { status: 500 });
 }
 
+function assertKeyMatchesEnvironment(
+  keyMode: "test" | "live" | null,
+  environment: StripePlatformEnvironment,
+  fieldLabel: string,
+): string | null {
+  if (!keyMode) {
+    return null;
+  }
+
+  if (environment === "live" && keyMode === "test") {
+    return `${fieldLabel} uses test mode keys — not allowed when Environment is Live.`;
+  }
+
+  if (environment === "test" && keyMode === "live") {
+    return `${fieldLabel} uses live mode keys — not allowed when Environment is Test.`;
+  }
+
+  return null;
+}
+
+function validateSavePayload(
+  body: StripePlatformConfigUpdate,
+  existing: StripePlatformConfigPayload,
+): string | null {
+  const nextEnvironment = body.environment ?? existing.environment;
+  const nextSecretKey =
+    body.secretKey !== undefined
+      ? body.secretKey?.trim() || null
+      : existing.secretKey;
+  const nextPublishableKey =
+    body.publishableKey !== undefined
+      ? body.publishableKey?.trim() || null
+      : existing.publishableKey;
+  const nextWebhookSecret =
+    body.webhookSecret !== undefined
+      ? body.webhookSecret?.trim() || null
+      : existing.webhookSecret;
+
+  if (body.secretKey?.trim()) {
+    const validation = validateStripeSecretKey(body.secretKey);
+    if (!validation.valid) {
+      return validation.error ?? "Invalid STRIPE_SECRET_KEY.";
+    }
+
+    const modeError = assertKeyMatchesEnvironment(
+      validation.mode ?? null,
+      nextEnvironment,
+      "STRIPE_SECRET_KEY",
+    );
+    if (modeError) {
+      return modeError;
+    }
+  } else if (nextSecretKey) {
+    const modeError = assertKeyMatchesEnvironment(
+      resolveStripeModeFromSecretKey(nextSecretKey),
+      nextEnvironment,
+      "STRIPE_SECRET_KEY",
+    );
+    if (modeError) {
+      return modeError;
+    }
+  }
+
+  if (body.publishableKey?.trim()) {
+    const validation = validateStripePublishableKey(body.publishableKey);
+    if (!validation.valid) {
+      return validation.error ?? "Invalid publishable key.";
+    }
+
+    const modeError = assertKeyMatchesEnvironment(
+      validation.mode ?? null,
+      nextEnvironment,
+      "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY",
+    );
+    if (modeError) {
+      return modeError;
+    }
+  } else if (nextPublishableKey) {
+    const modeError = assertKeyMatchesEnvironment(
+      resolveStripeModeFromPublishableKey(nextPublishableKey),
+      nextEnvironment,
+      "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY",
+    );
+    if (modeError) {
+      return modeError;
+    }
+  }
+
+  if (body.webhookSecret?.trim()) {
+    const validation = validateStripeWebhookSecret(body.webhookSecret);
+    if (!validation.valid) {
+      return validation.error ?? "Invalid STRIPE_WEBHOOK_SECRET.";
+    }
+  }
+
+  const modeMatch = validateStripeKeyModeMatch(
+    nextSecretKey ?? undefined,
+    nextPublishableKey ?? undefined,
+  );
+  if (!modeMatch.valid && modeMatch.error) {
+    return modeMatch.error;
+  }
+
+  return null;
+}
+
+async function buildFullConfigResponse(
+  request: NextRequest,
+  payload: StripePlatformConfigPayload,
+) {
+  const resolved = await resolveStripePlatformConfig(request, payload);
+
+  return {
+    config: resolved.public,
+    resolved: {
+      isClubConnectAvailable: resolved.isClubConnectAvailable,
+      isPlatformConfigured: resolved.isPlatformConfigured,
+      isConnectionVerified: resolved.isConnectionVerified,
+      isWebhookConfigured: resolved.isWebhookConfigured,
+      clubConnectBlockers: resolved.clubConnectBlockers,
+      webhookUri: `${resolveServerAppBaseUrl(request)}/api/stripe/webhook`,
+      environment: resolved.environment,
+      environmentLabel: resolved.environmentLabel,
+    },
+  };
+}
+
 export async function GET(request: NextRequest) {
   const auth = await requirePlatformSettingsReadActor(request);
   if ("error" in auth) {
@@ -25,22 +177,61 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const resolved = await resolveStripePlatformConfig(request);
-
-    return NextResponse.json({
-      config: resolved.public,
-      resolved: {
-        isClubConnectAvailable: resolved.isClubConnectAvailable,
-        isPlatformConfigured: resolved.isPlatformConfigured,
-        isConnectionVerified: resolved.isConnectionVerified,
-        isWebhookConfigured: resolved.isWebhookConfigured,
-        clubConnectBlockers: resolved.clubConnectBlockers,
-        webhookUri: resolved.webhookUri,
-        environment: resolved.environment,
-        environmentLabel: resolved.environmentLabel,
-      },
-    });
+    const payload = await getServerStripePlatformConfig();
+    return NextResponse.json(await buildFullConfigResponse(request, payload));
   } catch (error) {
     return storeErrorResponse(error, "Failed to load Stripe platform config.");
+  }
+}
+
+export async function PUT(request: NextRequest) {
+  const auth = await requirePlatformSettingsWriteActor(request);
+  if ("error" in auth) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
+  try {
+    const body = (await request.json()) as StripePlatformConfigUpdate;
+    const existing = await getServerStripePlatformConfig();
+
+    if (
+      body.platformFeePercent !== undefined &&
+      (body.platformFeePercent < MIN_PLATFORM_FEE_PERCENT ||
+        body.platformFeePercent > MAX_PLATFORM_FEE_PERCENT)
+    ) {
+      return NextResponse.json(
+        {
+          error: `Platform fee must be between ${MIN_PLATFORM_FEE_PERCENT}% and ${MAX_PLATFORM_FEE_PERCENT}%.`,
+        },
+        { status: 400 },
+      );
+    }
+
+    const validationError = validateSavePayload(body, existing);
+    if (validationError) {
+      return NextResponse.json({ error: validationError }, { status: 400 });
+    }
+
+    const payload = await updateServerStripePlatformConfig(
+      body,
+      auth.actor.adminId,
+    );
+
+    await appendStripePlatformLog({
+      eventType: "config_saved",
+      message: "Stripe platform configuration saved.",
+      metadata: {
+        adminId: auth.actor.adminId,
+        platformEnabled: payload.platformEnabled,
+        environment: payload.environment,
+      },
+    });
+
+    return NextResponse.json({
+      ...(await buildFullConfigResponse(request, payload)),
+      message: "Configuration saved",
+    });
+  } catch (error) {
+    return storeErrorResponse(error, "Unable to save Stripe configuration.");
   }
 }

@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requirePlatformSettingsWriteActor } from "@/lib/admin-users/api-auth";
 import { probeStripeConnectEnabled } from "@/lib/stripe/connect-probe";
-import { resolveStripeMode } from "@/lib/stripe/env";
+import { resolveStripeModeFromSecretKey } from "@/lib/stripe/env";
 import {
   appendStripePlatformLog,
+  getResolvedStripeEnv,
   resolveStripePlatformConfig,
   setStripeConnectionStatus,
   StripePlatformAdminStoreError,
@@ -22,6 +23,7 @@ export async function POST(request: NextRequest) {
       await setStripeConnectionStatus({
         status: "not_configured",
         lastError: "Stripe API keys are required.",
+        updatedBy: auth.actor.adminId,
       });
 
       return NextResponse.json(
@@ -30,8 +32,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const probe = await probeStripeConnectEnabled();
-    const mode = resolveStripeMode();
+    const runtime = await getResolvedStripeEnv();
+    const probe = await probeStripeConnectEnabled(runtime.secretKey);
+    const mode = resolveStripeModeFromSecretKey(runtime.secretKey);
 
     const connectionStatus = !probe.secretKeyValid
       ? "not_configured"
@@ -46,6 +49,7 @@ export async function POST(request: NextRequest) {
     await setStripeConnectionStatus({
       status: connectionStatus,
       lastError: probe.connectEnabled ? null : probe.message,
+      updatedBy: auth.actor.adminId,
     });
 
     const updatedResolved = await resolveStripePlatformConfig(request);

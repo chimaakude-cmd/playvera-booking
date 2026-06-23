@@ -101,7 +101,7 @@ export async function GET(request: Request) {
   }
 
   try {
-    const stripe = getStripe();
+    const stripe = await getStripe();
     const account = await stripe.accounts.retrieve(accountId);
     const state = await buildStripeConnectState(
       stripe,

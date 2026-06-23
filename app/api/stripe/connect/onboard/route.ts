@@ -61,7 +61,7 @@ export async function POST(request: Request) {
 
   try {
     const body = (await request.json()) as OnboardBody;
-    const stripe = getStripe();
+    const stripe = await getStripe();
     const providerId = body.providerId?.trim() || "demo-provider-1";
     const baseUrl = getAppBaseUrl(request);
     const returnUrl = `${baseUrl}/club/finance?tab=payment-providers&stripe=complete`;

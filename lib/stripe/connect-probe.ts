@@ -23,8 +23,10 @@ export type StripeConnectProbeResult = {
 };
 
 /** Read-only probe — accounts.list only; does not create accounts. */
-export async function probeStripeConnectEnabled(): Promise<StripeConnectProbeResult> {
-  const secretKey = resolveStripeSecretKey();
+export async function probeStripeConnectEnabled(
+  secretKeyOverride?: string | null,
+): Promise<StripeConnectProbeResult> {
+  const secretKey = secretKeyOverride ?? resolveStripeSecretKey();
   const validation = validateStripeSecretKey(secretKey ?? undefined);
   const testMode = resolveStripeModeFromSecretKey(secretKey) === "test";
 

@@ -1016,6 +1016,57 @@ export type Database = {
         };
         Relationships: [];
       };
+      stripe_platform_config: {
+        Row: {
+          id: number;
+          environment: string;
+          secret_key: string | null;
+          publishable_key: string | null;
+          webhook_secret: string | null;
+          platform_enabled: boolean;
+          platform_fee_percent: number;
+          connection_status: string;
+          last_tested_at: string | null;
+          last_error: string | null;
+          last_webhook_received_at: string | null;
+          created_at: string;
+          updated_at: string;
+          updated_by: string | null;
+        };
+        Insert: {
+          id?: number;
+          environment?: string;
+          secret_key?: string | null;
+          publishable_key?: string | null;
+          webhook_secret?: string | null;
+          platform_enabled?: boolean;
+          platform_fee_percent?: number;
+          connection_status?: string;
+          last_tested_at?: string | null;
+          last_error?: string | null;
+          last_webhook_received_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Update: {
+          id?: number;
+          environment?: string;
+          secret_key?: string | null;
+          publishable_key?: string | null;
+          webhook_secret?: string | null;
+          platform_enabled?: boolean;
+          platform_fee_percent?: number;
+          connection_status?: string;
+          last_tested_at?: string | null;
+          last_error?: string | null;
+          last_webhook_received_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Relationships: [];
+      };
       stripe_platform_state: {
         Row: {
           id: number;

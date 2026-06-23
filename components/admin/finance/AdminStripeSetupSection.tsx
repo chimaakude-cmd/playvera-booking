@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type Dispatch, type SetStateAction } from "react";
 import { PageHeader } from "@/components/club/PageHeader";
 import type {
   StripePlatformConfigPublic,
@@ -26,6 +26,41 @@ type ConfigResponse = {
   };
   message?: string;
 };
+
+type FormState = {
+  environment: "test" | "live";
+  secretKey: string;
+  publishableKey: string;
+  webhookSecret: string;
+  platformEnabled: boolean;
+  platformFeePercent: string;
+};
+
+function applyConfigResponse(
+  configData: ConfigResponse,
+  setConfig: (config: StripePlatformConfigPublic) => void,
+  setResolved: (resolved: ConfigResponse["resolved"]) => void,
+  setForm: Dispatch<SetStateAction<FormState>>,
+) {
+  setConfig(configData.config);
+  setResolved(configData.resolved);
+  setForm({
+    environment: configData.config.environment,
+    secretKey: "",
+    publishableKey: "",
+    webhookSecret: "",
+    platformEnabled: configData.config.platformEnabled,
+    platformFeePercent: String(configData.config.platformFeePercent),
+  });
+}
+
+function EnvLockedBadge() {
+  return (
+    <span className="inline-flex rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-600 ring-1 ring-inset ring-zinc-200">
+      Using environment variable
+    </span>
+  );
+}
 
 type ConnectedProviderRow = {
   providerId: string;
@@ -131,6 +166,14 @@ export function AdminStripeSetupSection({ embedded = false }: Props) {
   const [resolved, setResolved] = useState<ConfigResponse["resolved"] | null>(
     null,
   );
+  const [form, setForm] = useState<FormState>({
+    environment: "test",
+    secretKey: "",
+    publishableKey: "",
+    webhookSecret: "",
+    platformEnabled: false,
+    platformFeePercent: "2.5",
+  });
   const [logs, setLogs] = useState<StripePlatformLogRow[]>([]);
   const [connectedProviders, setConnectedProviders] = useState<
     ConnectedProviderRow[]
@@ -138,6 +181,7 @@ export function AdminStripeSetupSection({ embedded = false }: Props) {
   const [connectedCount, setConnectedCount] = useState(0);
   const [initialLoading, setInitialLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -200,8 +244,7 @@ export function AdminStripeSetupSection({ embedded = false }: Props) {
         }
 
         const configData = (await configRes.json()) as ConfigResponse;
-        setConfig(configData.config);
-        setResolved(configData.resolved);
+        applyConfigResponse(configData, setConfig, setResolved, setForm);
         void loadLogs();
         void loadConnectedProviders();
       } catch (loadError) {
@@ -224,6 +267,51 @@ export function AdminStripeSetupSection({ embedded = false }: Props) {
   useEffect(() => {
     void loadConfig();
   }, [loadConfig]);
+
+  async function handleSave() {
+    setSaving(true);
+    setError(null);
+    setMessage(null);
+
+    try {
+      const body: Record<string, unknown> = {
+        environment: form.environment,
+        platformEnabled: form.platformEnabled,
+        platformFeePercent: Number(form.platformFeePercent),
+      };
+
+      if (form.secretKey.trim()) {
+        body.secretKey = form.secretKey.trim();
+      }
+      if (form.publishableKey.trim()) {
+        body.publishableKey = form.publishableKey.trim();
+      }
+      if (form.webhookSecret.trim()) {
+        body.webhookSecret = form.webhookSecret.trim();
+      }
+
+      const response = await fetch("/api/admin/stripe-platform-config", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      if (!response.ok) {
+        throw new Error(
+          await parseApiError(response, "Save failed."),
+        );
+      }
+
+      const saved = (await response.json()) as ConfigResponse;
+      applyConfigResponse(saved, setConfig, setResolved, setForm);
+      setMessage(saved.message ?? "Configuration saved");
+      void loadLogs();
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : "Save failed.");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   async function handleTestConnection() {
     setTesting(true);
@@ -346,8 +434,15 @@ export function AdminStripeSetupSection({ embedded = false }: Props) {
     : "Never";
 
   const canTestConnection = Boolean(
-    config?.hasSecretKey || resolved?.isPlatformConfigured,
+    config?.hasSecretKey ||
+      form.secretKey.trim() ||
+      resolved?.isPlatformConfigured,
   );
+
+  const environmentLocked = config?.envOverrides.environment ?? false;
+  const secretKeyLocked = config?.envOverrides.secretKey ?? false;
+  const publishableKeyLocked = config?.envOverrides.publishableKey ?? false;
+  const webhookSecretLocked = config?.envOverrides.webhookSecret ?? false;
 
   const webhookHealth = webhookHealthLabel({
     configured: resolved?.isWebhookConfigured ?? false,
@@ -427,6 +522,10 @@ export function AdminStripeSetupSection({ embedded = false }: Props) {
 
         <div className="grid gap-4 p-6 sm:grid-cols-2 lg:grid-cols-4">
           <Metric
+            label="Platform enabled"
+            value={config?.platformEnabled ? "Yes" : "No"}
+          />
+          <Metric
             label="Platform configured"
             value={resolved?.isPlatformConfigured ? "Yes" : "No"}
           />
@@ -475,7 +574,7 @@ export function AdminStripeSetupSection({ embedded = false }: Props) {
         <div className="border-b border-zinc-100 px-6 py-5">
           <h2 className="text-lg font-semibold text-zinc-900">Configuration</h2>
           <p className="mt-1 text-sm text-zinc-500">
-            Stripe keys are set via environment variables. Secrets are never displayed in the UI.
+            Env vars override stored values when set. Secrets are write-only in the UI.
           </p>
         </div>
 
@@ -484,12 +583,25 @@ export function AdminStripeSetupSection({ embedded = false }: Props) {
         ) : (
           <div className="grid gap-5 p-6 lg:grid-cols-2">
             <Field label="Environment">
-              <div className="flex flex-wrap items-center gap-2">
-                {config ? (
-                  <StatusPill
-                    label={config.environmentLabel}
-                    tone={environmentBadgeTone(config.environment)}
-                  />
+              <div className="space-y-2">
+                <select
+                  value={form.environment}
+                  disabled={environmentLocked}
+                  onChange={(e) =>
+                    setForm((current) => ({
+                      ...current,
+                      environment: e.target.value as "test" | "live",
+                    }))
+                  }
+                  className="w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm disabled:bg-zinc-50 disabled:text-zinc-500"
+                >
+                  <option value="test">Test mode</option>
+                  <option value="live">Live</option>
+                </select>
+                {environmentLocked ? (
+                  <p className="text-xs text-zinc-500">
+                    <EnvLockedBadge /> STRIPE_ENVIRONMENT is set — change it in deployment env to switch mode.
+                  </p>
                 ) : null}
                 {config?.keysModeMatch === false ? (
                   <StatusPill label="Key mode mismatch" tone="error" />
@@ -499,46 +611,97 @@ export function AdminStripeSetupSection({ embedded = false }: Props) {
 
             <Field label="Default platform fee %">
               <input
-                type="text"
-                readOnly
-                value={`${config?.platformFeePercent ?? 2.5}%`}
-                className="w-full rounded-xl border border-zinc-100 bg-zinc-50 px-3 py-2 text-sm text-zinc-600"
+                type="number"
+                min={0}
+                max={10}
+                step={0.1}
+                value={form.platformFeePercent}
+                onChange={(e) =>
+                  setForm((current) => ({
+                    ...current,
+                    platformFeePercent: e.target.value,
+                  }))
+                }
+                className="w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm"
               />
             </Field>
 
             <Field label="STRIPE_SECRET_KEY">
-              <input
-                type="text"
-                readOnly
-                value={
-                  config?.hasSecretKey
-                    ? `${config.secretKeyPrefix ?? "Set"} (${config.environmentLabel})`
-                    : "Missing"
-                }
-                className="w-full rounded-xl border border-zinc-100 bg-zinc-50 px-3 py-2 text-sm text-zinc-600"
-              />
+              <div className="space-y-2">
+                <input
+                  type="password"
+                  disabled={secretKeyLocked}
+                  placeholder={
+                    config?.hasSecretKey
+                      ? `${config.secretKeyMasked ?? "••••••••"} (unchanged)`
+                      : "sk_test_... or sk_live_..."
+                  }
+                  value={form.secretKey}
+                  onChange={(e) =>
+                    setForm((current) => ({ ...current, secretKey: e.target.value }))
+                  }
+                  className="w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm disabled:bg-zinc-50 disabled:text-zinc-500"
+                />
+                {secretKeyLocked ? (
+                  <p className="text-xs text-zinc-500">
+                    <EnvLockedBadge /> STRIPE_SECRET_KEY is set in env — stored value kept as fallback.
+                  </p>
+                ) : null}
+              </div>
             </Field>
 
             <Field label="NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY">
-              <input
-                type="text"
-                readOnly
-                value={
-                  config?.hasPublishableKey
-                    ? `${config.publishableKeyPrefix ?? "Set"} (${config.environmentLabel})`
-                    : "Missing"
-                }
-                className="w-full rounded-xl border border-zinc-100 bg-zinc-50 px-3 py-2 text-sm text-zinc-600"
-              />
+              <div className="space-y-2">
+                <input
+                  type="password"
+                  disabled={publishableKeyLocked}
+                  placeholder={
+                    config?.hasPublishableKey
+                      ? `${config.publishableKeyMasked ?? "••••••••"} (unchanged)`
+                      : "pk_test_... or pk_live_..."
+                  }
+                  value={form.publishableKey}
+                  onChange={(e) =>
+                    setForm((current) => ({
+                      ...current,
+                      publishableKey: e.target.value,
+                    }))
+                  }
+                  className="w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm disabled:bg-zinc-50 disabled:text-zinc-500"
+                />
+                {publishableKeyLocked ? (
+                  <p className="text-xs text-zinc-500">
+                    <EnvLockedBadge /> Publishable key env var is set — stored value kept as fallback.
+                  </p>
+                ) : null}
+              </div>
             </Field>
 
             <Field label="STRIPE_WEBHOOK_SECRET">
-              <input
-                type="text"
-                readOnly
-                value={config?.hasWebhookSecret ? "•••••••• (set)" : "Missing"}
-                className="w-full rounded-xl border border-zinc-100 bg-zinc-50 px-3 py-2 text-sm text-zinc-600"
-              />
+              <div className="space-y-2">
+                <input
+                  type="password"
+                  disabled={webhookSecretLocked}
+                  placeholder={
+                    config?.hasWebhookSecret
+                      ? `${config.webhookSecretMasked ?? "••••••••"} (unchanged)`
+                      : "whsec_..."
+                  }
+                  value={form.webhookSecret}
+                  onChange={(e) =>
+                    setForm((current) => ({
+                      ...current,
+                      webhookSecret: e.target.value,
+                    }))
+                  }
+                  className="w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm disabled:bg-zinc-50 disabled:text-zinc-500"
+                />
+                {webhookSecretLocked ? (
+                  <p className="text-xs text-zinc-500">
+                    <EnvLockedBadge /> STRIPE_WEBHOOK_SECRET is set in env — stored value kept as fallback.
+                  </p>
+                ) : null}
+              </div>
             </Field>
 
             <Field label="Connect account type">
@@ -561,6 +724,23 @@ export function AdminStripeSetupSection({ embedded = false }: Props) {
                 Register this URL in the Stripe Dashboard with your webhook signing secret.
               </p>
             </Field>
+
+            <label className="flex items-center gap-3 lg:col-span-2">
+              <input
+                type="checkbox"
+                checked={form.platformEnabled}
+                onChange={(e) =>
+                  setForm((current) => ({
+                    ...current,
+                    platformEnabled: e.target.checked,
+                  }))
+                }
+                className="h-4 w-4 rounded border-zinc-300 text-violet-600"
+              />
+              <span className="text-sm font-medium text-zinc-900">
+                Platform enabled — allow clubs to connect Stripe
+              </span>
+            </label>
           </div>
         )}
 
@@ -569,9 +749,15 @@ export function AdminStripeSetupSection({ embedded = false }: Props) {
             <p className="self-center text-xs text-zinc-500">Refreshing status…</p>
           ) : null}
           <ActionButton
+            onClick={() => void handleSave()}
+            disabled={saving || initialLoading}
+          >
+            {saving ? "Saving…" : "Save configuration"}
+          </ActionButton>
+          <ActionButton
             variant="secondary"
             onClick={() => void loadConfig({ refresh: true })}
-            disabled={initialLoading}
+            disabled={initialLoading || refreshing}
           >
             Refresh
           </ActionButton>

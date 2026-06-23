@@ -12,6 +12,15 @@ export type StripeKeyValidation = {
   mode?: StripeMode;
 };
 
+export type StripeEnvConfig = {
+  secretKey: string | null;
+  publishableKey: string | null;
+  webhookSecret: string | null;
+  environment: StripeMode;
+  /** True when STRIPE_ENVIRONMENT env var is set */
+  environmentOverride: boolean;
+};
+
 export function resolveStripeModeFromSecretKey(
   value: string | null | undefined,
 ): StripeMode | null {
@@ -119,22 +128,68 @@ export function validateStripeKeyModeMatch(
   return { valid: true };
 }
 
-export function resolveStripePublishableKey(): string | null {
-  const publicKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY?.trim();
-  if (publicKey) {
-    return publicKey;
+export function validateStripeWebhookSecret(
+  value: string | undefined,
+): { valid: boolean; error?: string } {
+  const secret = value?.trim() ?? "";
+
+  if (!secret) {
+    return { valid: false, error: "STRIPE_WEBHOOK_SECRET is missing." };
   }
 
-  const serverKey = process.env.STRIPE_PUBLISHABLE_KEY?.trim();
-  if (serverKey) {
-    return serverKey;
+  if (!secret.startsWith("whsec_")) {
+    return {
+      valid: false,
+      error: "STRIPE_WEBHOOK_SECRET must start with whsec_.",
+    };
   }
 
-  return null;
+  return { valid: true };
 }
 
+function resolveEnvironmentFromProcessEnv(): StripeMode {
+  const envRaw = process.env.STRIPE_ENVIRONMENT?.trim().toLowerCase();
+  if (envRaw === "live") {
+    return "live";
+  }
+  if (envRaw === "test" || envRaw === "sandbox") {
+    return "test";
+  }
+
+  const secretMode = resolveStripeModeFromSecretKey(
+    process.env.STRIPE_SECRET_KEY?.trim(),
+  );
+  return secretMode ?? "test";
+}
+
+/** Process env only — prefer getResolvedStripeEnv() for runtime resolution. */
+export function getStripeEnvFromProcessEnv(): StripeEnvConfig {
+  const secretKey = process.env.STRIPE_SECRET_KEY?.trim() || null;
+  const publishableKey =
+    process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY?.trim() ||
+    process.env.STRIPE_PUBLISHABLE_KEY?.trim() ||
+    null;
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET?.trim() || null;
+  const environmentOverride = Boolean(process.env.STRIPE_ENVIRONMENT?.trim());
+  const environment = resolveEnvironmentFromProcessEnv();
+
+  return {
+    secretKey,
+    publishableKey,
+    webhookSecret,
+    environment,
+    environmentOverride,
+  };
+}
+
+/** @deprecated Prefer getResolvedStripeEnv() — env vars only */
 export function resolveStripeSecretKey(): string | null {
-  return process.env.STRIPE_SECRET_KEY?.trim() ?? null;
+  return getStripeEnvFromProcessEnv().secretKey;
+}
+
+/** @deprecated Prefer getResolvedStripeEnv() — env vars only */
+export function resolveStripePublishableKey(): string | null {
+  return getStripeEnvFromProcessEnv().publishableKey;
 }
 
 export function isPublishableKeyConfigured(): boolean {

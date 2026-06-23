@@ -1,21 +1,27 @@
 import { NextResponse } from "next/server";
 import { mapStripeAccountToState } from "@/lib/stripe/connect";
+import { getResolvedStripeEnv } from "@/lib/stripe/platform-admin/resolve";
 import { recordStripeWebhookReceived } from "@/lib/stripe/platform-admin";
-import { getStripe, isStripeConfigured } from "@/lib/stripe/server";
+import {
+  getStripe,
+  isStripeConfiguredAsync,
+} from "@/lib/stripe/server";
+import { validateStripeWebhookSecret } from "@/lib/stripe/env";
 
 export async function POST(request: Request) {
-  if (!isStripeConfigured()) {
+  if (!(await isStripeConfiguredAsync())) {
     return NextResponse.json(
       { error: "Stripe webhook secret is not configured." },
       { status: 503 },
     );
   }
 
-  const stripe = getStripe();
+  const resolved = await getResolvedStripeEnv();
+  const stripe = await getStripe();
   const signature = request.headers.get("stripe-signature");
-  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  const webhookSecret = resolved.webhookSecret;
 
-  if (!signature || !webhookSecret) {
+  if (!signature || !webhookSecret || !validateStripeWebhookSecret(webhookSecret).valid) {
     return NextResponse.json(
       { error: "Missing Stripe webhook signature or secret." },
       { status: 400 },

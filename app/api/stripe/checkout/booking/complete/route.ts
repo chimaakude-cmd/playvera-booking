@@ -54,7 +54,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const stripe = getStripe();
+  const stripe = await getStripe();
   const session = await stripe.checkout.sessions.retrieve(stripeSessionId);
 
   if (session.payment_status !== "paid" && session.status !== "complete") {
@@ -98,7 +98,7 @@ export async function GET(request: Request) {
     );
   }
 
-  const stripe = getStripe();
+  const stripe = await getStripe();
   const session = await stripe.checkout.sessions.retrieve(sessionId);
 
   if (session.payment_status !== "paid" && session.status !== "complete") {

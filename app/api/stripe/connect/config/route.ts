@@ -1,17 +1,13 @@
 import { NextResponse } from "next/server";
 import { probeStripeConnectEnabled } from "@/lib/stripe/connect-probe";
 import {
-  isPublishableKeyConfigured,
-  isSecretKeyConfigured,
   logStripeEnvWarnings,
-  resolveStripeMode,
-  resolveStripePublishableKey,
-  resolveStripeSecretKey,
   validateStripeKeyModeMatch,
   validateStripePublishableKey,
   validateStripeSecretKey,
   type StripeMode,
 } from "@/lib/stripe/env";
+import { getResolvedStripeEnv } from "@/lib/stripe/platform-admin/resolve";
 import {
   isStripeConnectAdminDebugEnabled,
   STRIPE_CONNECT_LOG_PREFIX,
@@ -30,7 +26,7 @@ export type StripeConnectConfigResponse = {
   testModeOnly: boolean;
   /** Safe to expose — publishable keys are public by design */
   publishableKey: string | null;
-  publishableKeySource: "next_public" | "server" | null;
+  publishableKeySource: "next_public" | "server" | "database" | null;
   secretKeyPrefix: string | null;
   publishableKeyPrefix: string | null;
   validationErrors: string[];
@@ -41,14 +37,12 @@ export type StripeConnectConfigResponse = {
 export async function GET() {
   logStripeEnvWarnings();
 
+  const resolved = await getResolvedStripeEnv();
   const secretValidation = validateStripeSecretKey(
-    resolveStripeSecretKey() ?? undefined,
+    resolved.secretKey ?? undefined,
   );
-  const publicEnvKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY?.trim();
-  const serverPubKey = process.env.STRIPE_PUBLISHABLE_KEY?.trim();
-  const resolvedPublishable = resolveStripePublishableKey();
   const publishableValidation = validateStripePublishableKey(
-    resolvedPublishable ?? undefined,
+    resolved.publishableKey ?? undefined,
   );
 
   const validationErrors: string[] = [];
@@ -60,21 +54,21 @@ export async function GET() {
   }
 
   const modeMatch = validateStripeKeyModeMatch(
-    resolveStripeSecretKey() ?? undefined,
-    resolvedPublishable ?? undefined,
+    resolved.secretKey ?? undefined,
+    resolved.publishableKey ?? undefined,
   );
   if (!modeMatch.valid && modeMatch.error) {
     validationErrors.push(modeMatch.error);
   }
 
-  const mode = resolveStripeMode();
+  const mode = secretValidation.mode ?? resolved.environment;
   const stripeEnabled = secretValidation.valid;
 
   let connectEnabled = stripeEnabled;
   let adminDetail: string | undefined;
 
   if (stripeEnabled) {
-    const probe = await probeStripeConnectEnabled();
+    const probe = await probeStripeConnectEnabled(resolved.secretKey);
     connectEnabled = probe.connectEnabled;
 
     if (probe.platformMisconfigured && isStripeConnectAdminDebugEnabled()) {
@@ -85,7 +79,6 @@ export async function GET() {
     }
   }
 
-  // Only block onboarding when STRIPE_SECRET_KEY is missing or invalid.
   const platformUnavailable = !stripeEnabled;
 
   console.log(STRIPE_CONNECT_LOG_PREFIX, {
@@ -97,15 +90,19 @@ export async function GET() {
     environment: mode,
   });
 
+  const publicEnvKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY?.trim();
+  const serverPubKey = process.env.STRIPE_PUBLISHABLE_KEY?.trim();
   const publishableKeySource = publicEnvKey
     ? "next_public"
     : serverPubKey
       ? "server"
-      : null;
+      : resolved.publishableKey
+        ? "database"
+        : null;
 
   const response: StripeConnectConfigResponse = {
-    serverConfigured: isSecretKeyConfigured(),
-    clientConfigured: isPublishableKeyConfigured(),
+    serverConfigured: secretValidation.valid,
+    clientConfigured: publishableValidation.valid,
     connectReady: stripeEnabled,
     connectEnabled,
     platformUnavailable,
@@ -114,7 +111,7 @@ export async function GET() {
     environment: mode,
     mode,
     testModeOnly: mode === "test",
-    publishableKey: publishableValidation.valid ? resolvedPublishable : null,
+    publishableKey: publishableValidation.valid ? resolved.publishableKey : null,
     publishableKeySource,
     secretKeyPrefix: secretValidation.prefix ?? null,
     publishableKeyPrefix: publishableValidation.prefix ?? null,

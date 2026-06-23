@@ -15,7 +15,7 @@ export async function POST(request: Request) {
     const body = (await request.json()) as DisconnectBody;
 
     if (body.stripeAccountId) {
-      const stripe = getStripe();
+      const stripe = await getStripe();
       // Soft disconnect: client clears local state. Stripe account remains for audit.
       await stripe.accounts.update(body.stripeAccountId, {
         metadata: {
