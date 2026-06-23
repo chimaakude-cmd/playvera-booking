@@ -31,6 +31,19 @@ import { FinanceButton } from "./shared";
 const SAMPLE_PAYMENT = 50;
 const STRIPE = PAYMENT_PROVIDER_DEFINITIONS.stripe;
 
+function resolveStripeOAuthErrorMessage(reason: string | null): string {
+  switch (reason) {
+    case "not_configured":
+      return "Stripe club connect is not available yet. Activora is still finishing platform setup.";
+    case "missing_provider":
+      return "Could not identify your club account. Sign in and try Connect Stripe again.";
+    case "start_failed":
+      return "We couldn't start payment setup right now. Please try again in a few minutes.";
+    default:
+      return "Stripe connection could not be started. Please try again.";
+  }
+}
+
 function isStripeSetupComplete(state: StripeConnectState | null): boolean {
   return Boolean(
     state?.stripeAccountId &&
@@ -94,6 +107,7 @@ export function StripeConnectCard() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorDetail, setErrorDetail] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [connectConfig, setConnectConfig] = useState<ConnectConfig | null>(null);
   const isDev = process.env.NODE_ENV !== "production";
@@ -143,13 +157,8 @@ export function StripeConnectCard() {
     invalidateStripeConnectStatusCache();
 
     try {
-      const current = getStripeConnectState();
-      if (current.stripeAccountId) {
-        const updated = await fetchStripeConnectStatus(current.stripeAccountId);
-        setState(updated);
-      } else {
-        setState(current);
-      }
+      const updated = await fetchStripeConnectStatus();
+      setState(updated);
     } catch (refreshError) {
       setState(getStripeConnectState());
       setError(
@@ -171,16 +180,25 @@ export function StripeConnectCard() {
     const stripeRefresh =
       searchParams.get("stripe") === "refresh" ||
       searchParams.get("retry") === "1";
+    const stripeError = searchParams.get("stripe") === "error";
     const connected =
       searchParams.get("connected") === "1" ||
       searchParams.get("stripe") === "connected" ||
+      searchParams.get("stripe_connected") === "true" ||
       stripeComplete;
     const refresh =
       searchParams.get("refresh") === "1" || stripeRefresh;
 
+    if (stripeError) {
+      setError(resolveStripeOAuthErrorMessage(searchParams.get("reason")));
+      setErrorDetail(null);
+      void refreshStatus();
+      return;
+    }
+
     if (connected || refresh) {
       void refreshStatus();
-      if (stripeComplete || searchParams.get("connected") === "1") {
+      if (stripeComplete || searchParams.get("connected") === "1" || searchParams.get("stripe_connected") === "true") {
         setMessage("Returned from Stripe. Your connection status has been updated.");
       }
     }
@@ -189,9 +207,11 @@ export function StripeConnectCard() {
   function handleOnboardError(onboardError: unknown) {
     if (onboardError instanceof StripeConnectOnboardError) {
       setError(onboardError.message);
+      setErrorDetail(onboardError.adminDetail ?? null);
       return;
     }
 
+    setErrorDetail(null);
     setError(
       onboardError instanceof Error
         ? onboardError.message
@@ -202,6 +222,7 @@ export function StripeConnectCard() {
   async function handleConnect() {
     setActionLoading(true);
     setError(null);
+    setErrorDetail(null);
     setMessage(null);
 
     try {
@@ -217,6 +238,7 @@ export function StripeConnectCard() {
   async function handleManage() {
     setActionLoading(true);
     setError(null);
+    setErrorDetail(null);
 
     try {
       const { url } = await refreshStripeOnboarding();
@@ -260,7 +282,8 @@ export function StripeConnectCard() {
   const setupIncomplete = isStripeSetupIncomplete(state);
   const connected = isStripeProviderConnected(status);
   const connectedDate = formatConnectedDate(state?.updatedAt);
-  const serverConfigured = connectConfig?.serverConfigured ?? true;
+  const serverConfigured =
+    (connectConfig?.connect_enabled ?? connectConfig?.serverConfigured) ?? true;
   const configLoaded = connectConfig !== null;
 
   return (
@@ -273,7 +296,10 @@ export function StripeConnectCard() {
 
       {error ? (
         <div className="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
-          {error}
+          <p>{error}</p>
+          {errorDetail && isDev ? (
+            <p className="mt-2 font-mono text-xs text-rose-700">{errorDetail}</p>
+          ) : null}
         </div>
       ) : null}
 

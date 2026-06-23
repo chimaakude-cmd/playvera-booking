@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 import { probeStripeConnectEnabled } from "@/lib/stripe/connect-probe";
 import {
   logStripeEnvWarnings,
@@ -7,7 +8,10 @@ import {
   validateStripeSecretKey,
   type StripeMode,
 } from "@/lib/stripe/env";
-import { getResolvedStripeEnv } from "@/lib/stripe/platform-admin/resolve";
+import {
+  getResolvedStripeEnv,
+  resolveStripePlatformConfig,
+} from "@/lib/stripe/platform-admin/resolve";
 import {
   isStripeConnectAdminDebugEnabled,
   STRIPE_CONNECT_LOG_PREFIX,
@@ -34,10 +38,11 @@ export type StripeConnectConfigResponse = {
 };
 
 /** Public-safe Stripe readiness — never returns secret key values. */
-export async function GET() {
+export async function GET(request: Request) {
   logStripeEnvWarnings();
 
   const resolved = await getResolvedStripeEnv();
+  const platform = await resolveStripePlatformConfig(request as NextRequest);
   const secretValidation = validateStripeSecretKey(
     resolved.secretKey ?? undefined,
   );
@@ -64,22 +69,39 @@ export async function GET() {
   const mode = secretValidation.mode ?? resolved.environment;
   const stripeEnabled = secretValidation.valid;
 
-  let connectEnabled = stripeEnabled;
+  let connectProbe = {
+    connectEnabled: false,
+    platformMisconfigured: false,
+    connectApiReachable: false,
+    message: "",
+  };
   let adminDetail: string | undefined;
 
   if (stripeEnabled) {
-    const probe = await probeStripeConnectEnabled(resolved.secretKey);
-    connectEnabled = probe.connectEnabled;
+    connectProbe = await probeStripeConnectEnabled(resolved.secretKey);
 
-    if (probe.platformMisconfigured && isStripeConnectAdminDebugEnabled()) {
-      validationErrors.push(probe.message);
-      adminDetail = probe.message;
-    } else if (!probe.connectApiReachable && isStripeConnectAdminDebugEnabled()) {
-      adminDetail = probe.message;
+    if (connectProbe.platformMisconfigured && isStripeConnectAdminDebugEnabled()) {
+      validationErrors.push(connectProbe.message);
+      adminDetail = connectProbe.message;
+    } else if (
+      !connectProbe.connectApiReachable &&
+      isStripeConnectAdminDebugEnabled()
+    ) {
+      adminDetail = connectProbe.message;
     }
   }
 
-  const platformUnavailable = !stripeEnabled;
+  if (!platform.isClubConnectAvailable && isStripeConnectAdminDebugEnabled()) {
+    const blocker = platform.clubConnectBlockers[0];
+    if (blocker) {
+      validationErrors.push(blocker);
+      adminDetail = adminDetail ?? blocker;
+    }
+  }
+
+  const connectEnabled =
+    stripeEnabled && platform.isClubConnectAvailable && connectProbe.connectEnabled;
+  const platformUnavailable = !platform.isClubConnectAvailable;
 
   console.log(STRIPE_CONNECT_LOG_PREFIX, {
     route: "/api/stripe/connect/config",
@@ -101,9 +123,9 @@ export async function GET() {
         : null;
 
   const response: StripeConnectConfigResponse = {
-    serverConfigured: secretValidation.valid,
+    serverConfigured: secretValidation.valid && platform.isClubConnectAvailable,
     clientConfigured: publishableValidation.valid,
-    connectReady: stripeEnabled,
+    connectReady: connectEnabled,
     connectEnabled,
     platformUnavailable,
     stripe_enabled: stripeEnabled,

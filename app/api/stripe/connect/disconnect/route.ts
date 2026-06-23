@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getStripe, isStripeConfigured } from "@/lib/stripe/server";
+import { getStripe, isStripeConfiguredAsync } from "@/lib/stripe/server";
 
 type DisconnectBody = {
   providerId?: string;
@@ -7,7 +7,7 @@ type DisconnectBody = {
 };
 
 export async function POST(request: Request) {
-  if (!isStripeConfigured()) {
+  if (!(await isStripeConfiguredAsync())) {
     return NextResponse.json({ ok: true, disconnected: true });
   }
 

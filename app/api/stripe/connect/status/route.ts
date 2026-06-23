@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
-import { persistProviderStripeConnect } from "@/lib/stripe-connect/provider-persistence";
+import {
+  getProviderStripeAccountId,
+  persistProviderStripeConnect,
+} from "@/lib/stripe-connect/provider-persistence";
 import { buildStripeConnectState } from "@/lib/stripe/connect";
 import { probeStripeConnectEnabled } from "@/lib/stripe/connect-probe";
 import {
@@ -8,7 +11,8 @@ import {
   STRIPE_CONNECT_LOG_PREFIX,
 } from "@/lib/stripe/errors";
 import { resolveStripeMode } from "@/lib/stripe/env";
-import { getStripe, isStripeConfigured } from "@/lib/stripe/server";
+import { getResolvedStripeEnv } from "@/lib/stripe/platform-admin/resolve";
+import { getStripe, isStripeConfiguredAsync } from "@/lib/stripe/server";
 
 export type StripeConnectStatusDebug = {
   stripe_enabled: boolean;
@@ -20,15 +24,15 @@ export type StripeConnectStatusDebug = {
   environment: "test" | "live" | null;
 };
 
-function buildStatusDebug(
+async function buildStatusDebug(
   account: {
     charges_enabled?: boolean;
     payouts_enabled?: boolean;
     details_submitted?: boolean;
   } | null,
   connectEnabled: boolean,
-): StripeConnectStatusDebug {
-  const stripeEnabled = isStripeConfigured();
+): Promise<StripeConnectStatusDebug> {
+  const stripeEnabled = await isStripeConfiguredAsync();
   const accountExists = Boolean(account);
   const chargesEnabled = Boolean(account?.charges_enabled);
   const payoutsEnabled = Boolean(account?.payouts_enabled);
@@ -50,20 +54,25 @@ function buildStatusDebug(
 }
 
 export async function GET(request: Request) {
-  const stripeEnabled = isStripeConfigured();
+  const stripeEnabled = await isStripeConfiguredAsync();
   let connectEnabled = stripeEnabled;
 
   if (stripeEnabled) {
-    const probe = await probeStripeConnectEnabled();
+    const resolved = await getResolvedStripeEnv();
+    const probe = await probeStripeConnectEnabled(resolved.secretKey);
     connectEnabled = probe.connectEnabled;
   }
 
   const { searchParams } = new URL(request.url);
-  const accountId = searchParams.get("accountId")?.trim() || null;
   const providerId = searchParams.get("providerId")?.trim() || undefined;
+  let accountId = searchParams.get("accountId")?.trim() || null;
+
+  if (!accountId && providerId) {
+    accountId = (await getProviderStripeAccountId(providerId)) || null;
+  }
 
   if (!stripeEnabled) {
-    const debug = buildStatusDebug(null, connectEnabled);
+    const debug = await buildStatusDebug(null, connectEnabled);
     console.warn(STRIPE_CONNECT_LOG_PREFIX, {
       route: "/api/stripe/connect/status",
       ...debug,
@@ -83,7 +92,7 @@ export async function GET(request: Request) {
   }
 
   if (!accountId) {
-    const debug = buildStatusDebug(null, connectEnabled);
+    const debug = await buildStatusDebug(null, connectEnabled);
     console.log(STRIPE_CONNECT_LOG_PREFIX, {
       route: "/api/stripe/connect/status",
       ...debug,
@@ -115,7 +124,7 @@ export async function GET(request: Request) {
       await persistProviderStripeConnect(resolvedProviderId, account);
     }
 
-    const debug = buildStatusDebug(account, connectEnabled);
+    const debug = await buildStatusDebug(account, connectEnabled);
 
     console.log(STRIPE_CONNECT_LOG_PREFIX, {
       route: "/api/stripe/connect/status",

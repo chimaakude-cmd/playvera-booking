@@ -11,16 +11,25 @@ import {
 export class StripeConnectOnboardError extends Error {
   readonly code: StripeConnectErrorCode;
   readonly adminDetail?: string;
+  readonly reason?: string;
+  readonly stripeCode?: string;
+  readonly providerId?: string;
 
   constructor(payload: {
     error: string;
     code: StripeConnectErrorCode;
     adminDetail?: string;
+    reason?: string;
+    stripeCode?: string;
+    providerId?: string;
   }) {
     super(payload.error);
     this.name = "StripeConnectOnboardError";
     this.code = payload.code;
     this.adminDetail = payload.adminDetail;
+    this.reason = payload.reason;
+    this.stripeCode = payload.stripeCode;
+    this.providerId = payload.providerId;
   }
 }
 
@@ -29,12 +38,18 @@ async function parseOnboardError(response: Response): Promise<never> {
     error?: string;
     code?: StripeConnectErrorCode;
     adminDetail?: string;
+    reason?: string;
+    stripeCode?: string;
+    providerId?: string;
   };
 
   throw new StripeConnectOnboardError({
     error: payload.error ?? "Could not start Stripe onboarding.",
     code: payload.code ?? "transient",
     adminDetail: payload.adminDetail,
+    reason: payload.reason,
+    stripeCode: payload.stripeCode,
+    providerId: payload.providerId,
   });
 }
 
@@ -141,15 +156,15 @@ export async function fetchStripeConnectStatus(
   stripeAccountId?: string | null,
 ): Promise<StripeConnectState> {
   const current = getStripeConnectState();
+  const providerId = resolveStripeConnectProviderId();
   const accountId = stripeAccountId ?? current.stripeAccountId;
 
-  if (!accountId) {
-    return current;
+  const params = new URLSearchParams({ providerId });
+  if (accountId) {
+    params.set("accountId", accountId);
   }
 
-  const response = await fetch(
-    `/api/stripe/connect/status?accountId=${encodeURIComponent(accountId)}&providerId=${encodeURIComponent(current.providerId)}`,
-  );
+  const response = await fetch(`/api/stripe/connect/status?${params.toString()}`);
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
@@ -159,96 +174,66 @@ export async function fetchStripeConnectStatus(
   }
 
   const data = (await response.json()) as StripeConnectState;
-  saveStripeConnectState(data);
-  return data;
-}
-
-function parseOnboardSuccess(payload: {
-  url?: string;
-  stripeAccountId?: string;
-}): { url: string; stripeAccountId: string } {
-  const url = payload.url?.trim();
-  const stripeAccountId = payload.stripeAccountId?.trim();
-
-  if (!url) {
-    console.error(STRIPE_CONNECT_LOG_PREFIX, {
-      step: "onboard.client.missing_url",
-      stripeAccountId: stripeAccountId ?? null,
-    });
-    throw new StripeConnectOnboardError({
-      error: "Stripe onboarding link was missing. Please try again.",
-      code: "transient",
-      adminDetail: "POST /api/stripe/connect/onboard returned no url.",
-    });
+  if (data.stripeAccountId) {
+    saveStripeConnectState({ ...current, ...data, providerId });
+    return { ...current, ...data, providerId };
   }
 
-  if (!stripeAccountId) {
-    console.error(STRIPE_CONNECT_LOG_PREFIX, {
-      step: "onboard.client.missing_account",
-      redirectUrl: url,
-    });
-    throw new StripeConnectOnboardError({
-      error: "Stripe account id was missing. Please try again.",
-      code: "transient",
-      adminDetail: "POST /api/stripe/connect/onboard returned no stripeAccountId.",
-    });
-  }
-
-  console.log(STRIPE_CONNECT_LOG_PREFIX, {
-    step: "onboard.client.redirect",
-    redirectUrl: url,
-    stripeAccountId,
-  });
-
-  return { url, stripeAccountId };
+  saveStripeConnectState({ ...current, ...data, providerId });
+  return { ...current, ...data, providerId };
 }
 
-export async function startStripeOnboarding(): Promise<{
-  url: string;
-  stripeAccountId: string;
-}> {
+export async function startStripeOnboarding(): Promise<{ url: string }> {
   const providerId = resolveStripeConnectProviderId();
-  const current = getStripeConnectState();
-
   console.log(STRIPE_CONNECT_LOG_PREFIX, {
     step: "onboard.client.start",
     providerId,
-    stripeAccountId: current.stripeAccountId,
+    mode: "post",
+    route: "/api/provider/stripe/connect",
   });
 
-  const response = await fetch("/api/stripe/connect/onboard", {
+  const response = await fetch("/api/provider/stripe/connect", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      providerId,
-      stripeAccountId: current.stripeAccountId,
-    }),
+    body: JSON.stringify({ providerId }),
   });
 
   if (!response.ok) {
     await parseOnboardError(response);
   }
 
-  const data = parseOnboardSuccess(
-    (await response.json()) as {
-      url?: string;
-      stripeAccountId?: string;
-    },
-  );
+  const data = (await response.json()) as {
+    url?: string;
+    onboarding?: { url?: string };
+    stripeAccountId?: string;
+  };
+  const url = data.onboarding?.url ?? data.url;
 
-  setStripeAccountId(data.stripeAccountId);
-  return data;
+  if (!url?.trim()) {
+    throw new StripeConnectOnboardError({
+      error: "Stripe onboarding link was missing from the server response.",
+      code: "transient",
+    });
+  }
+
+  if (data.stripeAccountId) {
+    setStripeAccountId(data.stripeAccountId);
+  }
+
+  console.log(STRIPE_CONNECT_LOG_PREFIX, {
+    step: "onboard.client.redirect",
+    providerId,
+    redirectUrl: url,
+  });
+
+  return { url };
 }
 
 export async function refreshStripeOnboarding(): Promise<{ url: string }> {
   const providerId = resolveStripeConnectProviderId();
   const current = getStripeConnectState();
 
-  if (!current.stripeAccountId) {
-    throw new Error("No Stripe account to refresh.");
-  }
-
-  const response = await fetch("/api/stripe/connect/onboard", {
+  const response = await fetch("/api/provider/stripe/connect", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -262,12 +247,25 @@ export async function refreshStripeOnboarding(): Promise<{ url: string }> {
     await parseOnboardError(response);
   }
 
-  return parseOnboardSuccess(
-    (await response.json()) as {
-      url?: string;
-      stripeAccountId?: string;
-    },
-  );
+  const data = (await response.json()) as {
+    url?: string;
+    onboarding?: { url?: string };
+    stripeAccountId?: string;
+  };
+  const url = data.onboarding?.url ?? data.url;
+
+  if (!url?.trim()) {
+    throw new StripeConnectOnboardError({
+      error: "Stripe onboarding link was missing from the server response.",
+      code: "transient",
+    });
+  }
+
+  if (data.stripeAccountId) {
+    setStripeAccountId(data.stripeAccountId);
+  }
+
+  return { url };
 }
 
 export async function disconnectStripeAccount(): Promise<StripeConnectState> {
