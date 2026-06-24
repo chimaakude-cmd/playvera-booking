@@ -7,6 +7,47 @@ import {
   isStripeConfiguredAsync,
 } from "@/lib/stripe/server";
 import { validateStripeWebhookSecret } from "@/lib/stripe/env";
+import {
+  markSubscriptionInvoicePaid,
+  markSubscriptionPaymentFailed,
+  syncSubscriptionFromStripe,
+} from "@/lib/session-subscriptions/server-store";
+import type Stripe from "stripe";
+
+function invoiceSubscriptionId(invoice: Stripe.Invoice): string | null {
+  const legacy = (invoice as Stripe.Invoice & { subscription?: string | Stripe.Subscription | null })
+    .subscription;
+  if (typeof legacy === "string") {
+    return legacy;
+  }
+  if (legacy && typeof legacy === "object") {
+    return legacy.id;
+  }
+  return null;
+}
+
+async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) {
+  const pendingBookingId =
+    session.metadata?.pendingBookingId ?? session.metadata?.pending_booking_id;
+
+  if (pendingBookingId) {
+    const { confirmPendingBooking } = await import(
+      "@/lib/booking-checkout/server-store"
+    );
+    confirmPendingBooking(pendingBookingId);
+  }
+
+  const checkoutMode = session.metadata?.checkoutMode;
+  if (checkoutMode === "subscription" && session.subscription) {
+    const stripe = await getStripe();
+    const subscriptionId =
+      typeof session.subscription === "string"
+        ? session.subscription
+        : session.subscription.id;
+    const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+    await syncSubscriptionFromStripe(subscription, session);
+  }
+}
 
 export async function POST(request: Request) {
   if (!(await isStripeConfiguredAsync())) {
@@ -53,15 +94,33 @@ export async function POST(request: Request) {
     }
 
     if (event.type === "checkout.session.completed") {
-      const session = event.data.object;
-      const pendingBookingId =
-        session.metadata?.pendingBookingId ??
-        session.metadata?.pending_booking_id;
-      if (pendingBookingId) {
-        const { confirmPendingBooking } = await import(
-          "@/lib/booking-checkout/server-store"
-        );
-        confirmPendingBooking(pendingBookingId);
+      await handleCheckoutSessionCompleted(event.data.object);
+      return NextResponse.json({ received: true, type: event.type });
+    }
+
+    if (
+      event.type === "customer.subscription.created" ||
+      event.type === "customer.subscription.updated"
+    ) {
+      await syncSubscriptionFromStripe(event.data.object);
+      return NextResponse.json({ received: true, type: event.type });
+    }
+
+    if (event.type === "customer.subscription.deleted") {
+      await syncSubscriptionFromStripe(event.data.object);
+      return NextResponse.json({ received: true, type: event.type });
+    }
+
+    if (event.type === "invoice.paid") {
+      await markSubscriptionInvoicePaid(event.data.object);
+      return NextResponse.json({ received: true, type: event.type });
+    }
+
+    if (event.type === "invoice.payment_failed") {
+      const invoice = event.data.object;
+      const subscriptionId = invoiceSubscriptionId(invoice);
+      if (subscriptionId) {
+        await markSubscriptionPaymentFailed(subscriptionId);
       }
       return NextResponse.json({ received: true, type: event.type });
     }

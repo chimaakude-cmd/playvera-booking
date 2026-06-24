@@ -32,6 +32,8 @@ export type PendingBookingPayload = {
   photoConsentSession: boolean | null;
   photoConsentMarketing: boolean | null;
   accessMode: "guest" | "parent";
+  checkoutMode?: "payment" | "subscription";
+  ticketId?: string | null;
 };
 
 export type PendingBookingStatus = "pending_payment" | "confirmed" | "expired";

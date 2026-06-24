@@ -11,6 +11,7 @@ import {
   getSessionDateCount,
   getTicketPriceSummary,
 } from "@/lib/sessions";
+import { ActivitySubscriptionSection } from "./ActivitySubscriptionSection";
 import { formatMoney } from "@/lib/payments";
 
 type DrawerTab =
@@ -19,6 +20,7 @@ type DrawerTab =
   | "registers"
   | "reviews"
   | "finance"
+  | "subscriptions"
   | "communications"
   | "share";
 
@@ -28,6 +30,7 @@ const TABS: Array<{ id: DrawerTab; label: string }> = [
   { id: "registers", label: "Registers" },
   { id: "reviews", label: "Reviews" },
   { id: "finance", label: "Finance" },
+  { id: "subscriptions", label: "Subscriptions" },
   { id: "communications", label: "Communications" },
   { id: "share", label: "Share" },
 ];
@@ -234,7 +237,7 @@ export function ActivityOverviewDrawer({
           {tab === "finance" ? (
             <div className="space-y-4">
               <p className="text-sm text-zinc-600">
-                Estimated revenue this month:{" "}
+                Estimated one-off revenue this month:{" "}
                 <span className="font-semibold text-zinc-900">
                   {formatMoney(monthlyRevenue)}
                 </span>
@@ -246,6 +249,10 @@ export function ActivityOverviewDrawer({
                 Open finance dashboard
               </Link>
             </div>
+          ) : null}
+
+          {tab === "subscriptions" ? (
+            <ActivitySubscriptionSection sessionId={row.id} />
           ) : null}
 
           {tab === "communications" ? (

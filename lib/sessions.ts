@@ -55,6 +55,14 @@ export type TicketPriceType =
   | "free_trial"
   | "subscription";
 
+export type TicketSubscriptionBilling = {
+  billingStartDate?: string;
+  billingDay?: number | null;
+  trialDays?: number | null;
+  cancelAnytime?: boolean;
+  minimumCommitmentMonths?: number | null;
+};
+
 export type SessionTicket = {
   id: string;
   name: string;
@@ -63,6 +71,7 @@ export type SessionTicket = {
   price: number;
   lowSpacesTrigger: boolean;
   recentBookingFlag: boolean;
+  subscriptionBilling?: TicketSubscriptionBilling;
 };
 
 import type { SessionVenue } from "./session-location";
@@ -122,6 +131,16 @@ export type ClubSession = {
   venue?: SessionVenue;
   providerVenueId?: string | null;
   paymentProvider?: import("./payment-providers/types").ActivityPaymentProvider;
+  paymentType?: "one_off" | "monthly_subscription" | "free";
+  subscriptionEnabled?: boolean;
+  stripeProductId?: string | null;
+  stripePriceId?: string | null;
+  billingInterval?: string | null;
+  billingStartDate?: string | null;
+  billingDay?: number | null;
+  trialDays?: number | null;
+  cancelAnytime?: boolean;
+  minimumCommitmentMonths?: number | null;
 };
 
 export type { SessionVenue } from "./session-location";
@@ -195,7 +214,7 @@ export function getTicketPriceSummary(session: ClubSession): string {
     }
 
     if (ticket.priceType === "subscription") {
-      return `${ticket.name}: Monthly subscription (coming soon)`;
+      return `${ticket.name}: ${formatMoney(ticket.price)}/month`;
     }
 
     return `${ticket.name}: ${formatMoney(ticket.price)}/session`;

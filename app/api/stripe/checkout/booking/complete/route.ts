@@ -5,6 +5,19 @@ import {
   getPendingBooking,
 } from "@/lib/booking-checkout/server-store";
 import { getStripe, isStripeConfigured } from "@/lib/stripe/server";
+import type Stripe from "stripe";
+
+function isCheckoutSessionComplete(session: Stripe.Checkout.Session): boolean {
+  if (session.payment_status === "paid" || session.payment_status === "no_payment_required") {
+    return true;
+  }
+
+  if (session.mode === "subscription" && session.status === "complete") {
+    return true;
+  }
+
+  return session.status === "complete";
+}
 
 export async function POST(request: Request) {
   let body: { pendingBookingId?: string; stripeSessionId?: string; mock?: boolean };
@@ -57,7 +70,7 @@ export async function POST(request: Request) {
   const stripe = await getStripe();
   const session = await stripe.checkout.sessions.retrieve(stripeSessionId);
 
-  if (session.payment_status !== "paid" && session.status !== "complete") {
+  if (!isCheckoutSessionComplete(session)) {
     return NextResponse.json(
       { error: "Payment not completed yet." },
       { status: 402 },
@@ -101,7 +114,7 @@ export async function GET(request: Request) {
   const stripe = await getStripe();
   const session = await stripe.checkout.sessions.retrieve(sessionId);
 
-  if (session.payment_status !== "paid" && session.status !== "complete") {
+  if (!isCheckoutSessionComplete(session)) {
     return NextResponse.json(
       { error: "Payment not completed." },
       { status: 402 },

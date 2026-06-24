@@ -154,6 +154,50 @@ export function buildSessionInsertPayload(
   optional.bookings_count = 0;
   optional.published = session.published ?? true;
 
+  if (session.paymentProvider) {
+    optional.activity_payment_provider = session.paymentProvider;
+  }
+
+  if (session.paymentType) {
+    optional.payment_type = session.paymentType;
+  }
+
+  if (session.subscriptionEnabled) {
+    optional.subscription_enabled = true;
+  }
+
+  if (session.billingInterval) {
+    optional.billing_interval = session.billingInterval;
+  }
+
+  if (session.billingStartDate) {
+    optional.billing_start_date = session.billingStartDate;
+  }
+
+  if (session.billingDay != null) {
+    optional.billing_day = session.billingDay;
+  }
+
+  if (session.trialDays != null) {
+    optional.trial_days = session.trialDays;
+  }
+
+  if (session.cancelAnytime != null) {
+    optional.cancel_anytime = session.cancelAnytime;
+  }
+
+  if (session.minimumCommitmentMonths != null) {
+    optional.minimum_commitment_months = session.minimumCommitmentMonths;
+  }
+
+  if (session.stripeProductId) {
+    optional.stripe_product_id = session.stripeProductId;
+  }
+
+  if (session.stripePriceId) {
+    optional.stripe_price_id = session.stripePriceId;
+  }
+
   return { ...required, ...optional };
 }
 

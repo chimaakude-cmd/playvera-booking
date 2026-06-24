@@ -31,6 +31,10 @@ export type SessionCheckoutContext = {
   stripeAccountId: string | null;
   platformFee: ResolvedPlatformFee;
   feeHandling: FeeHandling;
+  isSubscription: boolean;
+  stripeProductId: string | null;
+  stripePriceId: string | null;
+  ticketId: string | null;
 };
 
 type ProviderFeeRow = {
@@ -141,7 +145,9 @@ export async function loadSessionCheckoutContext(
 
   const { data: sessionRow, error: sessionError } = await supabase
     .from("sessions")
-    .select("id, provider_id, price")
+    .select(
+      "id, provider_id, price, booking_type, subscription_enabled, payment_type, stripe_product_id, stripe_price_id",
+    )
     .eq("id", sessionId)
     .maybeSingle();
 
@@ -151,6 +157,26 @@ export async function loadSessionCheckoutContext(
 
   const providerId = String(sessionRow.provider_id);
   const listPrice = Number(sessionRow.price);
+
+  const { data: subscriptionTicket } = await supabase
+    .from("tickets")
+    .select("id, price, ticket_type")
+    .eq("session_id", sessionId)
+    .in("ticket_type", ["subscription", "subscription_placeholder"])
+    .order("sort_order", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  const isSubscription =
+    sessionRow.booking_type === "subscription" ||
+    sessionRow.subscription_enabled === true ||
+    sessionRow.payment_type === "monthly_subscription" ||
+    subscriptionTicket != null;
+
+  const resolvedListPrice =
+    isSubscription && subscriptionTicket?.price
+      ? Number(subscriptionTicket.price)
+      : listPrice;
 
   const [platformFee, stripeAccountId] = await Promise.all([
     resolveProviderPlatformFee(providerId),
@@ -173,10 +199,14 @@ export async function loadSessionCheckoutContext(
   return {
     sessionId,
     providerId,
-    listPrice: Number.isFinite(listPrice) ? listPrice : 0,
+    listPrice: Number.isFinite(resolvedListPrice) ? resolvedListPrice : 0,
     stripeAccountId,
     platformFee,
     feeHandling,
+    isSubscription,
+    stripeProductId: sessionRow.stripe_product_id ?? null,
+    stripePriceId: sessionRow.stripe_price_id ?? null,
+    ticketId: subscriptionTicket?.id ?? null,
   };
 }
 

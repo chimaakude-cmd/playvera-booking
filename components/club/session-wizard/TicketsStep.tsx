@@ -8,9 +8,8 @@ import {
   getRemainingSessionCount,
   isTicketPriceEditable,
   parsePriceFromTicketName,
-  SESSION_TICKET_SUBSCRIPTION_ENABLED,
-  toTicketPaymentType,
   TicketPaymentType,
+  toTicketPaymentType,
   WizardFormData,
 } from "@/lib/session-wizard";
 import { formatMoney, SessionTicket, TicketPriceType } from "@/lib/sessions";
@@ -32,16 +31,9 @@ type TicketsStepProps = {
 const paymentTypeOptions: Array<{
   value: TicketPaymentType;
   label: string;
-  disabled?: boolean;
 }> = [
   { value: "one_off", label: "One-off payment" },
-  {
-    value: "monthly_subscription",
-    label: SESSION_TICKET_SUBSCRIPTION_ENABLED
-      ? "Monthly subscription"
-      : "Monthly subscription (Coming soon)",
-    disabled: !SESSION_TICKET_SUBSCRIPTION_ENABLED,
-  },
+  { value: "monthly_subscription", label: "Monthly subscription" },
   { value: "free_session", label: "Free session" },
 ];
 
@@ -70,6 +62,42 @@ function oneOffPriceHint(
   return undefined;
 }
 
+function ToggleField({
+  label,
+  description,
+  checked,
+  onChange,
+}: {
+  label: string;
+  description: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <label className="flex cursor-pointer items-start justify-between gap-4 rounded-xl border border-zinc-200 bg-white p-4">
+      <span>
+        <span className="block text-sm font-medium text-zinc-900">{label}</span>
+        <span className="mt-0.5 block text-xs text-zinc-500">{description}</span>
+      </span>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        onClick={() => onChange(!checked)}
+        className={`relative mt-0.5 h-6 w-11 shrink-0 rounded-full transition-colors ${
+          checked ? "bg-pink-600" : "bg-zinc-200"
+        }`}
+      >
+        <span
+          className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+            checked ? "translate-x-5" : "translate-x-0.5"
+          }`}
+        />
+      </button>
+    </label>
+  );
+}
+
 export function TicketsStep({ data, onChange }: TicketsStepProps) {
   const activeDates = getActiveWizardDates(data);
   const remainingCount = getRemainingSessionCount(activeDates);
@@ -88,15 +116,46 @@ export function TicketsStep({ data, onChange }: TicketsStepProps) {
     ticketId: string,
     paymentType: TicketPaymentType,
   ) {
+    const existingTicket = data.tickets.find((item) => item.id === ticketId);
     const priceType = fromTicketPaymentType(paymentType, data.bookingStructure);
     const updates: Partial<SessionTicket> = { priceType };
 
     if (!isTicketPriceEditable(priceType)) {
       updates.price = 0;
+      updates.subscriptionBilling = undefined;
+    }
+
+    if (paymentType === "monthly_subscription") {
+      updates.subscriptionBilling = {
+        cancelAnytime: true,
+        billingDay: 1,
+        ...existingTicket?.subscriptionBilling,
+      };
     }
 
     onChange({
       tickets: updateTicket(data.tickets, ticketId, updates),
+    });
+  }
+
+  function updateTicketSubscriptionBilling(
+    ticketId: string,
+    billingUpdates: NonNullable<
+      import("@/lib/sessions").TicketSubscriptionBilling
+    >,
+  ) {
+    onChange({
+      tickets: data.tickets.map((ticket) =>
+        ticket.id === ticketId
+          ? {
+              ...ticket,
+              subscriptionBilling: {
+                ...ticket.subscriptionBilling,
+                ...billingUpdates,
+              },
+            }
+          : ticket,
+      ),
     });
   }
 
@@ -144,15 +203,17 @@ export function TicketsStep({ data, onChange }: TicketsStepProps) {
           {data.tickets.map((ticket, index) => {
             const paymentType = toTicketPaymentType(ticket.priceType);
             const priceEditable = isTicketPriceEditable(ticket.priceType);
-            const priceHint = priceEditable
-              ? oneOffPriceHint(ticket.priceType, data.bookingStructure)
-              : paymentType === "monthly_subscription"
-                ? "Recurring billing is not available yet."
+            const isSubscription = paymentType === "monthly_subscription";
+            const priceHint = isSubscription
+              ? "Parents pay automatically each month until cancelled."
+              : priceEditable
+                ? oneOffPriceHint(ticket.priceType, data.bookingStructure)
                 : "No payment required.";
             const remainingCost =
-              ticket.priceType === "per_session"
+              !isSubscription && ticket.priceType === "per_session"
                 ? calculateRemainingSessionCost(ticket.price, activeDates)
                 : null;
+            const billing = ticket.subscriptionBilling ?? {};
 
             return (
               <article
@@ -217,11 +278,7 @@ export function TicketsStep({ data, onChange }: TicketsStepProps) {
                       className={wizardInputClassName}
                     >
                       {paymentTypeOptions.map((option) => (
-                        <option
-                          key={option.value}
-                          value={option.value}
-                          disabled={option.disabled}
-                        >
+                        <option key={option.value} value={option.value}>
                           {option.label}
                         </option>
                       ))}
@@ -229,7 +286,7 @@ export function TicketsStep({ data, onChange }: TicketsStepProps) {
                   </WizardField>
 
                   <WizardField
-                    label="Price"
+                    label={isSubscription ? "Monthly price" : "Price"}
                     htmlFor={`ticket-price-${ticket.id}`}
                     hint={priceHint}
                   >
@@ -255,6 +312,102 @@ export function TicketsStep({ data, onChange }: TicketsStepProps) {
                       />
                     </div>
                   </WizardField>
+
+                  {isSubscription ? (
+                    <div className="grid gap-4 rounded-xl border border-pink-100 bg-pink-50/40 p-4">
+                      <WizardField
+                        label="Billing start date (optional)"
+                        htmlFor={`ticket-billing-start-${ticket.id}`}
+                      >
+                        <input
+                          id={`ticket-billing-start-${ticket.id}`}
+                          type="date"
+                          value={billing.billingStartDate ?? ""}
+                          onChange={(event) =>
+                            updateTicketSubscriptionBilling(ticket.id, {
+                              billingStartDate: event.target.value || undefined,
+                            })
+                          }
+                          className={wizardInputClassName}
+                        />
+                      </WizardField>
+
+                      <WizardField
+                        label="Billing day (optional)"
+                        htmlFor={`ticket-billing-day-${ticket.id}`}
+                        hint="Day of the month parents are charged (1–28)."
+                      >
+                        <input
+                          id={`ticket-billing-day-${ticket.id}`}
+                          type="number"
+                          min={1}
+                          max={28}
+                          value={billing.billingDay ?? ""}
+                          onChange={(event) =>
+                            updateTicketSubscriptionBilling(ticket.id, {
+                              billingDay: event.target.value
+                                ? Number(event.target.value)
+                                : null,
+                            })
+                          }
+                          className={wizardInputClassName}
+                        />
+                      </WizardField>
+
+                      <WizardField
+                        label="Trial period (days, optional)"
+                        htmlFor={`ticket-trial-${ticket.id}`}
+                      >
+                        <input
+                          id={`ticket-trial-${ticket.id}`}
+                          type="number"
+                          min={0}
+                          max={90}
+                          value={billing.trialDays ?? ""}
+                          onChange={(event) =>
+                            updateTicketSubscriptionBilling(ticket.id, {
+                              trialDays: event.target.value
+                                ? Number(event.target.value)
+                                : null,
+                            })
+                          }
+                          className={wizardInputClassName}
+                        />
+                      </WizardField>
+
+                      <WizardField
+                        label="Minimum commitment (months, optional)"
+                        htmlFor={`ticket-commitment-${ticket.id}`}
+                      >
+                        <input
+                          id={`ticket-commitment-${ticket.id}`}
+                          type="number"
+                          min={0}
+                          max={24}
+                          value={billing.minimumCommitmentMonths ?? ""}
+                          onChange={(event) =>
+                            updateTicketSubscriptionBilling(ticket.id, {
+                              minimumCommitmentMonths: event.target.value
+                                ? Number(event.target.value)
+                                : null,
+                            })
+                          }
+                          className={wizardInputClassName}
+                        />
+                      </WizardField>
+
+                      <ToggleField
+                        label="Cancel anytime"
+                        description="Parents can cancel their subscription when they need to."
+                        checked={billing.cancelAnytime !== false}
+                        onChange={(checked) =>
+                          updateTicketSubscriptionBilling(ticket.id, {
+                            cancelAnytime: checked,
+                          })
+                        }
+                      />
+                    </div>
+                  ) : null}
 
                   {remainingCost !== null ? (
                     <div className="rounded-xl border border-pink-200 bg-pink-50 px-4 py-3 text-sm text-pink-900">

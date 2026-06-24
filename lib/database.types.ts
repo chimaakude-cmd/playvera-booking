@@ -620,6 +620,16 @@ export type Database = {
           bookings_count: number;
           published: boolean;
           activity_payment_provider: string;
+          payment_type: string | null;
+          stripe_product_id: string | null;
+          stripe_price_id: string | null;
+          subscription_enabled: boolean;
+          billing_interval: string | null;
+          billing_start_date: string | null;
+          billing_day: number | null;
+          trial_days: number | null;
+          cancel_anytime: boolean;
+          minimum_commitment_months: number | null;
           moderation_status: Database["public"]["Enums"]["session_moderation_status"];
           removal_reason: string | null;
           removal_notes: string | null;
@@ -662,6 +672,16 @@ export type Database = {
           bookings_count?: number;
           published?: boolean;
           activity_payment_provider?: string;
+          payment_type?: string | null;
+          stripe_product_id?: string | null;
+          stripe_price_id?: string | null;
+          subscription_enabled?: boolean;
+          billing_interval?: string | null;
+          billing_start_date?: string | null;
+          billing_day?: number | null;
+          trial_days?: number | null;
+          cancel_anytime?: boolean;
+          minimum_commitment_months?: number | null;
           moderation_status?: Database["public"]["Enums"]["session_moderation_status"];
           removal_reason?: string | null;
           removal_notes?: string | null;
@@ -704,6 +724,16 @@ export type Database = {
           bookings_count?: number;
           published?: boolean;
           activity_payment_provider?: string;
+          payment_type?: string | null;
+          stripe_product_id?: string | null;
+          stripe_price_id?: string | null;
+          subscription_enabled?: boolean;
+          billing_interval?: string | null;
+          billing_start_date?: string | null;
+          billing_day?: number | null;
+          trial_days?: number | null;
+          cancel_anytime?: boolean;
+          minimum_commitment_months?: number | null;
           moderation_status?: Database["public"]["Enums"]["session_moderation_status"];
           removal_reason?: string | null;
           removal_notes?: string | null;
@@ -780,6 +810,7 @@ export type Database = {
           low_spaces_trigger: boolean;
           recent_booking_flag: boolean;
           sort_order: number;
+          subscription_billing: Json;
           created_at: string;
           updated_at: string;
         };
@@ -793,6 +824,7 @@ export type Database = {
           low_spaces_trigger?: boolean;
           recent_booking_flag?: boolean;
           sort_order?: number;
+          subscription_billing?: Json;
           created_at?: string;
           updated_at?: string;
         };
@@ -806,6 +838,7 @@ export type Database = {
           low_spaces_trigger?: boolean;
           recent_booking_flag?: boolean;
           sort_order?: number;
+          subscription_billing?: Json;
           created_at?: string;
           updated_at?: string;
         };
@@ -818,6 +851,72 @@ export type Database = {
             referencedColumns: ["id"];
           },
         ];
+      };
+      parent_subscription_records: {
+        Row: {
+          id: string;
+          session_id: string;
+          ticket_id: string | null;
+          booking_id: string | null;
+          provider_id: string;
+          parent_email: string;
+          parent_name: string;
+          child_name: string;
+          stripe_customer_id: string | null;
+          stripe_subscription_id: string | null;
+          stripe_checkout_session_id: string | null;
+          status: string;
+          monthly_amount: number;
+          platform_fee_percent: number;
+          current_period_end: string | null;
+          canceled_at: string | null;
+          last_payment_failed_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          session_id: string;
+          ticket_id?: string | null;
+          booking_id?: string | null;
+          provider_id: string;
+          parent_email: string;
+          parent_name?: string;
+          child_name?: string;
+          stripe_customer_id?: string | null;
+          stripe_subscription_id?: string | null;
+          stripe_checkout_session_id?: string | null;
+          status?: string;
+          monthly_amount?: number;
+          platform_fee_percent?: number;
+          current_period_end?: string | null;
+          canceled_at?: string | null;
+          last_payment_failed_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          session_id?: string;
+          ticket_id?: string | null;
+          booking_id?: string | null;
+          provider_id?: string;
+          parent_email?: string;
+          parent_name?: string;
+          child_name?: string;
+          stripe_customer_id?: string | null;
+          stripe_subscription_id?: string | null;
+          stripe_checkout_session_id?: string | null;
+          status?: string;
+          monthly_amount?: number;
+          platform_fee_percent?: number;
+          current_period_end?: string | null;
+          canceled_at?: string | null;
+          last_payment_failed_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
       };
       bookings: {
         Row: {
@@ -1578,7 +1677,8 @@ export type Database = {
         | "per_session"
         | "block_price"
         | "free_trial"
-        | "subscription_placeholder";
+        | "subscription_placeholder"
+        | "subscription";
       booking_status:
         | "pending"
         | "confirmed"

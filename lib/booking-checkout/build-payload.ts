@@ -68,6 +68,8 @@ export function buildPendingBookingPayload(params: {
   pricePaid: number;
   accessMode: "guest" | "parent";
   feeBreakdown?: StoredCheckoutFeeBreakdown;
+  checkoutMode?: "payment" | "subscription";
+  ticketId?: string | null;
 }): PendingBookingPayload {
   const sessionAnswers = buildBookingAnswersFromForm(
     params.sessionQuestions,
@@ -115,5 +117,7 @@ export function buildPendingBookingPayload(params: {
     estimatedStripeFee: params.feeBreakdown?.estimatedStripeFee,
     estimatedProviderPayout: params.feeBreakdown?.estimatedProviderPayout,
     feeHandling: params.feeBreakdown?.feeHandling,
+    checkoutMode: params.checkoutMode ?? "payment",
+    ticketId: params.ticketId ?? null,
   };
 }

@@ -38,8 +38,8 @@ import {
   TicketPriceType,
 } from "./sessions";
 
-/** Session ticket subscriptions are not billed yet (provider GoCardless only). */
-export const SESSION_TICKET_SUBSCRIPTION_ENABLED = false;
+/** Monthly subscription tickets — Stripe Checkout subscription mode (V1). */
+export const SESSION_TICKET_SUBSCRIPTION_ENABLED = true;
 
 export type TicketPaymentType = "one_off" | "monthly_subscription" | "free_session";
 
@@ -94,11 +94,7 @@ export function parsePriceFromTicketName(name: string): number | null {
 }
 
 export function isTicketPriceEditable(priceType: TicketPriceType): boolean {
-  return (
-    priceType !== "free" &&
-    priceType !== "free_trial" &&
-    priceType !== "subscription"
-  );
+  return priceType !== "free" && priceType !== "free_trial";
 }
 
 export type WizardStep = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
@@ -469,6 +465,9 @@ export function createEmptyTicket(): SessionTicket {
     price: 0,
     lowSpacesTrigger: true,
     recentBookingFlag: false,
+    subscriptionBilling: {
+      cancelAnytime: true,
+    },
   };
 }
 
@@ -561,7 +560,6 @@ export function validateWizardStep(
       if (
         ticket.priceType !== "free" &&
         ticket.priceType !== "free_trial" &&
-        ticket.priceType !== "subscription" &&
         ticket.price <= 0
       ) {
         errors.push(`${label}: price amount must be greater than 0`);
@@ -697,9 +695,25 @@ export function compileWizardToSession(
             description: "Recurring subscription for this activity",
             priceType: "subscription" as const,
             price: data.subscriptionConfig.amount,
+            subscriptionBilling: {
+              billingDay:
+                data.subscriptionConfig.collectionDate === "custom"
+                  ? data.subscriptionConfig.customCollectionDay
+                  : 1,
+              trialDays:
+                data.subscriptionConfig.joiningOption === "free_trial" ? 14 : null,
+              cancelAnytime:
+                data.subscriptionConfig.cancellationPolicy !== "instant",
+            },
           },
         ]
       : data.tickets;
+
+  const hasSubscriptionTicket = tickets.some(
+    (ticket) => ticket.priceType === "subscription",
+  );
+  const isSubscriptionActivity =
+    data.paymentModel === "subscription" || hasSubscriptionTicket;
 
   return {
     sessionTitle: data.sessionTitle.trim(),
@@ -747,6 +761,37 @@ export function compileWizardToSession(
     published: true,
     providerVenueId: data.venue.providerVenueId,
     paymentProvider: data.paymentProvider,
+    paymentType: isSubscriptionActivity ? "monthly_subscription" : "one_off",
+    subscriptionEnabled: isSubscriptionActivity,
+    billingInterval:
+      data.paymentModel === "subscription"
+        ? data.subscriptionConfig.billingFrequency
+        : hasSubscriptionTicket
+          ? "monthly"
+          : null,
+    billingStartDate: null,
+    billingDay:
+      data.paymentModel === "subscription" &&
+      data.subscriptionConfig.collectionDate === "custom"
+        ? data.subscriptionConfig.customCollectionDay
+        : hasSubscriptionTicket
+          ? (tickets.find((ticket) => ticket.priceType === "subscription")
+              ?.subscriptionBilling?.billingDay ?? 1)
+          : null,
+    trialDays:
+      data.paymentModel === "subscription" &&
+      data.subscriptionConfig.joiningOption === "free_trial"
+        ? 14
+        : (tickets.find((ticket) => ticket.priceType === "subscription")
+            ?.subscriptionBilling?.trialDays ?? null),
+    cancelAnytime:
+      data.paymentModel === "subscription"
+        ? data.subscriptionConfig.cancellationPolicy !== "instant"
+        : (tickets.find((ticket) => ticket.priceType === "subscription")
+            ?.subscriptionBilling?.cancelAnytime ?? true),
+    minimumCommitmentMonths:
+      tickets.find((ticket) => ticket.priceType === "subscription")
+        ?.subscriptionBilling?.minimumCommitmentMonths ?? null,
   };
 }
 
@@ -832,7 +877,7 @@ export function summarizeTickets(data: WizardFormData): string {
         ticket.priceType === "subscription"
       ) {
         if (ticket.priceType === "subscription") {
-          return `${ticket.name}: Monthly subscription (coming soon)`;
+          return `${ticket.name}: ${formatMoney(ticket.price)}/month`;
         }
         return `${ticket.name}: Free`;
       }

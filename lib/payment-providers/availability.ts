@@ -16,6 +16,7 @@ import {
   isStripePaymentSetupReadyFromState,
 } from "./setup-status";
 import type { ClubSession } from "@/lib/sessions";
+import { sessionHasSubscriptionBilling } from "@/lib/session-subscriptions/types";
 
 type PaidActivityInput = {
   paymentModel: "block_individual" | "subscription" | null;
@@ -317,6 +318,16 @@ export function resolveSessionCheckoutMethods(
     return null;
   }
 
+  // V1: parent session subscriptions are Stripe Checkout only.
+  if (sessionHasSubscriptionBilling(session)) {
+    const stripeAvailable = isStripeCheckoutAvailable(providerId);
+    return {
+      stripe: stripeAvailable,
+      gocardless: false,
+      parentPicksMethod: false,
+    };
+  }
+
   const stripeAvailable = isStripeCheckoutAvailable(providerId);
   const gocardlessAvailable = isGoCardlessCheckoutAvailable(providerId);
   const activityProvider = session.paymentProvider ?? "club_default";
@@ -377,6 +388,18 @@ export function validateActivityPaymentProvider(
     return [
       "Enable at least one payment method in Finance before publishing paid activities.",
     ];
+  }
+
+  if (data.paymentModel === "subscription") {
+    if (!isStripePaymentSetupReadyFromState(getStripeConnectState())) {
+      return [
+        "Stripe is required for subscription activities in V1. Connect Stripe in Finance.",
+      ];
+    }
+    if (!isStripePaymentsReady()) {
+      return ["Enable Stripe card payments in Finance for subscription activities."];
+    }
+    return [];
   }
 
   const resolved = resolveWizardPaymentProvider(data);

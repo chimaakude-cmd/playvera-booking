@@ -1,11 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { VatBreakdownPanel } from "@/components/club/finance/VatBreakdownPanel";
 import { PaymentFeeExample } from "@/components/trust/PaymentFeeExample";
 import { calculateVatBreakdown } from "@/lib/club-finance/vat";
 import { getFeeSettings } from "@/lib/fee-settings";
 import { calculatePaymentBreakdown, formatMoney } from "@/lib/payments";
+import {
+  formatBillingStartLabel,
+  resolveSessionSubscription,
+  sessionHasSubscriptionBilling,
+} from "@/lib/session-subscriptions/types";
 import type { ClubSession } from "@/lib/sessions";
 import type { BookingDetailsForm } from "@/lib/booking-flow/types";
 import type { BookingQuestionConfig } from "@/lib/booking-questions";
@@ -30,8 +35,15 @@ export function BookingCheckoutStep({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  const subscription = useMemo(
+    () => resolveSessionSubscription(session),
+    [session],
+  );
+  const isSubscription = sessionHasSubscriptionBilling(session);
+
+  const listPrice = subscription?.monthlyPrice ?? session.price;
   const feeSettings = getFeeSettings();
-  const vatBreakdown = calculateVatBreakdown(session.price);
+  const vatBreakdown = calculateVatBreakdown(listPrice);
   const payment = calculatePaymentBreakdown(
     vatBreakdown.grossAmount,
     session.platformFeePercent,
@@ -54,10 +66,17 @@ export function BookingCheckoutStep({
             day: session.day,
             startTime: session.startTime,
             endTime: session.endTime,
-            price: session.price,
+            price: listPrice,
             platformFeePercent: session.platformFeePercent,
             providerStripeAccountId: session.providerStripeAccountId,
+            bookingStructure: session.bookingStructure,
+            subscriptionEnabled: session.subscriptionEnabled,
+            tickets: session.tickets,
+            schedule: session.schedule,
+            stripeProductId: session.stripeProductId,
+            stripePriceId: session.stripePriceId,
           },
+          ticketId: subscription?.ticketId ?? undefined,
           details,
           sessionQuestions,
           questionValues,
@@ -109,9 +128,10 @@ export function BookingCheckoutStep({
         const query = new URLSearchParams({
           sessionName: session.sessionTitle,
           childName: booking.childName,
-          price: String(session.price),
+          price: String(listPrice),
           status: "confirmed",
           bookingId: booking.id,
+          checkout: "success",
         });
         window.location.href = `/book/confirmation?${query.toString()}`;
         return;
@@ -132,9 +152,13 @@ export function BookingCheckoutStep({
   return (
     <div className="space-y-5">
       <div>
-        <h2 className="text-xl font-bold text-[#0F172A]">Checkout</h2>
+        <h2 className="text-xl font-bold text-[#0F172A]">
+          {isSubscription ? "Subscribe" : "Checkout"}
+        </h2>
         <p className="mt-1 text-sm text-slate-600">
-          Review your booking and pay securely with Stripe.
+          {isSubscription
+            ? "Review your subscription and pay securely with Stripe."
+            : "Review your booking and pay securely with Stripe."}
         </p>
       </div>
 
@@ -152,16 +176,72 @@ export function BookingCheckoutStep({
             <dt className="text-slate-500">Parent</dt>
             <dd className="font-semibold text-[#0F172A]">{details.parentName}</dd>
           </div>
-          <div className="flex justify-between gap-4 border-t border-slate-200 pt-3">
-            <dt className="font-medium text-slate-700">Total</dt>
-            <dd className="text-lg font-bold text-[#0F172A]">
-              {formatMoney(payment.customerPrice)}
-            </dd>
-          </div>
+
+          {isSubscription && subscription ? (
+            <>
+              <div className="flex justify-between gap-4">
+                <dt className="text-slate-500">Monthly price</dt>
+                <dd className="font-semibold text-[#0F172A]">
+                  {formatMoney(subscription.monthlyPrice)}
+                </dd>
+              </div>
+              <div className="flex justify-between gap-4">
+                <dt className="text-slate-500">Billing starts</dt>
+                <dd className="font-semibold text-[#0F172A]">
+                  {formatBillingStartLabel(subscription)}
+                </dd>
+              </div>
+              {subscription.billingDay ? (
+                <div className="flex justify-between gap-4">
+                  <dt className="text-slate-500">Billing day</dt>
+                  <dd className="font-semibold text-[#0F172A]">
+                    {subscription.billingDay}
+                  </dd>
+                </div>
+              ) : null}
+              {subscription.trialDays ? (
+                <div className="flex justify-between gap-4">
+                  <dt className="text-slate-500">Trial period</dt>
+                  <dd className="font-semibold text-[#0F172A]">
+                    {subscription.trialDays} days
+                  </dd>
+                </div>
+              ) : null}
+              <div className="flex justify-between gap-4">
+                <dt className="text-slate-500">Cancel anytime</dt>
+                <dd className="font-semibold text-[#0F172A]">
+                  {subscription.cancelAnytime ? "Yes" : "No"}
+                </dd>
+              </div>
+              {subscription.minimumCommitmentMonths ? (
+                <div className="flex justify-between gap-4">
+                  <dt className="text-slate-500">Minimum commitment</dt>
+                  <dd className="font-semibold text-[#0F172A]">
+                    {subscription.minimumCommitmentMonths} months
+                  </dd>
+                </div>
+              ) : null}
+            </>
+          ) : (
+            <div className="flex justify-between gap-4 border-t border-slate-200 pt-3">
+              <dt className="font-medium text-slate-700">Total</dt>
+              <dd className="text-lg font-bold text-[#0F172A]">
+                {formatMoney(payment.customerPrice)}
+              </dd>
+            </div>
+          )}
         </dl>
-        <div className="mt-4">
-          <VatBreakdownPanel breakdown={vatBreakdown} compact />
-        </div>
+
+        {isSubscription ? (
+          <p className="mt-4 rounded-xl border border-teal-100 bg-teal-50 px-4 py-3 text-sm text-teal-900">
+            Parents pay automatically each month until cancelled.
+          </p>
+        ) : (
+          <div className="mt-4">
+            <VatBreakdownPanel breakdown={vatBreakdown} compact />
+          </div>
+        )}
+
         <div className="mt-4">
           <PaymentFeeExample
             compact
@@ -176,8 +256,9 @@ export function BookingCheckoutStep({
       </div>
 
       <p className="text-xs text-slate-500">
-        Your booking is only confirmed after successful payment. Platform and
-        processor fees shown above are estimates and may vary.
+        {isSubscription
+          ? "Your subscription activates after successful checkout. Platform fee is 2.5% standard unless your club plan specifies otherwise."
+          : "Your booking is only confirmed after successful payment. Platform and processor fees shown above are estimates and may vary."}
       </p>
 
       {error ? (
@@ -201,7 +282,11 @@ export function BookingCheckoutStep({
           disabled={loading}
           className="rounded-xl bg-[#2563EB] px-6 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
         >
-          {loading ? "Redirecting…" : "Pay with Stripe"}
+          {loading
+            ? "Redirecting…"
+            : isSubscription
+              ? "Subscribe with Stripe"
+              : "Pay with Stripe"}
         </button>
       </div>
     </div>

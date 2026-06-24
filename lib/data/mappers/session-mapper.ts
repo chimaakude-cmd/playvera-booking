@@ -46,6 +46,17 @@ type SessionRow = {
   latitude: number | null;
   longitude: number | null;
   provider_venue_id: string | null;
+  activity_payment_provider?: string;
+  payment_type?: string | null;
+  stripe_product_id?: string | null;
+  stripe_price_id?: string | null;
+  subscription_enabled?: boolean;
+  billing_interval?: string | null;
+  billing_start_date?: string | null;
+  billing_day?: number | null;
+  trial_days?: number | null;
+  cancel_anytime?: boolean;
+  minimum_commitment_months?: number | null;
   created_at: string;
   updated_at: string;
 };
@@ -71,6 +82,7 @@ type TicketRow = {
   low_spaces_trigger: boolean;
   recent_booking_flag: boolean;
   sort_order: number;
+  subscription_billing?: Json;
 };
 
 type DbTicketType =
@@ -78,14 +90,15 @@ type DbTicketType =
   | "per_session"
   | "block_price"
   | "free_trial"
-  | "subscription_placeholder";
+  | "subscription_placeholder"
+  | "subscription";
 
 const DOMAIN_TO_DB_TICKET_TYPE: Record<TicketPriceType, DbTicketType> = {
   free: "free",
   per_session: "per_session",
   term_block: "block_price",
   free_trial: "free_trial",
-  subscription: "subscription_placeholder",
+  subscription: "subscription",
 };
 
 const DB_TO_DOMAIN_TICKET_TYPE: Record<DbTicketType, TicketPriceType> = {
@@ -94,7 +107,36 @@ const DB_TO_DOMAIN_TICKET_TYPE: Record<DbTicketType, TicketPriceType> = {
   block_price: "term_block",
   free_trial: "free_trial",
   subscription_placeholder: "subscription",
+  subscription: "subscription",
 };
+
+function parseTicketSubscriptionBilling(
+  value: Json | undefined,
+): import("@/lib/sessions").TicketSubscriptionBilling | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return undefined;
+  }
+
+  const record = value as Record<string, unknown>;
+  return {
+    billingStartDate:
+      typeof record.billingStartDate === "string"
+        ? record.billingStartDate
+        : undefined,
+    billingDay:
+      typeof record.billingDay === "number" ? record.billingDay : null,
+    trialDays:
+      typeof record.trialDays === "number" ? record.trialDays : null,
+    cancelAnytime:
+      typeof record.cancelAnytime === "boolean"
+        ? record.cancelAnytime
+        : undefined,
+    minimumCommitmentMonths:
+      typeof record.minimumCommitmentMonths === "number"
+        ? record.minimumCommitmentMonths
+        : null,
+  };
+}
 
 export function toDbTime(time: string): string {
   if (/^\d{2}:\d{2}$/.test(time)) {
@@ -220,6 +262,7 @@ export function mapTicketRow(row: TicketRow): SessionTicket {
     price: Number(row.price),
     lowSpacesTrigger: row.low_spaces_trigger,
     recentBookingFlag: row.recent_booking_flag,
+    subscriptionBilling: parseTicketSubscriptionBilling(row.subscription_billing),
   };
 }
 
@@ -317,6 +360,26 @@ export function mapSessionRowsToClubSession(
     minSessionCapacity: capacities.length ? Math.min(...capacities) : row.capacity,
     maxSessionCapacity: capacities.length ? Math.max(...capacities) : row.capacity,
     providerVenueId: row.provider_venue_id,
+    paymentProvider:
+      (row.activity_payment_provider as ClubSession["paymentProvider"]) ??
+      "club_default",
+    paymentType:
+      row.payment_type === "monthly_subscription"
+        ? "monthly_subscription"
+        : row.payment_type === "free"
+          ? "free"
+          : row.payment_type === "one_off"
+            ? "one_off"
+            : undefined,
+    subscriptionEnabled: row.subscription_enabled ?? false,
+    stripeProductId: row.stripe_product_id ?? null,
+    stripePriceId: row.stripe_price_id ?? null,
+    billingInterval: row.billing_interval ?? null,
+    billingStartDate: row.billing_start_date ?? null,
+    billingDay: row.billing_day ?? null,
+    trialDays: row.trial_days ?? null,
+    cancelAnytime: row.cancel_anytime ?? true,
+    minimumCommitmentMonths: row.minimum_commitment_months ?? null,
   };
 }
 
@@ -399,6 +462,7 @@ export function mapClubSessionTicketsToInsert(
     low_spaces_trigger: ticket.lowSpacesTrigger,
     recent_booking_flag: ticket.recentBookingFlag,
     sort_order: index,
+    subscription_billing: (ticket.subscriptionBilling ?? {}) as Json,
   }));
 }
 
