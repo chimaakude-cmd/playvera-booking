@@ -6,16 +6,17 @@ import {
 } from "@/lib/data/mappers/session-mapper";
 import { filterBookableSessions } from "@/lib/sessions/bookable";
 import {
+  fetchPublicSessionByIdRow,
+  fetchPublishedSessionsForProvider,
+  type PublicSessionRow,
+} from "@/lib/sessions/public-schema";
+import {
   createSupabaseServerClient,
   createSupabaseServiceRoleClient,
   isSupabaseConfigured,
   isSupabaseServiceRoleConfigured,
 } from "@/lib/supabase";
 import type { ClubSession } from "@/lib/sessions";
-
-type PublicSessionRow = SessionRow & {
-  moderation_status?: "active" | "removed" | null;
-};
 
 function groupBySessionId<T extends { session_id: string }>(rows: T[]) {
   const grouped = new Map<string, T[]>();
@@ -27,10 +28,6 @@ function groupBySessionId<T extends { session_id: string }>(rows: T[]) {
   }
 
   return grouped;
-}
-
-function isRemovedSessionRow(row: PublicSessionRow): boolean {
-  return row.moderation_status === "removed";
 }
 
 function getPublicSupabaseClient() {
@@ -71,7 +68,7 @@ async function loadSessionsWithRelatedData(
 
   return rows.map((row) =>
     mapSessionRowsToClubSession(
-      row,
+      row as SessionRow,
       datesBySessionId.get(row.id) ?? [],
       ticketsBySessionId.get(row.id) ?? [],
     ),
@@ -89,20 +86,9 @@ export async function getPublicSessionById(
   }
 
   const supabase = getPublicSupabaseClient();
-  const { data: sessionRow, error } = await supabase
-    .from("sessions")
-    .select("*")
-    .eq("id", trimmedId)
-    .eq("published", true)
-    .maybeSingle();
+  const row = await fetchPublicSessionByIdRow(supabase, trimmedId);
 
-  if (error || !sessionRow) {
-    return null;
-  }
-
-  const row = sessionRow as PublicSessionRow;
-
-  if (isRemovedSessionRow(row)) {
+  if (!row) {
     return null;
   }
 
@@ -118,21 +104,7 @@ export async function getBookableActivitiesForClub(
   }
 
   const supabase = getPublicSupabaseClient();
-
-  const { data: sessionRows, error } = await supabase
-    .from("sessions")
-    .select("*")
-    .eq("provider_id", providerId)
-    .eq("published", true)
-    .order("created_at", { ascending: false });
-
-  if (error || !sessionRows?.length) {
-    return [];
-  }
-
-  const rows = (sessionRows as PublicSessionRow[]).filter(
-    (row) => !isRemovedSessionRow(row),
-  );
+  const rows = await fetchPublishedSessionsForProvider(supabase, providerId);
 
   if (rows.length === 0) {
     return [];
