@@ -8,6 +8,8 @@ export type PublicSessionRow = {
   status?: string | null;
   deleted_at?: string | null;
   archived?: boolean | null;
+  moderation_status?: string | null;
+  visible?: boolean | null;
 };
 
 /** Matches club dashboard filterPublished: published !== false. */
@@ -17,6 +19,10 @@ export function isPublishedPublicSessionRow(row: PublicSessionRow): boolean {
 
 /** Session is hidden from public booking when explicitly removed or archived. */
 export function isRemovedPublicSessionRow(row: PublicSessionRow): boolean {
+  if (row.moderation_status === "removed") {
+    return true;
+  }
+
   if (row.removed_at) {
     return true;
   }
@@ -26,6 +32,10 @@ export function isRemovedPublicSessionRow(row: PublicSessionRow): boolean {
   }
 
   if (row.archived === true) {
+    return true;
+  }
+
+  if (row.visible === false) {
     return true;
   }
 

@@ -1,5 +1,16 @@
 import { formatPostgrestError } from "@/lib/data/supabase-errors";
-import { createSupabaseServerClient, isSupabaseConfigured } from "@/lib/supabase";
+import {
+  createSupabaseServerClient,
+  createSupabaseServiceRoleClient,
+  isSupabaseConfigured,
+  isSupabaseServiceRoleConfigured,
+} from "@/lib/supabase";
+
+function getSessionWriteClient() {
+  return isSupabaseServiceRoleConfigured()
+    ? createSupabaseServiceRoleClient()
+    : createSupabaseServerClient();
+}
 
 export const SESSION_HAS_BOOKINGS_MESSAGE =
   "This session has existing bookings and cannot be permanently deleted.";
@@ -9,7 +20,7 @@ export async function getSessionBookingCount(sessionId: string): Promise<number>
     return 0;
   }
 
-  const supabase = createSupabaseServerClient();
+  const supabase = getSessionWriteClient();
   const { data, error } = await supabase
     .from("sessions")
     .select("bookings_count")
@@ -33,7 +44,7 @@ export async function hardDeleteSessionById(sessionId: string): Promise<void> {
     throw new Error(SESSION_HAS_BOOKINGS_MESSAGE);
   }
 
-  const supabase = createSupabaseServerClient();
+  const supabase = getSessionWriteClient();
   await supabase.from("session_dates").delete().eq("session_id", sessionId);
   await supabase.from("tickets").delete().eq("session_id", sessionId);
 
@@ -48,10 +59,10 @@ export async function archiveSessionById(sessionId: string): Promise<void> {
     throw new Error("Supabase is not configured.");
   }
 
-  const supabase = createSupabaseServerClient();
+  const supabase = getSessionWriteClient();
   const { error } = await supabase
     .from("sessions")
-    .update({ published: false })
+    .update({ published: false, updated_at: new Date().toISOString() })
     .eq("id", sessionId);
 
   if (error) {
@@ -64,10 +75,10 @@ export async function publishSessionById(sessionId: string): Promise<void> {
     throw new Error("Supabase is not configured.");
   }
 
-  const supabase = createSupabaseServerClient();
+  const supabase = getSessionWriteClient();
   const { error } = await supabase
     .from("sessions")
-    .update({ published: true })
+    .update({ published: true, updated_at: new Date().toISOString() })
     .eq("id", sessionId);
 
   if (error) {

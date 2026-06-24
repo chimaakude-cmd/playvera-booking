@@ -1,11 +1,15 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { LoadingState } from "@/components/club/LoadingState";
 import { BookingQuestionsForm } from "@/components/booking/BookingQuestionsForm";
 import { SessionImage } from "@/components/sessions/SessionImage";
 import { SessionNotFoundPage } from "@/components/booking/SessionNotFoundPage";
+import {
+  BookSessionDebugPanel,
+  shouldShowBookSessionDebugPanel,
+} from "@/components/booking/BookSessionDebugPanel";
 import { PoweredByActivoraFooter } from "@/components/PoweredByActivoraFooter";
 import { Logo } from "@/components/branding";
 import { VatBreakdownPanel } from "@/components/club/finance/VatBreakdownPanel";
@@ -40,6 +44,10 @@ import {
   getSessionById,
   incrementSessionBookings,
 } from "@/lib/sessions";
+import {
+  buildSessionLoadDiagnostics,
+  type SessionLoadDiagnostics,
+} from "@/lib/sessions/load-diagnostics";
 import { getSessionImages } from "@/lib/session-images";
 
 const inputClassName =
@@ -67,14 +75,18 @@ type BookSessionPageLegacyProps = {
   session: ClubSession | null;
   loaded: boolean;
   sessionId?: string;
+  loadDiagnostics?: SessionLoadDiagnostics | null;
 };
 
 export default function BookSessionPageLegacy({
   session: initialSession,
   loaded: initialLoaded,
   sessionId: sessionIdProp,
+  loadDiagnostics: loadDiagnosticsProp = null,
 }: BookSessionPageLegacyProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const showDebug = shouldShowBookSessionDebugPanel(searchParams.get("debug"));
   const sessionId = sessionIdProp ?? initialSession?.id ?? "";
 
   const [session, setSession] = useState<ClubSession | null>(initialSession);
@@ -275,7 +287,25 @@ export default function BookSessionPageLegacy({
   }
 
   if (!session) {
-    return <SessionNotFoundPage />;
+    const diagnostics =
+      loadDiagnosticsProp ??
+      buildSessionLoadDiagnostics({
+        routeId: sessionId,
+        source: shouldUseSupabaseSessions() ? "supabase" : "localStorage",
+        found: false,
+      });
+
+    return (
+      <>
+        <SessionNotFoundPage />
+        {showDebug ? (
+          <BookSessionDebugPanel
+            sessionId={sessionId}
+            loadDiagnostics={diagnostics}
+          />
+        ) : null}
+      </>
+    );
   }
 
   const feeSettings = getFeeSettings();

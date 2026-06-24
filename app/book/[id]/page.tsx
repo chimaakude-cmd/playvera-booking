@@ -28,6 +28,9 @@ function BookSessionPageContent() {
 
   const [session, setSession] = useState<ClubSession | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const [loadDiagnostics, setLoadDiagnostics] = useState<
+    ReturnType<typeof buildSessionLoadDiagnostics> | null
+  >(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -51,6 +54,13 @@ function BookSessionPageContent() {
           }),
         );
 
+        const diagnostics = buildSessionLoadDiagnostics({
+          routeId: sessionId,
+          source: "supabase",
+          found: Boolean(result.session),
+          error: result.error,
+        });
+        setLoadDiagnostics(diagnostics);
         setSession(result.session ?? null);
         setLoaded(true);
         return;
@@ -70,6 +80,12 @@ function BookSessionPageContent() {
         }),
       );
 
+      const diagnostics = buildSessionLoadDiagnostics({
+        routeId: sessionId,
+        source: "localStorage",
+        found: Boolean(found),
+      });
+      setLoadDiagnostics(diagnostics);
       setSession(found ?? null);
       setLoaded(true);
     }
@@ -86,7 +102,14 @@ function BookSessionPageContent() {
   }
 
   if (!session) {
-    return <BookSessionPageLegacy session={null} loaded sessionId={sessionId} />;
+    return (
+      <BookSessionPageLegacy
+        session={null}
+        loaded
+        sessionId={sessionId}
+        loadDiagnostics={loadDiagnostics}
+      />
+    );
   }
 
   const showWaitlist = waitlistParam || isSessionSoldOut(session);

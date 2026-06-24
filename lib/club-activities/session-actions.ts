@@ -1,5 +1,6 @@
 import { getBookingsBySession } from "@/lib/bookings";
 import { dataLayer } from "@/lib/data";
+import { shouldUseSupabaseSessions } from "@/lib/data/config";
 import {
   archiveActivities,
   setActivityVisibility,
@@ -37,6 +38,16 @@ async function patchSessionAction(
     return;
   }
 
+  if (shouldUseSupabaseSessions()) {
+    const body = (await response.json().catch(() => null)) as {
+      error?: string;
+    } | null;
+    throw new Error(
+      body?.error ??
+        `Could not ${action} session in Supabase (HTTP ${response.status}).`,
+    );
+  }
+
   const existing = await dataLayer.sessions.getById(id);
   if (!existing) {
     return;
@@ -57,13 +68,20 @@ async function patchSessionAction(
 
 export async function archiveSessionActivity(row: ActivityRow): Promise<void> {
   archiveActivities([row.id]);
-  setActivityVisibility(row.id, false);
+  if (!shouldUseSupabaseSessions()) {
+    setActivityVisibility(row.id, false);
+  }
   await patchSessionAction(row.id, "archive");
 }
 
 export async function publishSessionActivity(row: ActivityRow): Promise<void> {
-  unarchiveActivity(row.id);
-  setActivityVisibility(row.id, true);
+  if (!shouldUseSupabaseSessions()) {
+    unarchiveActivity(row.id);
+    setActivityVisibility(row.id, true);
+  } else {
+    unarchiveActivity(row.id);
+  }
+
   await patchSessionAction(row.id, "publish");
 }
 
@@ -106,7 +124,9 @@ export async function bulkArchiveSessions(rows: ActivityRow[]): Promise<number> 
 
   archiveActivities(rows.map((row) => row.id));
   for (const row of rows) {
-    setActivityVisibility(row.id, false);
+    if (!shouldUseSupabaseSessions()) {
+      setActivityVisibility(row.id, false);
+    }
   }
 
   const response = await fetch("/api/club/sessions/bulk", {
@@ -134,7 +154,9 @@ export async function bulkPublishSessions(rows: ActivityRow[]): Promise<number> 
 
   for (const row of rows) {
     unarchiveActivity(row.id);
-    setActivityVisibility(row.id, true);
+    if (!shouldUseSupabaseSessions()) {
+      setActivityVisibility(row.id, true);
+    }
   }
 
   const response = await fetch("/api/club/sessions/bulk", {

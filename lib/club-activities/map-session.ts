@@ -5,6 +5,7 @@ import {
 import { resolveSessionPaymentProvider } from "@/lib/payment-providers/availability";
 import { getActivityRatingSummary } from "@/lib/reviews/ratings";
 import { getReviews } from "@/lib/reviews/storage";
+import { shouldUseSupabaseSessions } from "@/lib/data/config";
 import { formatSessionLocation, getActiveSessionDates } from "@/lib/sessions";
 import { formatActivityType } from "@/lib/sessions";
 import { getSessionImages } from "@/lib/session-images";
@@ -242,8 +243,9 @@ export function mapSessionToActivityRow(session: ClubSession): ActivityRow {
   const bookings = getBookings();
   const visibilityOverrides = getActivityVisibilityOverrides();
   const defaultVisible = session.published !== false;
-  const visibility =
-    visibilityOverrides[session.id] ?? defaultVisible;
+  const visibility = shouldUseSupabaseSessions()
+    ? defaultVisible && !isActivityArchived(session.id)
+    : (visibilityOverrides[session.id] ?? defaultVisible);
   const occupancy = computeOccupancy(session, bookings);
   const status = resolveStatus(session, occupancy, visibility);
   const { startDate, endDate } = extractDateRange(session);
