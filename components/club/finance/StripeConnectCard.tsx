@@ -18,11 +18,13 @@ import {
   getStripeConnectState,
   refreshStripeOnboarding,
   resolveStripeConnectProviderId,
+  showStripeDiagnostics,
   startStripeOnboarding,
   StripeConnectOnboardError,
   type StripeConnectState,
   type StripeConnectStatus,
 } from "@/lib/stripe-connect";
+import { openSupportDrawer } from "@/lib/inbox/storage";
 import { STRIPE_CONNECT_CLUB_MESSAGES, STRIPE_CONNECT_LOG_PREFIX } from "@/lib/stripe/errors";
 import {
   invalidateProviderCache,
@@ -118,6 +120,7 @@ export function StripeConnectCard({
   const [message, setMessage] = useState<string | null>(null);
   const [connectConfig, setConnectConfig] = useState<ConnectConfig | null>(null);
   const isDev = process.env.NODE_ENV !== "production";
+  const diagnosticsVisible = showStripeDiagnostics();
 
   useEffect(() => {
     resolveStripeConnectProviderId();
@@ -403,27 +406,31 @@ export function StripeConnectCard({
       </p>
 
       {state?.stripeAccountId ? (
-        <dl className="mt-4 grid gap-3 rounded-xl border border-orange-100 bg-white p-4 text-sm sm:grid-cols-2">
-          <StripeDetailField
-            label="Charges enabled"
-            value={state.chargesEnabled ? "Yes" : "No"}
-            positive={state.chargesEnabled}
+        <dl className="mt-4 space-y-2 rounded-xl border border-orange-100 bg-white p-4 text-sm">
+          <ProviderStatusRow label="Connected" ok={connected} />
+          <ProviderStatusRow
+            label="Payments enabled"
+            ok={state.chargesEnabled}
           />
-          <StripeDetailField
+          <ProviderStatusRow
             label="Payouts enabled"
-            value={state.payoutsEnabled ? "Yes" : "No"}
-            positive={state.payoutsEnabled}
+            ok={state.payoutsEnabled}
           />
           {connectedDate ? (
-            <StripeDetailField label="Connected" value={connectedDate} />
+            <ProviderStatusRow label="Connected date" value={connectedDate} />
           ) : null}
-          <StripeDetailField
-            label="Account"
-            value={state.stripeAccountId}
-            mono
-          />
         </dl>
       ) : null}
+
+      <p className="mt-3 text-sm text-zinc-600">
+        <button
+          type="button"
+          onClick={() => openSupportDrawer({ newChat: true })}
+          className="font-medium text-[#C2410C] underline-offset-2 hover:underline"
+        >
+          Need help with payments?
+        </button>
+      </p>
 
       {state?.requirementsDue?.length ? (
         <p className="mt-2 text-xs text-amber-700">
@@ -473,7 +480,7 @@ export function StripeConnectCard({
         />
       </div>
 
-      {configLoaded ? (
+      {diagnosticsVisible && configLoaded ? (
         <details className="mt-4 rounded-lg border border-zinc-200 bg-white px-4 py-3 text-sm">
           <summary className="cursor-pointer text-xs font-semibold text-zinc-600">
             Stripe diagnostics
@@ -507,6 +514,9 @@ export function StripeConnectCard({
               label="environment"
               value={connectConfig?.environment ?? "unknown"}
             />
+            {state?.stripeAccountId ? (
+              <DebugField label="account_id" value={state.stripeAccountId} />
+            ) : null}
           </dl>
         </details>
       ) : null}
@@ -514,32 +524,32 @@ export function StripeConnectCard({
   );
 }
 
-function StripeDetailField({
+function ProviderStatusRow({
   label,
+  ok,
   value,
-  mono = false,
-  positive,
 }: {
   label: string;
-  value: string;
-  mono?: boolean;
-  positive?: boolean;
+  ok?: boolean;
+  value?: string;
 }) {
+  const displayValue =
+    value ??
+    (ok === true ? "✓" : ok === false ? "Not yet" : "—");
+
   return (
-    <div>
-      <dt className="text-xs font-medium uppercase tracking-wide text-zinc-400">
-        {label}
-      </dt>
+    <div className="flex flex-wrap items-center justify-between gap-2">
+      <dt className="text-zinc-600">{label}</dt>
       <dd
-        className={`mt-1 font-medium ${
-          positive === true
+        className={`font-medium ${
+          ok === true
             ? "text-emerald-700"
-            : positive === false
+            : ok === false
               ? "text-amber-700"
               : "text-[#0F172A]"
-        } ${mono ? "font-mono text-xs" : "text-sm"}`}
+        }`}
       >
-        {value}
+        {displayValue}
       </dd>
     </div>
   );

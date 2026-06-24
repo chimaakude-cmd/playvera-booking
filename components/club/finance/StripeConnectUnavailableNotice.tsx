@@ -1,5 +1,6 @@
 "use client";
 
+import { showStripeDiagnostics } from "@/lib/stripe-connect";
 import { FinanceButton } from "./shared";
 
 export type StripeConnectDebugInfo = {
@@ -28,7 +29,8 @@ export function StripeConnectUnavailableNotice({
   tryAgainLoading = false,
 }: StripeConnectUnavailableNoticeProps) {
   const showAdminDetail =
-    Boolean(adminDetail) && process.env.NODE_ENV !== "production";
+    Boolean(adminDetail) && showStripeDiagnostics();
+  const showDebug = Boolean(debug) && showStripeDiagnostics();
 
   return (
     <div className="rounded-lg border border-sky-200 bg-sky-50 px-4 py-4 text-sm text-sky-950">
@@ -54,10 +56,10 @@ export function StripeConnectUnavailableNotice({
         ) : null}
       </div>
 
-      {debug ? (
+      {showDebug && debug ? (
         <details className="mt-4 rounded-md border border-sky-300/60 bg-sky-100/40 px-3 py-2">
           <summary className="cursor-pointer text-xs font-semibold text-sky-900">
-            Debug
+            Stripe diagnostics
           </summary>
           <dl className="mt-2 grid gap-1 text-xs text-sky-900 sm:grid-cols-2">
             <DebugRow label="stripe_enabled" value={String(debug.stripe_enabled)} />
