@@ -8,6 +8,14 @@ export type PendingBookingPayload = {
   startTime: string;
   endTime: string;
   pricePaid: number;
+  /** Server-resolved platform fee percent at checkout creation. */
+  platformFeePercent?: number;
+  platformFee?: number;
+  applicationFeePence?: number;
+  platformFeeSource?: string;
+  estimatedStripeFee?: number;
+  estimatedProviderPayout?: number;
+  feeHandling?: string;
   parentName: string;
   email: string;
   childName: string;

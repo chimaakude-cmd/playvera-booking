@@ -7,6 +7,7 @@ import type { BookingQuestionConfig } from "@/lib/booking-questions";
 import type { ClubSession } from "@/lib/sessions";
 import type { BookingDetailsForm } from "@/lib/booking-flow/types";
 import type { PendingBookingPayload } from "./server-store";
+import type { StoredCheckoutFeeBreakdown } from "@/lib/stripe/platform-fee";
 
 export function buildDetailsAnswers(
   details: BookingDetailsForm,
@@ -66,6 +67,7 @@ export function buildPendingBookingPayload(params: {
   questionValues: Record<string, string | boolean>;
   pricePaid: number;
   accessMode: "guest" | "parent";
+  feeBreakdown?: StoredCheckoutFeeBreakdown;
 }): PendingBookingPayload {
   const sessionAnswers = buildBookingAnswersFromForm(
     params.sessionQuestions,
@@ -106,5 +108,12 @@ export function buildPendingBookingPayload(params: {
     photoConsentSession: medical.photoConsentSession,
     photoConsentMarketing: medical.photoConsentMarketing,
     accessMode: params.accessMode,
+    platformFeePercent: params.feeBreakdown?.platformFeePercent,
+    platformFee: params.feeBreakdown?.platformFee,
+    applicationFeePence: params.feeBreakdown?.applicationFeePence,
+    platformFeeSource: params.feeBreakdown?.platformFeeSource,
+    estimatedStripeFee: params.feeBreakdown?.estimatedStripeFee,
+    estimatedProviderPayout: params.feeBreakdown?.estimatedProviderPayout,
+    feeHandling: params.feeBreakdown?.feeHandling,
   };
 }

@@ -1,5 +1,5 @@
 /**
- * Platform booking fee resolution — backed by subscription_plans (2.5% universal).
+ * Platform booking fee resolution — backed by subscription_plans tier fees.
  */
 import {
   DEFAULT_PLAN_SLUG,
@@ -111,12 +111,11 @@ export type PlatformFeeMatrix = Record<PlanId, number>;
 
 /** @deprecated All plans share one booking fee — kept for platform_settings compat */
 export function buildDefaultPlatformFeeMatrix(): PlatformFeeMatrix {
-  const fee = UNIVERSAL_BOOKING_FEE_PERCENT;
   return {
-    STARTER: fee,
-    PRO: fee,
-    FRANCHISE: fee,
-    ENTERPRISE: fee,
+    STARTER: 2.5,
+    PRO: 2,
+    FRANCHISE: 1.5,
+    ENTERPRISE: 1,
   };
 }
 
