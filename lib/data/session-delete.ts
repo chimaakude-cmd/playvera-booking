@@ -1,4 +1,6 @@
 import { formatPostgrestError } from "@/lib/data/supabase-errors";
+import { isMissingColumnError } from "@/lib/providers/payment-schema";
+import type { PostgrestError } from "@supabase/supabase-js";
 import {
   createSupabaseServerClient,
   createSupabaseServiceRoleClient,
@@ -10,6 +12,40 @@ function getSessionWriteClient() {
   return isSupabaseServiceRoleConfigured()
     ? createSupabaseServiceRoleClient()
     : createSupabaseServerClient();
+}
+
+type SessionsOptionalStatusClient = {
+  from(table: "sessions"): {
+    update(values: Record<string, unknown>): {
+      eq(
+        column: string,
+        value: string,
+      ): {
+        eq(
+          column: string,
+          value: string,
+        ): Promise<{ error: Pick<PostgrestError, "code" | "message"> | null }>;
+      };
+    };
+  };
+};
+
+async function tryClearDraftSessionStatus(
+  supabase: ReturnType<typeof getSessionWriteClient>,
+  sessionId: string,
+  updatedAt: string,
+): Promise<void> {
+  const { error: statusError } = await (
+    supabase as unknown as SessionsOptionalStatusClient
+  )
+    .from("sessions")
+    .update({ status: "published", updated_at: updatedAt })
+    .eq("id", sessionId)
+    .eq("status", "draft");
+
+  if (statusError && !isMissingColumnError(statusError)) {
+    throw new Error(formatPostgrestError("sessions publish status", statusError));
+  }
 }
 
 export const SESSION_HAS_BOOKINGS_MESSAGE =
@@ -76,12 +112,15 @@ export async function publishSessionById(sessionId: string): Promise<void> {
   }
 
   const supabase = getSessionWriteClient();
+  const updatedAt = new Date().toISOString();
   const { error } = await supabase
     .from("sessions")
-    .update({ published: true, updated_at: new Date().toISOString() })
+    .update({ published: true, updated_at: updatedAt })
     .eq("id", sessionId);
 
   if (error) {
     throw new Error(formatPostgrestError("sessions publish", error));
   }
+
+  await tryClearDraftSessionStatus(supabase, sessionId, updatedAt);
 }

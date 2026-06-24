@@ -35,15 +35,11 @@ export function isRemovedPublicSessionRow(row: PublicSessionRow): boolean {
     return true;
   }
 
-  if (row.visible === false) {
-    return true;
-  }
-
   if (
     row.status === "removed" ||
     row.status === "archived" ||
     row.status === "deleted" ||
-    row.status === "draft"
+    (row.status === "draft" && row.published === false)
   ) {
     return true;
   }
