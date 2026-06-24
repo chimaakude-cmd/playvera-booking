@@ -79,7 +79,10 @@ export function getGoCardlessConnectionLabel(
   if (status === "not_connected" || status === "disconnected") {
     return "Not connected";
   }
-  if (status === "action_required" || status === "pending_setup") {
+  if (status === "pending_setup") {
+    return "Under review";
+  }
+  if (status === "action_required") {
     return "Action required";
   }
   return "Connected";

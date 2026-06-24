@@ -17,10 +17,15 @@ import {
   type GoCardlessConnection,
   type GoCardlessConnectionStatus,
 } from "@/lib/gocardless/types";
+import {
+  GOCARDLESS_DISPLAY_STATUS_LABELS,
+  fetchGoCardlessProviderAvailability,
+  resolveGoCardlessDisplayStatus,
+  type GoCardlessProviderAvailabilityStatus,
+} from "@/lib/payment-providers/availability";
 import { updateEnabledMethod } from "@/lib/payment-providers/storage";
 import {
   PAYMENT_PROVIDER_DEFINITIONS,
-  getGoCardlessConnectionLabel,
 } from "@/lib/payment-providers/config";
 import { PLATFORM_FEE_PERCENT, formatMoney } from "@/lib/payments";
 import { getClubProfile } from "@/lib/club-profile";
@@ -31,6 +36,22 @@ const SAMPLE_PAYMENT = 50;
 const GOCARDLESS = PAYMENT_PROVIDER_DEFINITIONS.gocardless;
 const NOT_CONFIGURED_MESSAGE =
   "GoCardless unavailable. Activora is still configuring Direct Debit.";
+
+function resolveGoCardlessLoadErrorMessage(stripeReady: boolean): string {
+  if (stripeReady) {
+    return "GoCardless status could not be loaded. Stripe is still active, so paid activities can continue. Try refreshing GoCardless status.";
+  }
+
+  return "GoCardless is temporarily unavailable. Stripe payments are still active.";
+}
+
+function resolveGoCardlessUnavailableMessage(stripeReady: boolean): string {
+  if (stripeReady) {
+    return "GoCardless is temporarily unavailable. Stripe payments are still active.";
+  }
+
+  return NOT_CONFIGURED_MESSAGE;
+}
 
 function resolveOAuthErrorMessage(reason: string | null): string {
   switch (reason) {
@@ -53,6 +74,8 @@ function resolveOAuthErrorMessage(reason: string | null): string {
 
 type GoCardlessConnectCardProps = {
   paymentModel?: "platform_managed" | "club_oauth";
+  stripeReady?: boolean;
+  onLoadStateChange?: (failed: boolean) => void;
 };
 
 function safeClubProfileSummary(): { clubName: string; email: string } {
@@ -108,25 +131,23 @@ function resolveMandateStatus(
 }
 
 function StatusBadge({
-  status,
-  platformUnavailable,
+  displayStatus,
 }: {
-  status: GoCardlessConnectionStatus;
-  platformUnavailable: boolean;
+  displayStatus: GoCardlessProviderAvailabilityStatus;
 }) {
-  const label = platformUnavailable
-    ? "Not available"
-    : getGoCardlessConnectionLabel(status);
-  const styles: Record<string, string> = {
-    "Not available": "bg-zinc-100 text-zinc-500 ring-zinc-200",
-    "Not connected": "bg-zinc-100 text-zinc-600 ring-zinc-200",
-    "Action required": "bg-amber-50 text-amber-800 ring-amber-200",
-    Connected: "bg-emerald-50 text-emerald-700 ring-emerald-200",
+  const label = GOCARDLESS_DISPLAY_STATUS_LABELS[displayStatus];
+  const styles: Record<GoCardlessProviderAvailabilityStatus, string> = {
+    unavailable: "bg-zinc-100 text-zinc-500 ring-zinc-200",
+    not_connected: "bg-zinc-100 text-zinc-600 ring-zinc-200",
+    available: "bg-sky-50 text-sky-800 ring-sky-200",
+    under_review: "bg-violet-50 text-violet-800 ring-violet-200",
+    action_required: "bg-amber-50 text-amber-800 ring-amber-200",
+    connected: "bg-emerald-50 text-emerald-700 ring-emerald-200",
   };
 
   return (
     <span
-      className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ring-1 ring-inset ${styles[label] ?? styles["Not connected"]}`}
+      className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ring-1 ring-inset ${styles[displayStatus]}`}
     >
       {label}
     </span>
@@ -135,6 +156,8 @@ function StatusBadge({
 
 export function GoCardlessConnectCard({
   paymentModel = "club_oauth",
+  stripeReady = false,
+  onLoadStateChange,
 }: GoCardlessConnectCardProps) {
   const searchParams = useSearchParams();
   const [connection, setConnection] = useState<GoCardlessConnection | null>(
@@ -146,6 +169,7 @@ export function GoCardlessConnectCard({
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [configLoadFailed, setConfigLoadFailed] = useState(false);
   const isDev = process.env.NODE_ENV !== "production";
 
   useEffect(() => {
@@ -160,11 +184,14 @@ export function GoCardlessConnectCard({
           setPlatformConfig(
             (await response.json()) as GoCardlessConnectConfigResponse,
           );
+          setConfigLoadFailed(false);
         } else {
           setPlatformConfig(null);
+          setConfigLoadFailed(true);
         }
       } catch {
         setPlatformConfig(null);
+        setConfigLoadFailed(true);
       }
     }
 
@@ -176,19 +203,27 @@ export function GoCardlessConnectCard({
     setError(null);
 
     try {
-      const next = await fetchGoCardlessConnection();
+      const providerId = resolveGoCardlessProviderId();
+      const availability = await fetchGoCardlessProviderAvailability(providerId);
+
+      if (availability.reason === "GoCardless settings unavailable") {
+        setConnection(null);
+        setError(resolveGoCardlessLoadErrorMessage(stripeReady));
+        onLoadStateChange?.(true);
+        return;
+      }
+
+      const next = await fetchGoCardlessConnection(providerId);
       setConnection(next);
-    } catch (refreshError) {
+      onLoadStateChange?.(false);
+    } catch {
       setConnection(null);
-      setError(
-        refreshError instanceof Error
-          ? refreshError.message
-          : "Could not refresh GoCardless status.",
-      );
+      setError(resolveGoCardlessLoadErrorMessage(stripeReady));
+      onLoadStateChange?.(true);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [onLoadStateChange, stripeReady]);
 
   useEffect(() => {
     void refresh();
@@ -226,8 +261,9 @@ export function GoCardlessConnectCard({
   }, [searchParams, refresh, isDev]);
 
   const platformConfigured = platformConfig?.platformConfigured ?? false;
-  const platformUnavailable = platformConfig?.platformUnavailable ?? true;
-  const configLoaded = platformConfig !== null;
+  const platformUnavailable =
+    configLoadFailed || (platformConfig?.platformUnavailable ?? true);
+  const configLoaded = platformConfig !== null || configLoadFailed;
   const platformManaged = paymentModel === "platform_managed";
   const clubProfile = safeClubProfileSummary();
 
@@ -319,11 +355,19 @@ export function GoCardlessConnectCard({
     (status === "pending_setup" || status === "action_required");
   const connectedDate = formatConnectedDate(connection?.connected_at);
   const mandateStatus = resolveMandateStatus(status, platformManaged);
-  const displayStatus: GoCardlessConnectionStatus = platformManaged
+  const displayStatus = platformManaged
     ? connected
       ? "connected"
-      : "not_connected"
-    : status;
+      : platformUnavailable
+        ? "unavailable"
+        : "not_connected"
+    : resolveGoCardlessDisplayStatus({
+        connectionStatus: status,
+        merchantId: connection?.merchant_id,
+        platformConfigured,
+        platformUnavailable,
+        configLoadFailed,
+      });
 
   return (
     <div className="rounded-xl border border-orange-100/80 bg-[#FFFBF7] p-5">
@@ -357,10 +401,7 @@ export function GoCardlessConnectCard({
               <p className="mt-1 text-sm text-zinc-500">Loading status…</p>
             ) : (
               <div className="mt-1 flex flex-wrap items-center gap-2">
-                <StatusBadge
-                  status={displayStatus}
-                  platformUnavailable={configLoaded && platformUnavailable}
-                />
+                <StatusBadge displayStatus={displayStatus} />
                 {actionLoading ? (
                   <span className="text-xs font-medium text-zinc-500">
                     Connecting…
@@ -439,7 +480,9 @@ export function GoCardlessConnectCard({
       ) : null}
 
       {configLoaded && platformUnavailable ? (
-        <p className="mt-3 text-sm text-zinc-600">{NOT_CONFIGURED_MESSAGE}</p>
+        <p className="mt-3 text-sm text-zinc-600">
+          {resolveGoCardlessUnavailableMessage(stripeReady)}
+        </p>
       ) : platformManaged ? (
         <p className="mt-3 text-sm text-zinc-600">
           Direct Debit is managed by Activora on your behalf. Enable GoCardless

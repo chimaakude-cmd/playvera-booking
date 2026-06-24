@@ -14,6 +14,7 @@ import {
 import {
   isStripeProviderConnected,
   PAYMENT_PROVIDER_ORDER,
+  type PaymentProviderId,
 } from "@/lib/payment-providers/config";
 import {
   describeActivePaymentProvider,
@@ -37,6 +38,7 @@ import { FinanceSection } from "./shared";
 import { GoCardlessConnectCard } from "./GoCardlessConnectCard";
 import { PlatformPaymentStatusCard } from "./PlatformPaymentStatusCard";
 import { FinanceSectionErrorBoundary } from "./FinanceSectionErrorBoundary";
+import { ProviderFinanceCardErrorBoundary } from "./ProviderFinanceCardErrorBoundary";
 import { StripeConnectCard } from "./StripeConnectCard";
 import { TRUST_PLATFORM_FEE_NOTE } from "@/constants/trust-payments";
 
@@ -136,6 +138,31 @@ function PaymentSetupStatusBanner({
   );
 }
 
+function PaymentProvidersPageAlert({ show }: { show: boolean }) {
+  if (!show) {
+    return null;
+  }
+
+  return (
+    <div className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-950">
+      <p className="font-semibold text-[#0F172A]">
+        Payment providers could not load
+      </p>
+      <p className="mt-2 text-amber-900">
+        We could not load Stripe or GoCardless settings. Refresh the page or
+        contact Activora support if this keeps happening.
+      </p>
+    </div>
+  );
+}
+
+type ProviderLoadFailures = Record<PaymentProviderId, boolean>;
+
+const INITIAL_PROVIDER_LOAD_FAILURES: ProviderLoadFailures = {
+  stripe: false,
+  gocardless: false,
+};
+
 export function PaymentProvidersSection() {
   const searchParams = useSearchParams();
   const [settings, setSettings] = useState<PaymentProviderSettings>(() =>
@@ -145,6 +172,8 @@ export function PaymentProvidersSection() {
     "platform_managed" | "club_oauth"
   >("club_oauth");
   const [refreshing, setRefreshing] = useState(false);
+  const [providerLoadFailed, setProviderLoadFailed] =
+    useState<ProviderLoadFailures>(INITIAL_PROVIDER_LOAD_FAILURES);
 
   const refresh = useCallback(() => {
     try {
@@ -172,6 +201,23 @@ export function PaymentProvidersSection() {
     }
   }, [refresh, settings.provider_id]);
 
+  const handleProviderBoundaryError = useCallback((providerId: PaymentProviderId) => {
+    setProviderLoadFailed((previous) => ({
+      ...previous,
+      [providerId]: true,
+    }));
+  }, []);
+
+  const handleProviderLoadState = useCallback(
+    (providerId: PaymentProviderId, failed: boolean) => {
+      setProviderLoadFailed((previous) => ({
+        ...previous,
+        [providerId]: failed,
+      }));
+    },
+    [],
+  );
+
   useEffect(() => {
     void refreshFinanceState();
   }, [refreshFinanceState]);
@@ -198,6 +244,11 @@ export function PaymentProvidersSection() {
     gocardless.merchant_id,
   );
 
+  const allProvidersFailedToLoad =
+    providerLoadFailed.stripe && providerLoadFailed.gocardless;
+  const showPageLevelProviderError =
+    !paymentSetupComplete && allProvidersFailedToLoad;
+
   function toggleMethod(methodId: PaymentMethodId, enabled: boolean) {
     if (methodId === "manual_invoice") {
       return;
@@ -213,6 +264,8 @@ export function PaymentProvidersSection() {
   return (
     <div className="space-y-6">
       <PaymentSetupStatusBanner paymentSetupComplete={paymentSetupComplete} />
+
+      <PaymentProvidersPageAlert show={showPageLevelProviderError} />
 
       {refreshing ? (
         <p className="text-xs text-zinc-500">Refreshing payment status…</p>
@@ -231,22 +284,26 @@ export function PaymentProvidersSection() {
         </p>
         <div className="space-y-6">
           {PAYMENT_PROVIDER_ORDER.map((providerId) => (
-            <FinanceSectionErrorBoundary
+            <ProviderFinanceCardErrorBoundary
               key={providerId}
-              title={
-                providerId === "stripe"
-                  ? "Stripe Connect could not load"
-                  : "GoCardless could not load"
-              }
+              providerId={providerId}
+              stripeReady={stripeReady}
+              onError={handleProviderBoundaryError}
             >
               <Suspense fallback={<ConnectCardFallback />}>
                 {providerId === "stripe" ? (
                   <StripeConnectCard onFinanceRefresh={refreshFinanceState} />
                 ) : (
-                  <GoCardlessConnectCard paymentModel={paymentModel} />
+                  <GoCardlessConnectCard
+                    paymentModel={paymentModel}
+                    stripeReady={stripeReady}
+                    onLoadStateChange={(failed) =>
+                      handleProviderLoadState("gocardless", failed)
+                    }
+                  />
                 )}
               </Suspense>
-            </FinanceSectionErrorBoundary>
+            </ProviderFinanceCardErrorBoundary>
           ))}
         </div>
       </FinanceSection>

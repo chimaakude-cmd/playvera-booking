@@ -1,5 +1,8 @@
 import { getGoCardlessConnection } from "@/lib/gocardless/storage";
-import { isGoCardlessConnected } from "@/lib/gocardless/types";
+import {
+  isGoCardlessConnected,
+  type GoCardlessConnectionStatus,
+} from "@/lib/gocardless/types";
 import { getStripeConnectState } from "@/lib/stripe-connect/storage";
 import type { ActivityPaymentProvider } from "./types";
 import {
@@ -25,6 +28,200 @@ export type SessionCheckoutMethods = {
   /** True when the activity accepts both and more than one method is shown. */
   parentPicksMethod: boolean;
 };
+
+export type GoCardlessProviderAvailabilityStatus =
+  | "not_connected"
+  | "available"
+  | "unavailable"
+  | "under_review"
+  | "connected"
+  | "action_required";
+
+export type GoCardlessProviderAvailability = {
+  available: boolean;
+  connected: boolean;
+  status: GoCardlessProviderAvailabilityStatus;
+  reason: string | null;
+  blocking: boolean;
+};
+
+export const GOCARDLESS_DISPLAY_STATUS_LABELS: Record<
+  GoCardlessProviderAvailabilityStatus,
+  string
+> = {
+  not_connected: "Not connected",
+  available: "Available",
+  unavailable: "Temporarily unavailable",
+  under_review: "Under review",
+  connected: "Connected",
+  action_required: "Action required",
+};
+
+export const GOCARDLESS_UNAVAILABLE_FALLBACK: GoCardlessProviderAvailability =
+  {
+    available: false,
+    connected: false,
+    status: "unavailable",
+    reason: "GoCardless settings unavailable",
+    blocking: false,
+  };
+
+export function resolveGoCardlessDisplayStatus(params: {
+  connectionStatus: GoCardlessConnectionStatus;
+  merchantId?: string | null;
+  platformConfigured: boolean;
+  platformUnavailable: boolean;
+  configLoadFailed?: boolean;
+}): GoCardlessProviderAvailabilityStatus {
+  if (params.configLoadFailed || params.platformUnavailable) {
+    return "unavailable";
+  }
+
+  if (isGoCardlessConnected(params.connectionStatus, params.merchantId)) {
+    return "connected";
+  }
+
+  if (params.connectionStatus === "action_required") {
+    return "action_required";
+  }
+
+  if (params.connectionStatus === "pending_setup") {
+    return "under_review";
+  }
+
+  if (params.platformConfigured) {
+    return "available";
+  }
+
+  return "not_connected";
+}
+
+/** Safe local snapshot — never throws; returns fallback on failure. */
+export function resolveGoCardlessProviderAvailability(
+  providerId?: string,
+  platformHint?: {
+    platformConfigured: boolean;
+    platformUnavailable: boolean;
+    configLoadFailed?: boolean;
+  },
+): GoCardlessProviderAvailability {
+  try {
+    const connection = getGoCardlessConnection(providerId);
+    const connected = isGoCardlessConnected(
+      connection.status,
+      connection.merchant_id,
+    );
+    const platformConfigured = platformHint?.platformConfigured ?? false;
+    const platformUnavailable = platformHint?.platformUnavailable ?? true;
+    const configLoadFailed = platformHint?.configLoadFailed ?? false;
+
+    if (configLoadFailed && !connected) {
+      return GOCARDLESS_UNAVAILABLE_FALLBACK;
+    }
+
+    const status = resolveGoCardlessDisplayStatus({
+      connectionStatus: connection.status,
+      merchantId: connection.merchant_id,
+      platformConfigured,
+      platformUnavailable,
+      configLoadFailed,
+    });
+
+    if (status === "unavailable" && !connected) {
+      return {
+        available: false,
+        connected: false,
+        status: "unavailable",
+        reason: "GoCardless settings unavailable",
+        blocking: false,
+      };
+    }
+
+    return {
+      available: platformConfigured || connected,
+      connected,
+      status,
+      reason: null,
+      blocking: false,
+    };
+  } catch {
+    return GOCARDLESS_UNAVAILABLE_FALLBACK;
+  }
+}
+
+/** Fetch GoCardless platform + connection state; returns fallback instead of throwing. */
+export async function fetchGoCardlessProviderAvailability(
+  providerId: string,
+): Promise<GoCardlessProviderAvailability> {
+  try {
+    const [configResponse, statusResponse] = await Promise.all([
+      fetch("/api/gocardless/connect/config", { credentials: "include" }),
+      fetch(
+        `/api/gocardless/connect/status?providerId=${encodeURIComponent(providerId)}`,
+        { credentials: "include" },
+      ),
+    ]);
+
+    if (!configResponse.ok) {
+      return GOCARDLESS_UNAVAILABLE_FALLBACK;
+    }
+
+    const config = (await configResponse.json()) as {
+      platformConfigured?: boolean;
+      platformUnavailable?: boolean;
+    };
+
+    const platformConfigured = config.platformConfigured ?? false;
+    const platformUnavailable = config.platformUnavailable ?? true;
+
+    if (!statusResponse.ok) {
+      return resolveGoCardlessProviderAvailability(providerId, {
+        platformConfigured,
+        platformUnavailable,
+        configLoadFailed: true,
+      });
+    }
+
+    const statusPayload = (await statusResponse.json()) as {
+      status?: GoCardlessConnectionStatus;
+      merchantId?: string | null;
+    };
+
+    const connectionStatus =
+      statusPayload.status ?? ("not_connected" as GoCardlessConnectionStatus);
+    const displayStatus = resolveGoCardlessDisplayStatus({
+      connectionStatus,
+      merchantId: statusPayload.merchantId,
+      platformConfigured,
+      platformUnavailable,
+    });
+
+    const connected = isGoCardlessConnected(
+      connectionStatus,
+      statusPayload.merchantId,
+    );
+
+    if (displayStatus === "unavailable" && !connected) {
+      return {
+        available: false,
+        connected: false,
+        status: "unavailable",
+        reason: "GoCardless settings unavailable",
+        blocking: false,
+      };
+    }
+
+    return {
+      available: platformConfigured || connected,
+      connected,
+      status: displayStatus,
+      reason: null,
+      blocking: false,
+    };
+  } catch {
+    return GOCARDLESS_UNAVAILABLE_FALLBACK;
+  }
+}
 
 /** True when Stripe or GoCardless is fully connected for paid activities. */
 export function hasPaymentProviderConnected(providerId?: string): boolean {

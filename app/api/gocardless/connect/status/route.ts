@@ -32,28 +32,49 @@ function resolveConnectionStatus(
 }
 
 export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const providerId = searchParams.get("providerId")?.trim() || "demo-provider-1";
-  const resolved = await resolveGoCardlessPlatformConfig(request);
-  const row = await getProviderGoCardlessState(providerId);
-  const status = resolveConnectionStatus(row);
+  try {
+    const { searchParams } = new URL(request.url);
+    const providerId = searchParams.get("providerId")?.trim() || "demo-provider-1";
+    const resolved = await resolveGoCardlessPlatformConfig(request);
+    const row = await getProviderGoCardlessState(providerId);
+    const status = resolveConnectionStatus(row);
 
-  return NextResponse.json({
-    providerId,
-    platformConfigured: resolved.isClubConnectAvailable,
-    platformEnabled: resolved.platformEnabled,
-    environment: resolved.environment,
-    status,
-    merchantId: row?.gocardless_merchant_id ?? null,
-    organisationId: row?.gocardless_organisation_id ?? null,
-    connectedAt: row?.gocardless_connected_at ?? null,
-    platformFeePercent: resolved.platformFeePercent,
-    configured: resolved.isClubConnectAvailable,
-    mock: false,
-    message: resolved.isClubConnectAvailable
-      ? "GoCardless platform is configured."
-      : PLATFORM_UNAVAILABLE_MESSAGE,
-  });
+    return NextResponse.json({
+      providerId,
+      platformConfigured: resolved.isClubConnectAvailable,
+      platformEnabled: resolved.platformEnabled,
+      environment: resolved.environment,
+      status,
+      merchantId: row?.gocardless_merchant_id ?? null,
+      organisationId: row?.gocardless_organisation_id ?? null,
+      connectedAt: row?.gocardless_connected_at ?? null,
+      platformFeePercent: resolved.platformFeePercent,
+      configured: resolved.isClubConnectAvailable,
+      mock: false,
+      message: resolved.isClubConnectAvailable
+        ? "GoCardless platform is configured."
+        : PLATFORM_UNAVAILABLE_MESSAGE,
+    });
+  } catch (error) {
+    console.error("[gocardless/connect/status] GET failed:", error);
+    const { searchParams } = new URL(request.url);
+    const providerId = searchParams.get("providerId")?.trim() || "demo-provider-1";
+
+    return NextResponse.json({
+      providerId,
+      platformConfigured: false,
+      platformEnabled: false,
+      environment: "sandbox",
+      status: "not_connected" as GoCardlessConnectionStatus,
+      merchantId: null,
+      organisationId: null,
+      connectedAt: null,
+      platformFeePercent: 0,
+      configured: false,
+      mock: false,
+      message: PLATFORM_UNAVAILABLE_MESSAGE,
+    });
+  }
 }
 
 export async function POST(request: Request) {
