@@ -135,7 +135,7 @@ export const MOCK_CHAT_STATE: ChatState = {
       conversationId: "conv_004",
       senderType: "system",
       senderName: "Activora AI",
-      body: "Our default platform fee is 2% on paid bookings. Clubs can see exact fees in their dashboard.",
+      body: "Activora charges a standard platform fee of 2.5% per transaction on paid bookings. Clubs can see exact fees in their dashboard.",
       createdAt: "2026-06-12T10:45:00Z",
     },
     {

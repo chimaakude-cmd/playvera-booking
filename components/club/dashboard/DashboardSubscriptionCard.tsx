@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
   formatMonthlyPrice,
-  formatPlatformFee,
   getPlanByIdOrDefault,
   getPlanLabel,
 } from "@/src/config/pricing";
@@ -22,16 +21,12 @@ export function DashboardSubscriptionCard({
   const [monthlyPrice, setMonthlyPrice] = useState(
     formatMonthlyPrice(getPlanByIdOrDefault("STARTER")),
   );
-  const [platformFee, setPlatformFee] = useState(
-    formatPlatformFee(getPlanByIdOrDefault("STARTER")),
-  );
 
   useEffect(() => {
     const subscription = getProviderSubscription();
     const plan = getPlanByIdOrDefault(subscription.planId);
     setPlanLabel(getPlanLabel(plan.id));
     setMonthlyPrice(formatMonthlyPrice(plan));
-    setPlatformFee(formatPlatformFee(plan));
   }, []);
 
   if (variant === "new-club") {
@@ -43,9 +38,7 @@ export function DashboardSubscriptionCard({
             <h2 className="mt-1 text-xl font-semibold text-zinc-900">
               {planLabel}
             </h2>
-            <p className="mt-1 text-sm text-zinc-600">
-              {monthlyPrice} · {platformFee} platform fee per booking
-            </p>
+            <p className="mt-1 text-sm text-zinc-600">{monthlyPrice}</p>
             <p className="mt-3 text-sm text-violet-700">
               Upgrade when your club is ready.
             </p>
@@ -68,9 +61,7 @@ export function DashboardSubscriptionCard({
         <div>
           <p className="text-sm font-medium text-zinc-500">Your subscription</p>
           <h2 className="mt-1 text-xl font-semibold text-[#0F172A]">{planLabel}</h2>
-          <p className="mt-1 text-sm text-zinc-600">
-            {monthlyPrice} · {platformFee} platform fee per booking
-          </p>
+          <p className="mt-1 text-sm text-zinc-600">{monthlyPrice}</p>
           <PricingDisclaimer className="mt-2" />
         </div>
         <Link

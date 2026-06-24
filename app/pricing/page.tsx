@@ -4,6 +4,7 @@ import { HomeHeader } from "@/components/home/HomeHeader";
 import { ACTIVORA_ACTION, ACTIVORA_PRIMARY } from "@/lib/home/constants";
 import { PricingDisclaimer } from "@/components/pricing/PricingDisclaimer";
 import { PricingPlanCard } from "@/components/pricing/PricingPlanCard";
+import { TRUST_PLATFORM_FEE_NOTE } from "@/constants/trust-payments";
 import { subscriptionPlanToPricingShape } from "@/lib/subscription-plans/mappers";
 import type { PlanId } from "@/src/config/pricing";
 
@@ -41,8 +42,7 @@ export default async function PricingPage() {
             Simple pricing for clubs and franchises
           </h1>
           <p className="mt-4 text-base leading-relaxed text-slate-600 sm:text-lg">
-            All plans include a 2.5% platform booking fee when payments are
-            processed. Stripe and GoCardless processing fees apply separately.
+            {TRUST_PLATFORM_FEE_NOTE}
           </p>
         </div>
 

@@ -94,13 +94,13 @@ export function FinanceFeeHandlingSection() {
         <div className="grid gap-6 lg:grid-cols-2">
           <FinanceSection
             title="Platform fee"
-            description="Activora platform fee applied to each booking."
+            description="Standard Activora platform fee applied to each booking."
           >
             <p className="text-3xl font-bold tracking-tight text-zinc-900">
               {settings.platformFeePercent}%
             </p>
             <p className="mt-2 text-sm text-zinc-500">
-              Set by your subscription plan — upgrade in Settings → Subscription.
+              Stripe and GoCardless may charge separate payment processing fees.
             </p>
             <PricingDisclaimer className="mt-3" />
           </FinanceSection>

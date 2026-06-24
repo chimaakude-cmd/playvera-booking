@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { TRUST_PLATFORM_FEE_NOTE } from "@/constants/trust-payments";
 import {
   getPlanCapabilities,
   getPlanLimitReason,
@@ -86,10 +87,7 @@ export function PlanUpgradeModal({
             Current usage: {currentCount} of {limit}
           </p>
         ) : null}
-        <p className="mt-3 text-xs text-zinc-500">
-          All plans include a 2.5% platform booking fee. Payment processor fees
-          are separate.
-        </p>
+        <p className="mt-3 text-xs text-zinc-500">{TRUST_PLATFORM_FEE_NOTE}</p>
         <div className="mt-6 flex flex-wrap gap-3">
           <Link
             href="/club/settings/subscription"

@@ -187,7 +187,7 @@ export default function OrganisationSettingsPage() {
             />
             <PlanField
               label="Activora platform fee"
-              value={`${organisation.plan.platformFeePercent}% (TBC)`}
+              value="2.5% per transaction (standard)"
             />
             <PlanField
               label="Billing status"

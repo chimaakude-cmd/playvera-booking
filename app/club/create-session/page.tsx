@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { TRUST_PLATFORM_FEE_NOTE } from "@/constants/trust-payments";
 import { PageHeader } from "@/components/club/PageHeader";
 import { SessionWizard } from "@/components/club/session-wizard/SessionWizard";
 import {
@@ -56,10 +57,7 @@ export default function CreateSessionPage() {
       ) : (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">
           <p className="font-medium">Activity limit reached on your {gate.planLabel} plan.</p>
-          <p className="mt-2">
-            Upgrade to Pro for unlimited activities. All plans include a 2.5% platform
-            booking fee.
-          </p>
+          <p className="mt-2">{TRUST_PLATFORM_FEE_NOTE}</p>
           <Link
             href="/club/settings/subscription"
             className="mt-4 inline-flex rounded-xl bg-zinc-900 px-4 py-2 text-sm font-semibold text-white"

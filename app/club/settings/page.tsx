@@ -218,7 +218,7 @@ export default function ClubSettingsPage() {
         />
         <SettingsHubCard
           title="Subscription & billing"
-          description="View your plan, platform fee, features, and upgrade path."
+          description="View your plan, features, and upgrade path."
           href="/club/settings/subscription"
           cta="Manage subscription"
         />
@@ -236,7 +236,7 @@ export default function ClubSettingsPage() {
         />
         <SettingsHubCard
           title="Stripe Connect"
-          description="Connect Stripe for card payouts. Platform fee depends on your subscription plan."
+          description="Connect Stripe for card payouts. Activora charges a standard 2.5% platform fee per transaction."
           href="/club/finance?tab=payment-providers"
           cta="Open in Finance"
         />

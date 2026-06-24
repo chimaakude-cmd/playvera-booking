@@ -59,11 +59,10 @@ export function StripePaymentsTrustPage() {
                 Platform and processing fees
               </h2>
               <p>
-                Activora charges a platform booking fee on successfully processed
-                payments. The fee depends on your subscription plan — lower tiers
-                on Pro, Franchisor and Enterprise. Stripe processing fees are
-                separate and set by Stripe; they are not included in the Activora
-                platform fee.
+                Activora charges a standard platform fee of 2.5% per transaction on
+                successfully processed payments. Stripe processing fees are separate
+                and set by Stripe; they are not included in the Activora platform
+                fee.
               </p>
               <div className="my-4">
                 <CommissionTierTable />

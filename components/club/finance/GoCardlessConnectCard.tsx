@@ -27,6 +27,7 @@ import { updateEnabledMethod } from "@/lib/payment-providers/storage";
 import {
   PAYMENT_PROVIDER_DEFINITIONS,
 } from "@/lib/payment-providers/config";
+import { formatPlatformFeeNote } from "@/constants/trust-payments";
 import { PLATFORM_FEE_PERCENT, formatMoney } from "@/lib/payments";
 import { getClubProfile } from "@/lib/club-profile";
 import { PaymentFeesExplainedLink } from "@/components/trust/PaymentFeesExplainedLink";
@@ -584,7 +585,7 @@ export function GoCardlessConnectCard({
           emphasis
         />
         <p className="mt-3 text-xs text-zinc-500">
-          Activora platform fee is {PLATFORM_FEE_PERCENT}% on all payment methods.
+          {formatPlatformFeeNote(breakdown.platformFeePercent)}
         </p>
       </div>
     </div>

@@ -5,7 +5,7 @@ import {
   calculatePaymentBreakdown,
   getFranchisorFeeSettings,
 } from "@/lib/finance-payouts";
-import { formatMoney } from "@/lib/payments";
+import { formatMoney, PLATFORM_FEE_PERCENT } from "@/lib/payments";
 
 const SAMPLE_PAYMENT = 50;
 
@@ -44,7 +44,7 @@ export function PaymentBreakdownPreview({
       type: "deduction" as const,
     },
     {
-      label: "Activora platform fee (2%)",
+      label: `Activora platform fee (${PLATFORM_FEE_PERCENT}%)`,
       value: -breakdown.activeoraFee,
       type: "deduction" as const,
     },

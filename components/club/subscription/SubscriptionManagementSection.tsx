@@ -6,7 +6,6 @@ import { useSearchParams } from "next/navigation";
 import { Check, CreditCard, Loader2 } from "lucide-react";
 import {
   formatMonthlyPrice,
-  formatPlatformFee,
   getAllPlans,
   getPlanByIdOrDefault,
   getPlanLabel,
@@ -258,9 +257,6 @@ export function SubscriptionManagementSection() {
             <p className="text-lg font-semibold text-[#0F172A]">
               {formatMonthlyPrice(currentPlan)}
             </p>
-            <p className="mt-1 text-xs text-slate-500">
-              {formatPlatformFee(currentPlan)} platform fee
-            </p>
           </div>
         </div>
 
@@ -352,8 +348,8 @@ export function SubscriptionManagementSection() {
           <div>
             <h3 className="text-base font-semibold text-[#0F172A]">Upgrade plan</h3>
             <p className="mt-1 text-sm text-zinc-500">
-              Select a higher plan to unlock more features and lower platform fees.
-              Pro and Franchise require Direct Debit setup via GoCardless.
+              Select a higher plan to unlock more features. Pro and Franchise require
+              Direct Debit setup via GoCardless.
             </p>
           </div>
 

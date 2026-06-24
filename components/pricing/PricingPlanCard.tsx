@@ -2,7 +2,6 @@ import Link from "next/link";
 import { Check } from "lucide-react";
 import {
   formatMonthlyPrice,
-  formatPlatformFee,
   getPlanLabel,
   type PricingPlan,
 } from "@/src/config/pricing";
@@ -61,9 +60,6 @@ export function PricingPlanCard({
           <span className="inline-block max-w-full break-words">
             {formatMonthlyPrice(plan)}
           </span>
-        </p>
-        <p className="mt-1 text-xs leading-snug text-slate-500 sm:text-sm">
-          {formatPlatformFee(plan)} platform fee per booking
         </p>
       </div>
 

@@ -90,7 +90,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     id: "activora-cost",
     question: "How much does Activora cost?",
     answer:
-      "No monthly subscription for clubs. Activora charges platform fees only when bookings are processed.",
+      "Activora charges a standard platform fee of 2.5% per transaction when bookings are processed. There is no monthly subscription on the Free plan.",
     category: "providers",
     featured: true,
   },
@@ -143,7 +143,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     id: "transaction-fees",
     question: "Are there transaction fees?",
     answer:
-      "Stripe processing fees apply to card payments. Activora platform fees are charged only when a booking is successfully processed — there is no monthly subscription.",
+      "Stripe processing fees apply to card payments. Activora charges a standard platform fee of 2.5% per transaction when a booking is successfully processed.",
     category: "payments",
   },
   {

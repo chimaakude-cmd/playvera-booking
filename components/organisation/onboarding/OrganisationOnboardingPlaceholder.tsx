@@ -204,16 +204,15 @@ export function OrganisationOnboardingPlaceholder() {
                   <PlanField label="Extra club fee" value="£49 / club / month (TBC)" />
                   <PlanField
                     label="Activora platform fee"
-                    value="2.5% on franchisee bookings (TBC)"
+                    value="2.5% per transaction (standard)"
                   />
                   <PlanField label="Billing status" value="Trial — not yet live" />
                 </div>
 
                 <p className="mt-4 text-xs leading-relaxed text-violet-700/70">
-                  Additional platform fees apply when managing multiple clubs under
-                  one franchisor account. These cover group reporting, permission
-                  controls, and centralised billing — exact pricing will be confirmed
-                  before launch.
+                  Activora charges a standard platform fee of 2.5% per transaction on
+                  franchisee bookings. Stripe and GoCardless may charge separate payment
+                  processing fees.
                 </p>
               </section>
             </>

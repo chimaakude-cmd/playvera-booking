@@ -4,6 +4,7 @@ import { HomeHeader } from "@/components/home/HomeHeader";
 import { LazySupportLauncher } from "@/components/support/LazySupportLauncher";
 import { PricingDisclaimer } from "@/components/pricing/PricingDisclaimer";
 import { COMMISSION_TIERS } from "@/constants/commission-tiers";
+import { TRUST_PLATFORM_FEE_NOTE } from "@/constants/trust-payments";
 import { ACTIVORA_ACTION, ACTIVORA_PRIMARY } from "@/lib/home/constants";
 
 export const PROVIDER_PRICING_PLANS = COMMISSION_TIERS.map((tier) => ({
@@ -40,8 +41,7 @@ export function ProviderPricingPage() {
             Transparent pricing for clubs and franchises
           </h1>
           <p className="mt-4 text-base leading-relaxed text-slate-600 sm:text-lg dark:text-zinc-400">
-            Platform booking fees decrease as you grow. Payment processor fees from Stripe and
-            GoCardless apply separately.
+            {TRUST_PLATFORM_FEE_NOTE}
           </p>
         </div>
 
@@ -68,9 +68,6 @@ export function ProviderPricingPage() {
                 {plan.monthlyPrice.includes("mo") ? null : plan.monthlyPrice === "£0" ? (
                   <span className="ml-1 text-sm font-normal text-slate-500">/mo</span>
                 ) : null}
-              </p>
-              <p className="mt-1 text-sm font-semibold text-teal-700 dark:text-teal-400">
-                {plan.platformFeePercent}% platform fee
               </p>
               <p className="mt-3 flex-1 text-sm leading-relaxed text-slate-600 dark:text-zinc-400">
                 {plan.description}

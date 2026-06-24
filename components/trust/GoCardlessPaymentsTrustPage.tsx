@@ -62,10 +62,10 @@ export function GoCardlessPaymentsTrustPage() {
                 Platform and processing fees
               </h2>
               <p>
-                Activora charges a platform booking fee on successfully processed
-                Direct Debit collections. The fee depends on your subscription plan.
-                GoCardless processing fees are separate and set by GoCardless —
-                they are not included in the Activora platform fee.
+                Activora charges a standard platform fee of 2.5% per transaction on
+                successfully processed Direct Debit collections. GoCardless processing
+                fees are separate and set by GoCardless — they are not included in
+                the Activora platform fee.
               </p>
               <div className="my-4">
                 <CommissionTierTable />

@@ -25,7 +25,6 @@ import {
 } from "@/lib/club-team";
 import {
   formatMonthlyPrice,
-  formatPlatformFee,
   getPlanByIdOrDefault,
   getPlanLabel,
 } from "@/src/config/pricing";
@@ -73,7 +72,6 @@ export function TeamAccessPage() {
   const [state, setState] = useState<ClubTeamState | null>(null);
   const [planLabel, setPlanLabel] = useState(getPlanLabel("STARTER"));
   const [planPrice, setPlanPrice] = useState(formatMonthlyPrice(getPlanByIdOrDefault("STARTER")));
-  const [planFee, setPlanFee] = useState(formatPlatformFee(getPlanByIdOrDefault("STARTER")));
   const [inviteOpen, setInviteOpen] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -92,7 +90,6 @@ export function TeamAccessPage() {
         const plan = getPlanByIdOrDefault(subscription.planId);
         setPlanLabel(getPlanLabel(plan.id));
         setPlanPrice(formatMonthlyPrice(plan));
-        setPlanFee(formatPlatformFee(plan));
         setLoading(false);
       }
     }
@@ -215,7 +212,7 @@ export function TeamAccessPage() {
         <SummaryCard
           label="Current plan"
           value={planLabel}
-          hint={`${planPrice} · ${planFee} platform fee · Manage in Settings → Subscription`}
+          hint={`${planPrice} · Manage in Settings → Subscription`}
         />
         <SummaryCard
           label="Team members"

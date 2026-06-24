@@ -59,7 +59,8 @@ export function TermsTrustPage() {
           provider&apos;s connected account.
         </p>
         <p>
-          Platform booking fees apply according to your subscription plan. See our{" "}
+          Activora charges a standard platform fee of 2.5% per transaction on
+          successfully processed bookings. See our{" "}
           <Link href="/providers/pricing" className="font-semibold text-teal-700 dark:text-teal-400">
             pricing page
           </Link>{" "}

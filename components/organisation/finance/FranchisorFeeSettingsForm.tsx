@@ -16,6 +16,7 @@ import {
   saveFeeOverrides,
   saveFranchisorFeeSettings,
 } from "@/lib/finance-payouts/storage";
+import { PLATFORM_FEE_PERCENT } from "@/lib/payments";
 
 type FranchisorFeeSettingsFormProps = {
   onSaved?: () => void;
@@ -97,7 +98,7 @@ export function FranchisorFeeSettingsForm({
       ) : null}
 
       <div className="rounded-xl border border-amber-100 bg-amber-50/60 px-4 py-3 text-sm text-amber-900">
-        Franchisor fees are separate from the Activora 2% platform fee and Stripe
+        Franchisor fees are separate from the Activora {PLATFORM_FEE_PERCENT}% platform fee and Stripe
         processing fees. They are retained by your organisation before
         franchisee payouts.
       </div>

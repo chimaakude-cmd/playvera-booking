@@ -35,7 +35,7 @@ export type PricingPlan = {
 export const DEFAULT_PLAN_ID: PlanId = planSlugToLegacyId(DEFAULT_PLAN_SLUG);
 
 export const PRICING_DISCLAIMER =
-  "Payment processor fees (Stripe / GoCardless) apply separately from the platform booking fee.";
+  "Activora charges a standard platform fee of 2.5% per transaction. Stripe and GoCardless may charge separate payment processing fees.";
 
 function planToPricing(plan: SubscriptionPlan): PricingPlan {
   const shape = subscriptionPlanToPricingShape(plan);

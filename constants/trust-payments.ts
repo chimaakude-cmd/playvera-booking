@@ -25,7 +25,16 @@ export const GOCARDLESS_FEE_ESTIMATE =
 export const TRUST_FEE_DISCLAIMER =
   "Fee rates are estimates for illustration only. Stripe, GoCardless and Activora may change their fees. Always check your provider dashboard and plan for current pricing.";
 
-export const TRUST_PLATFORM_FEE_NOTE = `Activora platform fees range from 2.5% on Free to 1% on Enterprise. Stripe and GoCardless may charge separate processing fees.`;
+export const DEFAULT_PLATFORM_FEE_PERCENT = FREE_TIER_FEE_PERCENT;
+
+export const TRUST_PLATFORM_FEE_NOTE = `Activora charges a standard platform fee of 2.5% per transaction. Stripe and GoCardless may charge separate payment processing fees.`;
+
+/** User-facing platform fee copy when a resolved percent is available (e.g. from config). */
+export function formatPlatformFeeNote(
+  platformFeePercent: number = DEFAULT_PLATFORM_FEE_PERCENT,
+): string {
+  return `Activora charges a platform fee of ${platformFeePercent}% per transaction. Stripe and GoCardless may charge separate payment processing fees.`;
+}
 
 export const stripeTrustExample = {
   bookingAmount: TRUST_EXAMPLE_BOOKING_AMOUNT,
