@@ -26,6 +26,7 @@ import {
   canHardDeleteSession,
   deleteSessionActivity,
   getActiveBookingCount,
+  publishSessionActivity,
 } from "@/lib/club-activities/session-actions";
 import { fetchClubProfileFromApi } from "@/lib/club-profile/client";
 import { getClubProfile } from "@/lib/club-profile";
@@ -388,8 +389,11 @@ function ActivitiesPageContent({
           : "Confirm";
 
   function handleVisibilityToggle(row: ActivityRow) {
-    setActivityVisibility(row.id, !row.visibility);
-    handleRefresh();
+    void (row.visibility
+      ? archiveSessionActivity(row)
+      : publishSessionActivity(row)).finally(() => {
+      handleRefresh();
+    });
   }
 
   if (loading) {

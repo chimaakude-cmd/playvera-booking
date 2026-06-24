@@ -32,6 +32,7 @@ import {
   calculateGoCardlessPayoutBreakdown,
   createMockGoCardlessPayment,
 } from "@/lib/gocardless";
+import { shouldUseSupabaseSessions } from "@/lib/data/config";
 import {
   ClubSession,
   formatDay,
@@ -108,6 +109,13 @@ export default function BookSessionPageLegacy({
     if (initialSession) {
       return;
     }
+
+    if (shouldUseSupabaseSessions()) {
+      setSession(null);
+      setLoaded(true);
+      return;
+    }
+
     const found = getSessionById(sessionId);
     setSession(found ?? null);
     setLoaded(true);
