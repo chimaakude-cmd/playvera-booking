@@ -13,10 +13,15 @@ export const CLUB_OAUTH_PAYMENT_DEFAULTS = {
 } as const;
 
 export const PROVIDER_PAYMENT_STATUS_SELECT =
-  "payments_enabled, payments_paused, payout_schedule, platform_fee_override_percent, platform_fee_percent, account_status, payment_model, payment_internal_notes, gocardless_status, gocardless_merchant_id, stripe_connect_status, stripe_payouts_enabled, stripe_charges_enabled, preferred_payment_provider";
+  "payments_enabled, payments_paused, payout_schedule, platform_fee_override_percent, platform_fee_percent, account_status, payment_model, payment_internal_notes, gocardless_status, gocardless_merchant_id, stripe_account_id, stripe_connect_status, stripe_payouts_enabled, stripe_charges_enabled, preferred_payment_provider";
 
 export const PROVIDER_PAYMENT_STATUS_FALLBACK_SELECT =
   "platform_fee_percent, account_status";
+
+export const PROVIDER_STRIPE_ACCOUNT_SELECT = "stripe_account_id";
+
+export const PROVIDER_STRIPE_CONNECT_UPDATE_SELECT =
+  "stripe_account_id, stripe_connect_status, stripe_charges_enabled, stripe_payouts_enabled, stripe_details_submitted, stripe_disabled_reason, stripe_requirements_due, stripe_connected_at, stripe_onboarding_complete";
 
 export type ProviderPaymentStatusRow = {
   payments_enabled?: boolean | null;
@@ -29,6 +34,7 @@ export type ProviderPaymentStatusRow = {
   payment_internal_notes?: string | null;
   gocardless_status?: string | null;
   gocardless_merchant_id?: string | null;
+  stripe_account_id?: string | null;
   stripe_connect_status?: string | null;
   stripe_payouts_enabled?: boolean | null;
   stripe_charges_enabled?: boolean | null;
@@ -106,6 +112,69 @@ export async function fetchProviderPaymentStatusRow(
   );
 }
 
+export async function fetchProviderStripeAccountId(
+  supabase: ActivoraSupabaseClient,
+  providerId: string,
+): Promise<string | null> {
+  const full = await supabase
+    .from("providers")
+    .select(PROVIDER_STRIPE_ACCOUNT_SELECT)
+    .eq("id", providerId)
+    .maybeSingle();
+
+  if (!full.error) {
+    return full.data?.stripe_account_id?.trim() || null;
+  }
+
+  if (isMissingColumnError(full.error)) {
+    return null;
+  }
+
+  throw full.error;
+}
+
+export type ProviderStripeConnectUpdate = {
+  stripe_account_id: string;
+  stripe_connect_status: string;
+  stripe_charges_enabled: boolean;
+  stripe_payouts_enabled: boolean;
+  stripe_details_submitted: boolean;
+  stripe_disabled_reason: string | null;
+  stripe_requirements_due: string[];
+  stripe_connected_at?: string;
+  stripe_onboarding_complete?: boolean;
+  updated_at: string;
+};
+
+export async function updateProviderStripeConnectWithFallback(
+  supabase: ActivoraSupabaseClient,
+  providerId: string,
+  update: ProviderStripeConnectUpdate,
+): Promise<{ error: PostgrestError | null }> {
+  const full = await supabase
+    .from("providers")
+    .update(update)
+    .eq("id", providerId);
+
+  if (!full.error) {
+    return { error: null };
+  }
+
+  if (!isMissingColumnError(full.error)) {
+    return { error: full.error };
+  }
+
+  const minimal = await supabase
+    .from("providers")
+    .update({
+      stripe_account_id: update.stripe_account_id,
+      updated_at: update.updated_at,
+    })
+    .eq("id", providerId);
+
+  return { error: minimal.error };
+}
+
 export async function insertProviderRowWithPaymentFallback(
   supabase: ActivoraSupabaseClient,
   payload: Database["public"]["Tables"]["providers"]["Insert"],
@@ -162,6 +231,7 @@ export function normalizePayoutSchedule(
 
 /** Resolve Stripe Connect status when stripe_connect_status may be absent (legacy prod). */
 export function resolveStripeConnectStatus(row: {
+  stripe_account_id?: string | null;
   stripe_connect_status?: string | null;
   stripe_payouts_enabled?: boolean | null;
   stripe_charges_enabled?: boolean | null;
@@ -183,6 +253,10 @@ export function resolveStripeConnectStatus(row: {
     return "connected";
   }
 
+  if (row?.stripe_account_id?.trim()) {
+    return "action_required";
+  }
+
   return "not_connected";
 }
 
@@ -201,7 +275,10 @@ export function isGoCardlessProviderConnected(
 export function isStripeProviderConnectedFromRow(
   row: Pick<
     ProviderPaymentStatusRow,
-    "stripe_connect_status" | "stripe_payouts_enabled" | "stripe_charges_enabled"
+    | "stripe_account_id"
+    | "stripe_connect_status"
+    | "stripe_payouts_enabled"
+    | "stripe_charges_enabled"
   > | null | undefined,
 ): boolean {
   const status = resolveStripeConnectStatus(row);

@@ -73,7 +73,7 @@ export type ClassifiedProviderRecord = LoadedProviderRecord & {
   onboardingComplete: boolean;
 };
 
-const BASE_PROVIDER_SELECT = `
+const CORE_PROVIDER_SELECT = `
   id,
   name,
   slug,
@@ -82,22 +82,32 @@ const BASE_PROVIDER_SELECT = `
   location,
   created_at,
   auth_user_id,
+  organisation_type,
+  parent_provider_id,
+  account_status
+`;
+
+const PAYMENT_PROVIDER_SELECT = `
   stripe_account_id,
   stripe_connect_status,
   gocardless_status,
-  account_status,
   payment_method_stripe_card,
   payment_method_gocardless_dd,
-  payment_method_manual_invoice,
-  organisation_type,
-  parent_provider_id
+  payment_method_manual_invoice
 `;
 
-const EXTENDED_PROVIDER_SELECT = `${BASE_PROVIDER_SELECT},
+const EXTENDED_LIFECYCLE_SELECT = `
   vat_registration_number,
   lifecycle_status,
   onboarding_completed,
-  deleted_at`;
+  deleted_at
+`;
+
+const BASE_PROVIDER_SELECT = `${CORE_PROVIDER_SELECT},
+  ${PAYMENT_PROVIDER_SELECT}`;
+
+const EXTENDED_PROVIDER_SELECT = `${BASE_PROVIDER_SELECT},
+  ${EXTENDED_LIFECYCLE_SELECT}`;
 
 const EXTENDED_CLUB_PROFILE_SELECT =
   "id, provider_id, verified, club_name, public_slug, short_description, website, visibility, published";
@@ -119,7 +129,7 @@ export type LoadAllProviderRecordsResult = {
   loadDiagnostics: ProviderRecordsLoadDiagnostics;
 };
 
-function shouldFallbackToBaseProviderSelect(errorMessage: string): boolean {
+function shouldFallbackProviderSelect(errorMessage: string): boolean {
   const lower = errorMessage.toLowerCase();
 
   if (lower.includes("does not exist") || lower.includes("schema cache")) {
@@ -131,6 +141,15 @@ function shouldFallbackToBaseProviderSelect(errorMessage: string): boolean {
   }
 
   return [
+    "stripe_account_id",
+    "stripe_connect_status",
+    "stripe_charges_enabled",
+    "stripe_payouts_enabled",
+    "stripe_onboarding_complete",
+    "gocardless_status",
+    "payment_method_stripe_card",
+    "payment_method_gocardless_dd",
+    "payment_method_manual_invoice",
     "vat_registration_number",
     "lifecycle_status",
     "onboarding_completed",
@@ -202,7 +221,7 @@ async function loadProviderBaseRows(
     extended.error.message,
   );
 
-  if (!shouldFallbackToBaseProviderSelect(extended.error.message)) {
+  if (!shouldFallbackProviderSelect(extended.error.message)) {
     console.warn(
       "[Admin providers] Retrying provider list with base select after unexpected error.",
     );
@@ -210,10 +229,40 @@ async function loadProviderBaseRows(
 
   const base = await queryProviderRows(supabase, BASE_PROVIDER_SELECT, options);
 
-  if (base.error) {
+  if (!base.error) {
+    return {
+      rows: base.data ?? [],
+      loadDiagnostics: {
+        ...EMPTY_LOAD_DIAGNOSTICS,
+        extendedSelectError: extended.error.message,
+        usedBaseFallback: true,
+      },
+    };
+  }
+
+  console.error(
+    "[Admin providers] Base provider select failed:",
+    base.error.message,
+  );
+
+  if (!shouldFallbackProviderSelect(base.error.message)) {
+    return {
+      rows: [],
+      loadDiagnostics: {
+        ...EMPTY_LOAD_DIAGNOSTICS,
+        extendedSelectError: extended.error.message,
+        baseSelectError: base.error.message,
+        usedBaseFallback: true,
+      },
+    };
+  }
+
+  const core = await queryProviderRows(supabase, CORE_PROVIDER_SELECT, options);
+
+  if (core.error) {
     console.error(
-      "[Admin providers] Base provider select failed:",
-      base.error.message,
+      "[Admin providers] Core provider select failed:",
+      core.error.message,
     );
 
     return {
@@ -227,11 +276,16 @@ async function loadProviderBaseRows(
     };
   }
 
+  console.warn(
+    "[Admin providers] Loaded provider rows with core select fallback (Stripe/payment columns omitted).",
+  );
+
   return {
-    rows: base.data ?? [],
+    rows: core.data ?? [],
     loadDiagnostics: {
       ...EMPTY_LOAD_DIAGNOSTICS,
       extendedSelectError: extended.error.message,
+      baseSelectError: base.error.message,
       usedBaseFallback: true,
     },
   };
@@ -262,24 +316,24 @@ async function loadProvidersAuditMismatchFallback(
     return { rows: [], auditProviderCount: 0 };
   }
 
-  const base = await queryProviderRows(supabase, BASE_PROVIDER_SELECT);
+  const recovered = await loadProviderBaseRows(supabase);
 
-  if (base.error) {
+  if (recovered.rows.length === 0 && recovered.loadDiagnostics.baseSelectError) {
     console.error(
       "[Admin providers] Audit mismatch fallback failed:",
-      base.error.message,
+      recovered.loadDiagnostics.baseSelectError,
     );
     return { rows: [], auditProviderCount };
   }
 
-  if ((base.data ?? []).length > 0) {
+  if (recovered.rows.length > 0) {
     console.warn(
-      `[Admin providers] Audit mismatch fallback recovered ${base.data?.length ?? 0} of ${auditProviderCount} provider row(s).`,
+      `[Admin providers] Audit mismatch fallback recovered ${recovered.rows.length} of ${auditProviderCount} provider row(s).`,
     );
   }
 
   return {
-    rows: base.data ?? [],
+    rows: recovered.rows,
     auditProviderCount,
   };
 }

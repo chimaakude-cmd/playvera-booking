@@ -7,6 +7,7 @@ import {
 } from "@/lib/stripe-connect/types";
 import { adminListDataSource } from "@/lib/admin/data-source";
 import { getAdminSupabaseClient } from "@/lib/admin/supabase-client";
+import { isMissingColumnError } from "@/lib/providers/payment-schema";
 import {
   isSupabaseConfigured,
 } from "@/lib/supabase";
@@ -110,10 +111,7 @@ function resolveNeedsSetup(
 async function fetchProviderRows(): Promise<ProviderRow[] | null> {
   const supabase = getAdminSupabaseClient();
 
-  const { data, error } = await supabase
-    .from("providers")
-    .select(
-      `
+  const fullSelect = `
         id,
         name,
         stripe_account_id,
@@ -122,11 +120,18 @@ async function fetchProviderRows(): Promise<ProviderRow[] | null> {
         club_profiles (
           club_name
         )
-      `,
-    )
+      `;
+
+  const { data, error } = await supabase
+    .from("providers")
+    .select(fullSelect)
     .order("created_at", { ascending: false });
 
-  if (error) {
+  if (!error) {
+    return (data ?? []) as unknown as ProviderRow[];
+  }
+
+  if (!isMissingColumnError(error)) {
     console.error(
       "[Admin payment providers] Failed to load providers:",
       error.message,
@@ -134,7 +139,39 @@ async function fetchProviderRows(): Promise<ProviderRow[] | null> {
     return null;
   }
 
-  return (data ?? []) as unknown as ProviderRow[];
+  console.warn(
+    "[Admin payment providers] Retrying without Stripe columns:",
+    error.message,
+  );
+
+  const fallback = await supabase
+    .from("providers")
+    .select(
+      `
+        id,
+        name,
+        gocardless_status,
+        club_profiles (
+          club_name
+        )
+      `,
+    )
+    .order("created_at", { ascending: false });
+
+  if (fallback.error) {
+    console.error(
+      "[Admin payment providers] Fallback provider load failed:",
+      fallback.error.message,
+    );
+    return null;
+  }
+
+  return ((fallback.data ?? []) as unknown as ProviderRow[]).map((row) => ({
+    ...row,
+    stripe_account_id: null,
+    stripe_connect_status: "not_connected",
+    gocardless_status: row.gocardless_status ?? "not_connected",
+  }));
 }
 
 async function fetchFailedPaymentProviderIds(): Promise<Set<string>> {

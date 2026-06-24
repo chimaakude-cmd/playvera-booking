@@ -1,6 +1,10 @@
 import type Stripe from "stripe";
 import { mapStripeAccountToState } from "@/lib/stripe/connect";
 import {
+  fetchProviderStripeAccountId,
+  updateProviderStripeConnectWithFallback,
+} from "@/lib/providers/payment-schema";
+import {
   createSupabaseServerClient,
   createSupabaseServiceRoleClient,
   isSupabaseConfigured,
@@ -47,22 +51,18 @@ export async function getProviderStripeAccountId(
     return null;
   }
 
-  const supabase = getSupabaseForProviderWrites();
-  const { data, error } = await supabase
-    .from("providers")
-    .select("stripe_account_id")
-    .eq("id", providerId)
-    .maybeSingle();
-
-  if (error) {
+  try {
+    return await fetchProviderStripeAccountId(
+      getSupabaseForProviderWrites(),
+      providerId,
+    );
+  } catch (error) {
     console.error("[stripe-connect] Provider stripe_account_id lookup failed", {
       providerId,
-      message: error.message,
+      message: error instanceof Error ? error.message : String(error),
     });
     return null;
   }
-
-  return data?.stripe_account_id?.trim() || null;
 }
 
 export async function persistProviderStripeConnect(
@@ -75,18 +75,9 @@ export async function persistProviderStripeConnect(
 
   const state = mapStripeAccountToState(account, providerId);
   const supabase = getSupabaseForProviderWrites();
+  const updatedAt = new Date().toISOString();
 
-  const update: {
-    stripe_account_id: string;
-    stripe_connect_status: string;
-    stripe_charges_enabled: boolean;
-    stripe_payouts_enabled: boolean;
-    stripe_details_submitted: boolean;
-    stripe_disabled_reason: string | null;
-    stripe_requirements_due: string[];
-    stripe_connected_at?: string;
-    updated_at: string;
-  } = {
+  const update = {
     stripe_account_id: account.id,
     stripe_connect_status: state.status,
     stripe_charges_enabled: state.chargesEnabled,
@@ -94,17 +85,18 @@ export async function persistProviderStripeConnect(
     stripe_details_submitted: state.detailsSubmitted,
     stripe_disabled_reason: state.disabledReason,
     stripe_requirements_due: state.requirementsDue,
-    updated_at: new Date().toISOString(),
+    stripe_onboarding_complete: state.detailsSubmitted,
+    updated_at: updatedAt,
+    ...(state.chargesEnabled && state.payoutsEnabled && state.detailsSubmitted
+      ? { stripe_connected_at: updatedAt }
+      : {}),
   };
 
-  if (state.chargesEnabled && state.payoutsEnabled && state.detailsSubmitted) {
-    update.stripe_connected_at = new Date().toISOString();
-  }
-
-  const { error } = await supabase
-    .from("providers")
-    .update(update)
-    .eq("id", providerId);
+  const { error } = await updateProviderStripeConnectWithFallback(
+    supabase,
+    providerId,
+    update,
+  );
 
   if (error) {
     console.error("[stripe-connect] Failed to persist provider Stripe state", {
@@ -112,5 +104,6 @@ export async function persistProviderStripeConnect(
       accountId: account.id,
       message: error.message,
     });
+    throw new Error(error.message);
   }
 }

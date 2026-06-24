@@ -33,6 +33,7 @@ export type Database = {
           stripe_disabled_reason: string | null;
           stripe_requirements_due: Json;
           stripe_connected_at: string | null;
+          stripe_onboarding_complete: boolean;
           gocardless_status: string;
           gocardless_organisation_id: string | null;
           gocardless_merchant_id: string | null;
@@ -76,6 +77,7 @@ export type Database = {
           stripe_disabled_reason?: string | null;
           stripe_requirements_due?: Json;
           stripe_connected_at?: string | null;
+          stripe_onboarding_complete?: boolean;
           gocardless_status?: string;
           gocardless_organisation_id?: string | null;
           gocardless_merchant_id?: string | null;
@@ -119,6 +121,7 @@ export type Database = {
           stripe_disabled_reason?: string | null;
           stripe_requirements_due?: Json;
           stripe_connected_at?: string | null;
+          stripe_onboarding_complete?: boolean;
           gocardless_status?: string;
           gocardless_organisation_id?: string | null;
           gocardless_merchant_id?: string | null;
