@@ -5,8 +5,10 @@ import { getDataProviderName, shouldUseSupabaseSessions } from "@/lib/data/confi
 import { localStorageDataLayer } from "@/lib/data/providers/local-storage";
 import { supabaseDataLayer } from "@/lib/data/providers/supabase";
 import {
+  loadSessionWithMeta,
   loadSessionsWithMeta,
   saveSessionWithMeta,
+  updateSessionWithMeta,
 } from "@/lib/data/providers/resilient-sessions";
 import type { ActivoraDataLayer } from "@/lib/data/types";
 import { isSupabaseConfigured } from "@/lib/supabase";
@@ -37,8 +39,10 @@ export {
 } from "@/lib/data/local-session-import";
 
 export {
+  loadSessionWithMeta,
   loadSessionsWithMeta,
   saveSessionWithMeta,
+  updateSessionWithMeta,
 } from "@/lib/data/providers/resilient-sessions";
 
 export {

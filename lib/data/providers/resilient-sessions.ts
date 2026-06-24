@@ -9,7 +9,7 @@ import type {
   SessionsRepository,
   SessionsResult,
 } from "@/lib/data/types";
-import type { ClubSession } from "@/lib/sessions";
+import type { ClubSession, SessionInput } from "@/lib/sessions";
 
 function filterPublished(
   sessions: ClubSession[],
@@ -118,4 +118,69 @@ export async function saveSessionWithMeta(
     data: saved,
     source: "supabase",
   };
+}
+
+export async function loadSessionWithMeta(
+  id: string,
+): Promise<SessionsResult<ClubSession | undefined>> {
+  if (!shouldUseSupabaseSessions()) {
+    const data = await localStorageDataLayer.sessions.getById(id);
+    return { data, source: "localStorage" };
+  }
+
+  if (!isSupabaseConfigured()) {
+    return {
+      data: undefined,
+      source: "supabase",
+      error: getSupabaseSessionsSetupMessage(),
+    };
+  }
+
+  try {
+    const repository = createResilientSessionsRepository();
+    const data = await repository.getById(id);
+    return { data, source: "supabase" };
+  } catch (error) {
+    return {
+      data: undefined,
+      source: "supabase",
+      error:
+        error instanceof Error
+          ? error.message
+          : "Could not load session from Supabase.",
+    };
+  }
+}
+
+export async function updateSessionWithMeta(
+  id: string,
+  updates: SessionInput,
+): Promise<SessionsResult<ClubSession | null>> {
+  if (!shouldUseSupabaseSessions()) {
+    const data = await localStorageDataLayer.sessions.update(id, updates);
+    return { data, source: "localStorage" };
+  }
+
+  if (!isSupabaseConfigured()) {
+    return {
+      data: null,
+      source: "supabase",
+      error: getSupabaseSessionsSetupMessage(),
+    };
+  }
+
+  try {
+    const repository = createResilientSessionsRepository();
+    const data = await repository.update(id, updates);
+    return { data, source: "supabase" };
+  } catch (error) {
+    return {
+      data: null,
+      source: "supabase",
+      error:
+        error instanceof Error
+          ? error.message
+          : "Could not update session in Supabase.",
+    };
+  }
 }
