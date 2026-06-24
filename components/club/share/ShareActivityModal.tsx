@@ -9,7 +9,6 @@ import {
   downloadDataUrl,
   downloadSvg,
   getActivityPublicUrl,
-  getClubPublicUrl,
   getMoreSocialShareActions,
   getPrimarySocialShareActions,
   getQrDataUrl,
@@ -75,8 +74,8 @@ export function ShareActivityModal({
     [activityId],
   );
   const qrUrl = useMemo(
-    () => getClubPublicUrl(slug, { forQr: true }),
-    [slug],
+    () => getActivityPublicUrl(activityId, { forQr: true }),
+    [activityId],
   );
   const shareContent = useMemo(
     () =>
@@ -163,13 +162,13 @@ export function ShareActivityModal({
     if (!qrDataUrl) {
       return;
     }
-    openPrintView(qrDataUrl, clubName, getClubPublicUrl(slug));
+    openPrintView(qrDataUrl, clubName, publicUrl);
   }
 
   async function handleDownloadSvg() {
     try {
       const svg = await getQrSvg(qrUrl);
-      downloadSvg(svg, `${slug}-qr.svg`);
+      downloadSvg(svg, `${activityId}-qr.svg`);
       showToast("SVG downloaded");
     } catch {
       showToast("Could not generate SVG");
@@ -279,7 +278,7 @@ export function ShareActivityModal({
                   )}
                 </div>
                 <p className="mt-3 break-all text-xs text-zinc-500">
-                  {getShortDisplayUrl(getClubPublicUrl(slug))}
+                  {getShortDisplayUrl(publicUrl)}
                 </p>
                 <div className="mt-3 flex flex-wrap justify-center gap-2">
                   <ActionButton onClick={handleDownloadQr} disabled={!qrDataUrl}>
@@ -360,7 +359,7 @@ export function ShareActivityModal({
                   <ShareInstagramImage
                     clubName={clubName}
                     link={publicUrl}
-                    qrTargetUrl={getClubPublicUrl(slug, { forQr: true })}
+                    qrTargetUrl={getActivityPublicUrl(activityId, { forQr: true })}
                     logoUrl={logoUrl}
                     primaryColor={primaryColor}
                     secondaryColor={secondaryColor}

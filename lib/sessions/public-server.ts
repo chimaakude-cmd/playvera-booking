@@ -33,36 +33,20 @@ function isRemovedSessionRow(row: PublicSessionRow): boolean {
   return row.moderation_status === "removed";
 }
 
-export async function getBookableActivitiesForClub(
-  providerId: string,
-): Promise<ClubSession[]> {
-  if (!providerId.trim() || !isSupabaseConfigured()) {
-    return [];
-  }
-
-  const supabase = isSupabaseServiceRoleConfigured()
+function getPublicSupabaseClient() {
+  return isSupabaseServiceRoleConfigured()
     ? createSupabaseServiceRoleClient()
     : createSupabaseServerClient();
+}
 
-  const { data: sessionRows, error } = await supabase
-    .from("sessions")
-    .select("*")
-    .eq("provider_id", providerId)
-    .eq("published", true)
-    .order("created_at", { ascending: false });
-
-  if (error || !sessionRows?.length) {
-    return [];
-  }
-
-  const rows = (sessionRows as PublicSessionRow[]).filter(
-    (row) => !isRemovedSessionRow(row),
-  );
-
+async function loadSessionsWithRelatedData(
+  rows: PublicSessionRow[],
+): Promise<ClubSession[]> {
   if (rows.length === 0) {
     return [];
   }
 
+  const supabase = getPublicSupabaseClient();
   const sessionIds = rows.map((row) => row.id);
 
   const [{ data: dateRows }, { data: ticketRows }] = await Promise.all([
@@ -85,13 +69,76 @@ export async function getBookableActivitiesForClub(
     (ticketRows ?? []) as TicketRow[],
   );
 
-  const sessions = rows.map((row) =>
+  return rows.map((row) =>
     mapSessionRowsToClubSession(
       row,
       datesBySessionId.get(row.id) ?? [],
       ticketsBySessionId.get(row.id) ?? [],
     ),
   );
+}
+
+/** Published session for public booking links (/book/{id}), including sold-out. */
+export async function getPublicSessionById(
+  sessionId: string,
+): Promise<ClubSession | null> {
+  const trimmedId = sessionId.trim();
+
+  if (!trimmedId || !isSupabaseConfigured()) {
+    return null;
+  }
+
+  const supabase = getPublicSupabaseClient();
+  const { data: sessionRow, error } = await supabase
+    .from("sessions")
+    .select("*")
+    .eq("id", trimmedId)
+    .eq("published", true)
+    .maybeSingle();
+
+  if (error || !sessionRow) {
+    return null;
+  }
+
+  const row = sessionRow as PublicSessionRow;
+
+  if (isRemovedSessionRow(row)) {
+    return null;
+  }
+
+  const [session] = await loadSessionsWithRelatedData([row]);
+  return session ?? null;
+}
+
+export async function getBookableActivitiesForClub(
+  providerId: string,
+): Promise<ClubSession[]> {
+  if (!providerId.trim() || !isSupabaseConfigured()) {
+    return [];
+  }
+
+  const supabase = getPublicSupabaseClient();
+
+  const { data: sessionRows, error } = await supabase
+    .from("sessions")
+    .select("*")
+    .eq("provider_id", providerId)
+    .eq("published", true)
+    .order("created_at", { ascending: false });
+
+  if (error || !sessionRows?.length) {
+    return [];
+  }
+
+  const rows = (sessionRows as PublicSessionRow[]).filter(
+    (row) => !isRemovedSessionRow(row),
+  );
+
+  if (rows.length === 0) {
+    return [];
+  }
+
+  const sessions = await loadSessionsWithRelatedData(rows);
 
   return filterBookableSessions(sessions);
 }

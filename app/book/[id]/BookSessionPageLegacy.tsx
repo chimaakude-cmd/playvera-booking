@@ -65,14 +65,16 @@ const initialFormState: FormState = {
 type BookSessionPageLegacyProps = {
   session: ClubSession | null;
   loaded: boolean;
+  sessionId?: string;
 };
 
 export default function BookSessionPageLegacy({
   session: initialSession,
   loaded: initialLoaded,
+  sessionId: sessionIdProp,
 }: BookSessionPageLegacyProps) {
   const router = useRouter();
-  const sessionId = initialSession?.id ?? "";
+  const sessionId = sessionIdProp ?? initialSession?.id ?? "";
 
   const [session, setSession] = useState<ClubSession | null>(initialSession);
   const [loaded, setLoaded] = useState(initialLoaded);

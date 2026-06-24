@@ -12,6 +12,12 @@ import {
   sessionIsPaid,
 } from "@/lib/payment-providers/availability";
 import { sessionHasSubscriptionBilling } from "@/lib/session-subscriptions/types";
+import { shouldUseSupabaseSessions } from "@/lib/data/config";
+import {
+  buildSessionLoadDiagnostics,
+  logSessionLoadDiagnostics,
+} from "@/lib/sessions/load-diagnostics";
+import { fetchPublicSessionById } from "@/lib/sessions/public-client";
 import { ClubSession, getSessionById } from "@/lib/sessions";
 
 function BookSessionPageContent() {
@@ -24,9 +30,55 @@ function BookSessionPageContent() {
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    const found = getSessionById(sessionId);
-    setSession(found ?? null);
-    setLoaded(true);
+    let cancelled = false;
+
+    async function loadSession() {
+      setLoaded(false);
+
+      if (shouldUseSupabaseSessions()) {
+        const result = await fetchPublicSessionById(sessionId);
+
+        if (cancelled) {
+          return;
+        }
+
+        logSessionLoadDiagnostics(
+          buildSessionLoadDiagnostics({
+            routeId: sessionId,
+            source: "supabase",
+            found: Boolean(result.session),
+            error: result.error,
+          }),
+        );
+
+        setSession(result.session ?? null);
+        setLoaded(true);
+        return;
+      }
+
+      const found = getSessionById(sessionId);
+
+      if (cancelled) {
+        return;
+      }
+
+      logSessionLoadDiagnostics(
+        buildSessionLoadDiagnostics({
+          routeId: sessionId,
+          source: "localStorage",
+          found: Boolean(found),
+        }),
+      );
+
+      setSession(found ?? null);
+      setLoaded(true);
+    }
+
+    void loadSession();
+
+    return () => {
+      cancelled = true;
+    };
   }, [sessionId]);
 
   if (!loaded) {
@@ -34,7 +86,7 @@ function BookSessionPageContent() {
   }
 
   if (!session) {
-    return <BookSessionPageLegacy session={null} loaded />;
+    return <BookSessionPageLegacy session={null} loaded sessionId={sessionId} />;
   }
 
   const showWaitlist = waitlistParam || isSessionSoldOut(session);
@@ -56,7 +108,7 @@ function BookSessionPageContent() {
     );
   }
 
-  return <BookSessionPageLegacy session={session} loaded />;
+  return <BookSessionPageLegacy session={session} loaded sessionId={sessionId} />;
 }
 
 export default function BookSessionPage() {
