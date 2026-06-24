@@ -24,7 +24,10 @@ import {
   type StripeConnectStatus,
 } from "@/lib/stripe-connect";
 import { STRIPE_CONNECT_CLUB_MESSAGES, STRIPE_CONNECT_LOG_PREFIX } from "@/lib/stripe/errors";
-import { invalidateStripeConnectStatusCache } from "@/lib/stripe-connect/use-stripe-connect-status";
+import {
+  invalidateProviderCache,
+  refreshProviderFinanceState,
+} from "@/lib/payment-providers/finance-refresh";
 import { PaymentFeesExplainedLink } from "@/components/trust/PaymentFeesExplainedLink";
 import { FinanceButton } from "./shared";
 
@@ -101,7 +104,11 @@ type ConnectConfig = {
   environment: "test" | "live" | null;
 };
 
-export function StripeConnectCard() {
+export function StripeConnectCard({
+  onFinanceRefresh,
+}: {
+  onFinanceRefresh?: () => void | Promise<void>;
+} = {}) {
   const searchParams = useSearchParams();
   const [state, setState] = useState<StripeConnectState | null>(null);
   const [loading, setLoading] = useState(true);
@@ -154,11 +161,12 @@ export function StripeConnectCard() {
   const refreshStatus = useCallback(async () => {
     setLoading(true);
     setError(null);
-    invalidateStripeConnectStatusCache();
+    invalidateProviderCache();
 
     try {
       const updated = await fetchStripeConnectStatus();
       setState(updated);
+      await onFinanceRefresh?.();
     } catch (refreshError) {
       setState(getStripeConnectState());
       setError(
@@ -169,7 +177,7 @@ export function StripeConnectCard() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [onFinanceRefresh]);
 
   useEffect(() => {
     void refreshStatus();
@@ -197,7 +205,15 @@ export function StripeConnectCard() {
     }
 
     if (connected || refresh) {
-      void refreshStatus();
+      void (async () => {
+        invalidateProviderCache();
+        await refreshStatus();
+        try {
+          await refreshProviderFinanceState();
+        } catch {
+          // Parent section handles its own refresh fallback.
+        }
+      })();
       if (stripeComplete || searchParams.get("connected") === "1" || searchParams.get("stripe_connected") === "true") {
         setMessage("Returned from Stripe. Your connection status has been updated.");
       }

@@ -1,7 +1,7 @@
 import { getVatSettings } from "@/lib/club-finance/vat-settings";
 import { getClubPayoutPreferences } from "@/lib/finance-payouts/storage";
 import { DEMO_FRANCHISEE_PROVIDER_ID } from "@/lib/organisation/defaults";
-import { hasAnyPaymentProviderReady } from "@/lib/payment-providers/availability";
+import { isPaymentSetupComplete } from "@/lib/payment-providers/setup-status";
 import {
   getStripeConnectState,
   isStripePayoutReady,
@@ -9,7 +9,7 @@ import {
 import type { WizardFormData } from "@/lib/session-wizard";
 
 export function canPublishPaidSessions(): boolean {
-  return hasAnyPaymentProviderReady();
+  return isPaymentSetupComplete();
 }
 
 export function canWithdrawPayouts(): boolean {

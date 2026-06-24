@@ -1,13 +1,17 @@
 import { getGoCardlessConnection } from "@/lib/gocardless/storage";
 import { isGoCardlessConnected } from "@/lib/gocardless/types";
 import { getStripeConnectState } from "@/lib/stripe-connect/storage";
-import { isStripeProviderConnected } from "@/lib/payment-providers/config";
 import type { ActivityPaymentProvider } from "./types";
 import {
   getPaymentProviderSettings,
   isGoCardlessCheckoutAvailable,
   isStripeCheckoutAvailable,
 } from "./storage";
+import {
+  isGoCardlessPaymentSetupReady,
+  isPaymentSetupComplete,
+  isStripePaymentSetupReadyFromState,
+} from "./setup-status";
 import type { ClubSession } from "@/lib/sessions";
 
 type PaidActivityInput = {
@@ -22,16 +26,9 @@ export type SessionCheckoutMethods = {
   parentPicksMethod: boolean;
 };
 
-/** True when GoCardless OAuth or Stripe Connect is connected (regardless of enabled methods). */
+/** True when Stripe or GoCardless is fully connected for paid activities. */
 export function hasPaymentProviderConnected(providerId?: string): boolean {
-  const settings = getPaymentProviderSettings(providerId);
-  const gocardless = getGoCardlessConnection(settings.provider_id);
-  const stripe = getStripeConnectState();
-
-  return (
-    isGoCardlessConnected(gocardless.status, gocardless.merchant_id) ||
-    isStripeProviderConnected(stripe.status)
-  );
+  return isPaymentSetupComplete(providerId);
 }
 
 export function isStripePaymentsReady(providerId?: string): boolean {
@@ -57,21 +54,7 @@ export function hasAnyPaymentProviderReady(providerId?: string): boolean {
 }
 
 export function isClubPaymentsConfigured(providerId?: string): boolean {
-  const settings = getPaymentProviderSettings(providerId);
-  const stripeEnabled = Boolean(settings.enabled_methods?.stripe_card);
-  const gocardlessEnabled = Boolean(
-    settings.enabled_methods?.gocardless_direct_debit,
-  );
-
-  if (stripeEnabled && isStripePaymentsReady(providerId)) {
-    return true;
-  }
-
-  if (gocardlessEnabled && isGoCardlessPaymentsReady(providerId)) {
-    return true;
-  }
-
-  return false;
+  return isPaymentSetupComplete(providerId);
 }
 
 export function resolveActivityPaymentProvider(
@@ -187,7 +170,7 @@ export function validateActivityPaymentProvider(
     return [];
   }
 
-  if (!hasPaymentProviderConnected()) {
+  if (!isPaymentSetupComplete()) {
     return [
       "Connect GoCardless or Stripe in Finance before publishing paid activities.",
     ];
@@ -195,7 +178,7 @@ export function validateActivityPaymentProvider(
 
   if (!hasAnyPaymentProviderReady()) {
     return [
-      "Connect a payment provider in Finance before publishing paid activities.",
+      "Enable at least one payment method in Finance before publishing paid activities.",
     ];
   }
 
@@ -210,16 +193,30 @@ export function validateActivityPaymentProvider(
     return [];
   }
 
-  if (resolved === "stripe" && !isStripePaymentsReady()) {
+  if (resolved === "stripe" && !isStripePaymentSetupReadyFromState(getStripeConnectState())) {
     return [
       "Stripe is not connected. Connect Stripe in Finance or choose Direct Debit.",
     ];
   }
 
-  if (resolved === "gocardless" && !isGoCardlessPaymentsReady()) {
+  if (resolved === "stripe" && !isStripePaymentsReady()) {
     return [
-      "GoCardless is not connected. Connect GoCardless in Finance or choose Stripe.",
+      "Enable Stripe card payments in Finance or choose Direct Debit.",
     ];
+  }
+
+  if (resolved === "gocardless") {
+    const gocardless = getGoCardlessConnection(getPaymentProviderSettings().provider_id);
+    if (!isGoCardlessPaymentSetupReady(gocardless.status, gocardless.merchant_id)) {
+      return [
+        "GoCardless is not connected. Connect GoCardless in Finance or choose Stripe.",
+      ];
+    }
+    if (!isGoCardlessPaymentsReady()) {
+      return [
+        "Enable GoCardless Direct Debit in Finance or choose Stripe.",
+      ];
+    }
   }
 
   return [];

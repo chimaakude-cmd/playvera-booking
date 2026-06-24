@@ -1,16 +1,25 @@
 "use client";
 
 import { Suspense, useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { getGoCardlessConnection } from "@/lib/gocardless/storage";
 import { isGoCardlessConnected } from "@/lib/gocardless/types";
 import {
   hasAnyPaymentProviderReady,
-  isClubPaymentsConfigured,
 } from "@/lib/payment-providers/availability";
+import {
+  isStripeOnboardingReturn,
+  refreshProviderFinanceState,
+} from "@/lib/payment-providers/finance-refresh";
 import {
   isStripeProviderConnected,
   PAYMENT_PROVIDER_ORDER,
 } from "@/lib/payment-providers/config";
+import {
+  describeActivePaymentProvider,
+  isPaymentSetupComplete,
+  isStripePaymentSetupReadyFromState,
+} from "@/lib/payment-providers/setup-status";
 import {
   PAYMENT_METHOD_DESCRIPTIONS,
   PAYMENT_METHOD_LABELS,
@@ -22,7 +31,6 @@ import {
   setClubPaymentModel,
   updateEnabledMethod,
 } from "@/lib/payment-providers/storage";
-import type { ClubPaymentStatusApiResponse } from "@/lib/payments/club-payment-status";
 import { getStripeConnectState } from "@/lib/stripe-connect/storage";
 import { ClubPaymentProviderSelector } from "./ClubPaymentProviderSelector";
 import { FinanceSection } from "./shared";
@@ -74,8 +82,9 @@ function safeReadProviderSnapshot(settings: PaymentProviderSettings) {
       gocardless,
       enabledMethods,
       stripeConnected: isStripeProviderConnected(stripe.status),
+      stripeReady: isStripePaymentSetupReadyFromState(stripe),
       anyProviderReady: hasAnyPaymentProviderReady(settings.provider_id),
-      paymentsConfigured: isClubPaymentsConfigured(settings.provider_id),
+      paymentSetupComplete: isPaymentSetupComplete(settings.provider_id),
     };
   } catch {
     return {
@@ -87,19 +96,55 @@ function safeReadProviderSnapshot(settings: PaymentProviderSettings) {
         manual_invoice: false,
       },
       stripeConnected: false,
+      stripeReady: false,
       anyProviderReady: false,
-      paymentsConfigured: false,
+      paymentSetupComplete: false,
     };
   }
 }
 
+function PaymentSetupStatusBanner({
+  paymentSetupComplete,
+}: {
+  paymentSetupComplete: boolean;
+}) {
+  if (paymentSetupComplete) {
+    const activeProvider = describeActivePaymentProvider();
+    const description =
+      activeProvider === "gocardless"
+        ? "GoCardless is connected successfully. Paid activities can now be published."
+        : "Stripe is connected successfully. Paid activities can now be published.";
+
+    return (
+      <div className="rounded-2xl border border-emerald-200/80 bg-emerald-50/70 px-5 py-4 text-sm text-emerald-950">
+        <p className="font-semibold text-emerald-900">Payments active</p>
+        <p className="mt-2 text-emerald-800">{description}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-950">
+      <p className="font-semibold text-[#0F172A]">
+        Payment setup required for paid activities
+      </p>
+      <p className="mt-2 text-amber-900">
+        Connect Stripe and/or GoCardless below before publishing paid
+        activities. Free activities remain available without payment setup.
+      </p>
+    </div>
+  );
+}
+
 export function PaymentProvidersSection() {
+  const searchParams = useSearchParams();
   const [settings, setSettings] = useState<PaymentProviderSettings>(() =>
     createSafeSettings(),
   );
   const [paymentModel, setPaymentModel] = useState<
     "platform_managed" | "club_oauth"
   >("club_oauth");
+  const [refreshing, setRefreshing] = useState(false);
 
   const refresh = useCallback(() => {
     try {
@@ -109,40 +154,44 @@ export function PaymentProvidersSection() {
     }
   }, []);
 
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
+  const refreshFinanceState = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      const result = await refreshProviderFinanceState(settings.provider_id);
+      setSettings(result.settings);
+      const model =
+        result.paymentStatus?.paymentModel === "platform_managed"
+          ? "platform_managed"
+          : "club_oauth";
+      setPaymentModel(model);
+      setClubPaymentModel(model);
+    } catch {
+      refresh();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refresh, settings.provider_id]);
 
   useEffect(() => {
-    async function loadPaymentStatus() {
-      try {
-        const response = await fetch("/api/club/payment-status");
-        if (!response.ok) {
-          return;
-        }
+    void refreshFinanceState();
+  }, [refreshFinanceState]);
 
-        const payload = (await response.json()) as ClubPaymentStatusApiResponse;
-        const model =
-          payload.paymentModel === "platform_managed"
-            ? "platform_managed"
-            : "club_oauth";
-        setPaymentModel(model);
-        setClubPaymentModel(model);
-      } catch {
-        // Keep defaults — page must remain usable without a provider row.
-      }
+  useEffect(() => {
+    if (!isStripeOnboardingReturn(searchParams)) {
+      return;
     }
 
-    void loadPaymentStatus();
-  }, []);
+    void refreshFinanceState();
+  }, [searchParams, refreshFinanceState]);
 
   const {
     stripe,
     gocardless,
     enabledMethods,
     stripeConnected,
+    stripeReady,
     anyProviderReady,
-    paymentsConfigured,
+    paymentSetupComplete,
   } = safeReadProviderSnapshot(settings);
   const gocardlessConnected = isGoCardlessConnected(
     settings.gocardless_status ?? gocardless.status,
@@ -163,21 +212,19 @@ export function PaymentProvidersSection() {
 
   return (
     <div className="space-y-6">
-      {!paymentsConfigured ? (
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-950">
-          <p className="font-semibold text-[#0F172A]">
-            Payment setup required for paid activities
-          </p>
-          <p className="mt-2 text-amber-900">
-            Connect Stripe and/or enable GoCardless below before publishing paid
-            activities. Free activities remain available without payment setup.
-          </p>
-        </div>
+      <PaymentSetupStatusBanner paymentSetupComplete={paymentSetupComplete} />
+
+      {refreshing ? (
+        <p className="text-xs text-zinc-500">Refreshing payment status…</p>
       ) : null}
 
       <FinanceSection
         title="Payment providers"
-        description="Connect Stripe and/or GoCardless to accept payments. Enable at least one provider for paid activities."
+        description={
+          paymentSetupComplete
+            ? "Manage connected payment providers for your club."
+            : "Connect Stripe and/or GoCardless to accept payments. Enable at least one provider for paid activities."
+        }
       >
         <p className="mb-4 rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-600">
           {TRUST_PLATFORM_FEE_NOTE}
@@ -194,7 +241,7 @@ export function PaymentProvidersSection() {
             >
               <Suspense fallback={<ConnectCardFallback />}>
                 {providerId === "stripe" ? (
-                  <StripeConnectCard />
+                  <StripeConnectCard onFinanceRefresh={refreshFinanceState} />
                 ) : (
                   <GoCardlessConnectCard paymentModel={paymentModel} />
                 )}
@@ -208,7 +255,7 @@ export function PaymentProvidersSection() {
         title="Provider settings"
         description="Choose which providers are active and your club default for new activities."
       >
-        {!anyProviderReady ? (
+        {!paymentSetupComplete && !anyProviderReady ? (
           <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
             Enable at least one payment provider below. Paid activity publishing
             stays disabled until a provider is connected and enabled.
@@ -225,7 +272,7 @@ export function PaymentProvidersSection() {
               const canEnable =
                 !isManual &&
                 (isStripeMethod
-                  ? stripeConnected
+                  ? stripeReady || stripeConnected
                   : isGoCardlessMethod
                     ? gocardlessConnected
                     : true);
@@ -247,12 +294,16 @@ export function PaymentProvidersSection() {
                     <p className="mt-0.5 text-xs text-zinc-500">
                       {PAYMENT_METHOD_DESCRIPTIONS[methodId]}
                     </p>
-                    {!isManual && isStripeMethod && !stripeConnected ? (
+                    {!paymentSetupComplete &&
+                    !isManual &&
+                    isStripeMethod &&
+                    !stripeConnected ? (
                       <p className="mt-1 text-xs text-zinc-500">
                         Connect Stripe above to enable card payments.
                       </p>
                     ) : null}
-                    {!isManual &&
+                    {!paymentSetupComplete &&
+                    !isManual &&
                     isGoCardlessMethod &&
                     !gocardlessConnected ? (
                       <p className="mt-1 text-xs text-zinc-500">

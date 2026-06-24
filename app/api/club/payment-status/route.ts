@@ -17,13 +17,13 @@ import {
 import { fetchClubPaymentMetrics } from "@/lib/payments/payment-events-data";
 import {
   fetchProviderPaymentStatusRow,
-  hasAnyPaymentProviderConnected,
   isGoCardlessProviderConnected,
   isStripeProviderConnectedFromRow,
   normalizePayoutSchedule,
   normalizeProviderPaymentStatusRow,
   resolveProviderPaymentModel,
 } from "@/lib/providers/payment-schema";
+import { isPaymentSetupCompleteFromRow } from "@/lib/payment-providers/setup-status";
 import { createSupabaseCookieClient } from "@/lib/supabase-ssr";
 import {
   createSupabaseServiceRoleClient,
@@ -117,7 +117,7 @@ export async function GET() {
       hasConfirmedPayment: metrics.hasConfirmedPayment,
       hasPendingPayout: metrics.hasPendingPayout,
       platformEnabled: platformConfig.platformEnabled,
-      hasPaymentProviderConnected: hasAnyPaymentProviderConnected(providerRow),
+      hasPaymentProviderConnected: isPaymentSetupCompleteFromRow(providerRow),
     });
 
     const platformFeePercent = resolveEffectivePlatformFeePercent(
