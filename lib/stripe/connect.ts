@@ -235,9 +235,9 @@ export async function createExpressConnectAccount(
       country: STRIPE_CONNECT_COUNTRY,
       email,
       controller: {
+        losses: { payments: "application" },
         stripe_dashboard: { type: "express" },
         fees: { payer: "application" },
-        losses: { payments: "stripe" },
       },
       business_profile: {
         name: STRIPE_PLATFORM_NAME,
